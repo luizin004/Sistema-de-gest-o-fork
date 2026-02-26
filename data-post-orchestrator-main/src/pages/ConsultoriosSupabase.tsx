@@ -108,6 +108,11 @@ export default function ConsultoriosSupabase() {
   const [showAlocacoesDialog, setShowAlocacoesDialog] = useState(false);
   const [selectedDentistaForAlocacoes, setSelectedDentistaForAlocacoes] = useState<Dentista | null>(null);
   const [selectedWeekForAlocacoes, setSelectedWeekForAlocacoes] = useState(1);
+  
+  // Diálogos de Consultórios
+  const [showConsultorioDialog, setShowConsultorioDialog] = useState(false);
+  const [editingConsultorio, setEditingConsultorio] = useState<Consultorio | null>(null);
+  const [newConsultorio, setNewConsultorio] = useState({ nome: '', numero: 0 });
 
   // Carregar dados
   useEffect(() => {
@@ -264,6 +269,117 @@ export default function ConsultoriosSupabase() {
         variant: 'destructive',
       });
     }
+  };
+
+  // Funções de gerenciamento de consultórios
+  const salvarConsultorio = async () => {
+    try {
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
+
+      if (editingConsultorio) {
+        const { error } = await supabaseUntyped
+          .from('consultorios')
+          .update(newConsultorio)
+          .eq('id', editingConsultorio.id)
+          .eq('tenant_id', tenantId);
+        
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Consultório atualizado com sucesso' });
+      } else {
+        // Verificar se o número já existe
+        const { data: existingConsultorio } = await supabaseUntyped
+          .from('consultorios')
+          .select('*')
+          .eq('numero', newConsultorio.numero)
+          .eq('tenant_id', tenantId)
+          .single();
+
+        if (existingConsultorio) {
+          toast({
+            title: 'Erro',
+            description: 'Já existe um consultório com este número',
+            variant: 'destructive'
+          });
+          return;
+        }
+
+        const { data, error } = await supabaseUntyped
+          .from('consultorios')
+          .insert([{ ...newConsultorio, ativo: true, tenant_id: tenantId }])
+          .select();
+        
+        if (error) throw error;
+        toast({ title: 'Sucesso', description: 'Consultório criado com sucesso' });
+      }
+      
+      setShowConsultorioDialog(false);
+      setEditingConsultorio(null);
+      setNewConsultorio({ nome: '', numero: 0 });
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao salvar consultório:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar o consultório',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const excluirConsultorio = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este consultório? Todos os horários associados serão perdidos.')) return;
+
+    try {
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
+
+      // Primeiro, excluir todas as escalas associadas a este consultório
+      await supabaseUntyped
+        .from('escala_semanal')
+        .delete()
+        .eq('consultorio_id', id)
+        .eq('tenant_id', tenantId);
+
+      // Depois, excluir o consultório
+      const { error } = await supabaseUntyped
+        .from('consultorios')
+        .update({ ativo: false })
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
+      
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: 'Consultório excluído com sucesso' });
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao excluir consultório:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir o consultório',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openEditConsultorioDialog = (consultorio: Consultorio) => {
+    setEditingConsultorio(consultorio);
+    setNewConsultorio({
+      nome: consultorio.nome,
+      numero: consultorio.numero
+    });
+    setShowConsultorioDialog(true);
   };
 
   // Funções de seleção
@@ -661,6 +777,14 @@ export default function ConsultoriosSupabase() {
             <div className="flex items-center gap-3">
               <Button
                 size="sm"
+                onClick={() => setShowConsultorioDialog(true)}
+                className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
+              >
+                <Building className="h-4 w-4" />
+                <span>Novo consultório</span>
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => setShowDentistaDialog(true)}
                 className="flex items-center space-x-1"
               >
@@ -996,6 +1120,24 @@ export default function ConsultoriosSupabase() {
                               </Badge>
                             )}
                           </CardTitle>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditConsultorioDialog(consultorio)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => excluirConsultorio(consultorio.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                         {/* Porcentagem de uso - Abaixo do nome */}
                         <div className="flex items-center mb-3">
@@ -1046,6 +1188,24 @@ export default function ConsultoriosSupabase() {
                               {estatistica?.porcentagemUso || 0}%
                             </div>
                           </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditConsultorioDialog(consultorio)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => excluirConsultorio(consultorio.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -1343,6 +1503,63 @@ export default function ConsultoriosSupabase() {
             </Button>
             <Button onClick={salvarDentista}>
               {editingDentista ? 'Atualizar' : 'Cadastrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Consultório Dialog */}
+      <Dialog open={showConsultorioDialog} onOpenChange={setShowConsultorioDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingConsultorio ? 'Editar Consultório' : 'Novo Consultório'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingConsultorio 
+                ? 'Edite as informações do consultório.' 
+                : 'Adicione um novo consultório ao sistema.'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nome-consultorio">Nome do Consultório</Label>
+              <Input
+                id="nome-consultorio"
+                value={newConsultorio.nome}
+                onChange={(e) => setNewConsultorio({ ...newConsultorio, nome: e.target.value })}
+                placeholder="Ex: Consultório A"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="numero-consultorio">Número</Label>
+              <Input
+                id="numero-consultorio"
+                type="number"
+                min="1"
+                value={newConsultorio.numero || ''}
+                onChange={(e) => setNewConsultorio({ ...newConsultorio, numero: parseInt(e.target.value) || 0 })}
+                placeholder="Número do consultório"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowConsultorioDialog(false);
+                setEditingConsultorio(null);
+                setNewConsultorio({ nome: '', numero: 0 });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={salvarConsultorio}>
+              {editingConsultorio ? 'Atualizar' : 'Cadastrar'}
             </Button>
           </DialogFooter>
         </DialogContent>
