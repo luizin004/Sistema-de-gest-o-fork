@@ -1,0 +1,60 @@
+                <SelectItem value="all">Todo período</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-8 pb-8">
+          <div className="flex flex-col items-center justify-center space-y-1">
+            {funnelSteps.map((step, index) => {
+              const prevStep = index > 0 ? funnelSteps[index - 1] : null;
+              const retention = prevStep && prevStep.value > 0 
+                ? Math.round((step.value / prevStep.value) * 100) 
+                : 0;
+
+              return (
+                <div key={index} className="flex flex-col items-center w-full">
+                  {/* Connector with percentage */}
+                  {index > 0 && (
+                    <div className="h-6 w-0.5 bg-border relative my-1">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background border px-2 py-0.5 rounded-full text-[10px] font-medium text-muted-foreground shadow-sm whitespace-nowrap z-10">
+                        {retention}% conversão
+                      </div>
+                    </div>
+                  )}
+
+                  <div 
+                    className={`
+                      relative group cursor-pointer
+                      bg-gradient-to-r ${step.gradient}
+                      text-white text-center py-3 px-4
+                      rounded-lg shadow-sm hover:shadow-md
+                      transition-all duration-300 ease-out
+                      flex items-center justify-between
+                      border border-white/10
+                    `}
+                    style={{ 
+                      width: step.width,
+                      minWidth: '280px',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    <span className="font-semibold tracking-wide text-sm drop-shadow-sm text-left">
+                      {step.label}
+                    </span>
+                    
+                    <span className="text-sm font-bold text-white drop-shadow-sm bg-white/20 px-2 py-0.5 rounded text-right">
+                      {step.value.toLocaleString("pt-BR")}
+                    </span>
+                    
+                    {/* Brilho no hover */}
+                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

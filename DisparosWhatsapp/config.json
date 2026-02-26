@@ -1,0 +1,5 @@
+{
+  "message_template": "Olá {nome}, tudo bem em {cidade}?",
+  "delay_seconds": 60,
+  "request_timeout_seconds": 30
+}

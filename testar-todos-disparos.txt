@@ -1,0 +1,48 @@
+COMO TESTAR TODOS OS DISPAROS VIA SUPABASE DASHBOARD:
+
+1. ACESSAR O SUPABASE DASHBOARD:
+   - https://supabase.com/dashboard/project/wtqhpovjntjbjhobqttk
+   - Vá para "Edge Functions"
+
+2. TESTAR CADA TIPO:
+   
+   a) ANIVERSARIO:
+   - Clique em "disparos-scheduler"
+   - Clique em "Invoke"
+   - Body: {"tipo": "aniversario"}
+   - Headers: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0MjQ4MDAsImV4cCI6MjA1MTAwMDQwMH0.W2h_4d7x3MzBPXPnBhJZ3KQYzXJhX8ZqF1wY8ZqF1wY
+   - Clique em "Invoke"
+
+   b) LIMPEZA:
+   - Mesma função "disparos-scheduler"
+   - Body: {"tipo": "limpeza"}
+   - Mesmos headers
+   - Clique em "Invoke"
+
+   c) CLAREAMENTO:
+   - Mesma função "disparos-scheduler"
+   - Body: {"tipo": "clareamento"}
+   - Mesmos headers
+   - Clique em "Invoke"
+
+3. VERIFICAR RESULTADOS:
+   - Execute este SQL no SQL Editor:
+   
+   SELECT tipo, telefone, status, LEFT(mensagem, 60) as mensagem_preview, 
+          data_disparo, resposta_zapi
+   FROM disparos_automaticos_log 
+   WHERE tipo IN ('aniversario', 'limpeza', 'clareamento')
+   ORDER BY data_disparo DESC 
+   LIMIT 10;
+
+4. LIMPAR APÓS TESTES:
+   DELETE FROM disparos WHERE nome LIKE 'TESTE_%';
+   DELETE FROM disparos_automaticos_log WHERE telefone = '5531993065999' AND data_disparo >= CURRENT_DATE;
+
+RESULTADOS ESPERADOS:
+- ✅ aniversario → provider: uazapi
+- ✅ limpeza → provider: uazapi  
+- ✅ clareamento → provider: uazapi
+- ❌ consulta → provider: zapi (se testar)
+
+Você deve receber 3 mensagens no WhatsApp para o número 5531993065999.

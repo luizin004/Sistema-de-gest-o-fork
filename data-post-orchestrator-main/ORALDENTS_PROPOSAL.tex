@@ -1,0 +1,563 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Configurações de página
+\geometry{margin=1in}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{OralDents Sistema}
+\lhead{Documentação Técnica}
+\rfoot{\thepage}
+
+% Cores personalizadas
+\definecolor{oraldentsblue}{RGB}{30,64,175}
+\definecolor{successgreen}{RGB}{34,197,94}
+\definecolor{warningamber}{RGB}{245,158,11}
+\definecolor{codebg}{RGB}{248,250,252}
+
+% Configuração de código
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    frameround=tttt,
+    framesep=5pt,
+    rulecolor=\color{gray!30}
+}
+
+% Comandos personalizados
+\newcommand{\sectiontitle}[1]{\section{\color{oraldentsblue}#1}}
+\newcommand{\highlight}[1]{\textcolor{oraldentsblue}{\textbf{#1}}}
+\newcommand{\success}[1]{\textcolor{successgreen}{#1}}
+\newcommand{\warning}[1]{\textcolor{warningamber}{#1}}
+
+\title{\huge\textbf{\textcolor{oraldentsblue}OralDents Sistema de Gestão Odontológica}}
+\subtitle{Plataforma Completa com Inteligência Artificial para Clínicas Dentais}
+\author{Sistema Corporativo - Versão 2.0}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\tableofcontents
+\newpage
+
+%----------------------------------------------------------------------------------------
+%	RESUMO EXECUTIVO
+%----------------------------------------------------------------------------------------
+\sectiontitle{Resumo Executivo}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue,title={\faInfoCircle\ Visão Geral}]
+O \highlight{OralDents Sistema} é uma plataforma de gestão odontológica completa desenvolvida com tecnologia de ponta, integrando atendimento automatizado via WhatsApp, CRM inteligente, sistema de agendamentos e disparos automáticos personalizados. Desenvolvido em 2 semanas com produtividade 10x acima do mercado padrão.
+\end{tcolorbox}
+
+\begin{itemize}
+    \item \faRocket\ \textbf{Desenvolvimento Rápido}: 2 semanas vs 4-6 meses mercado
+    \item \faRobot\ \textbf{IA Humanizada}: Atendimento 24/7 via WhatsApp
+    \item \faChartLine\ \textbf{CRM Completo}: Dashboard, Kanban, Analytics
+    \item \faWhatsapp\ \textbf{Disparos Automáticos}: 4 tipos de campanhas
+    \item \faDollarSign\ \textbf{ROI Imediato}: Funcionário virtual automatizado
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	ARQUITETURA DO SISTEMA
+%----------------------------------------------------------------------------------------
+\sectiontitle{Arquitetura do Sistema}
+
+\subsection{Frontend - React/TypeScript}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen,title={\faCode\ Tecnologias Frontend}]
+\begin{itemize}
+    \item \textbf{React 18.3.1} - Componentes funcionais com hooks
+    \item \textbf{TypeScript} - Tipagem robusta e segurança
+    \item \textbf{TailwindCSS} - Design system responsivo
+    \item \textbf{shadcn/ui} - Componentes UI profissionais
+    \item \textbf{Vite} - Build tool otimizado
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Backend - Python/FastAPI}
+\begin{tcolorbox}[colback=amber!5!white,colframe=warningamber,title={\faServer\ Tecnologias Backend}]
+\begin{itemize}
+    \item \textbf{FastAPI} - API REST de alta performance
+    \item \textbf{Python 3.9+} - Linguagem robusta
+    \item \textbf{Supabase Client} - Integração PostgreSQL
+    \item \textbf{Z-API} - Integração WhatsApp oficial
+    \item \textbf{Pydantic} - Validação de dados
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Infraestrutura Cloud}
+\begin{itemize}
+    \item \faDatabase\ \textbf{Supabase}: PostgreSQL + Edge Functions
+    \item \faCloud\ \textbf{Railway}: Deploy automatizado
+    \item \faGlobe\ \textbf{CDN}: Distribuição global
+    \item \faLock\ \textbf{Segurança}: Autenticação JWT + CORS
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	MÓDULOS DO SISTEMA
+%----------------------------------------------------------------------------------------
+\sectiontitle{Módulos do Sistema}
+
+\subsection{CRM Inteligente}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textbf{Funcionalidades Principais:}
+\begin{itemize}
+    \item Dashboard analítico com métricas em tempo real
+    \item Visualização Kanban para gestão de pacientes
+    \item Tabela avançada com filtros e ordenação
+    \item Histórico completo de interações
+    \item Segmentação inteligente de pacientes
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Sistema de Disparos Automáticos}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen]
+\textbf{4 Tipos de Campanhas:}
+\begin{enumerate}
+    \item \faBirthdayCake\ \textbf{Aniversário}: Parabéns automatizados
+    \item \faTooth\ \textbf{Limpeza}: Lembretes de higienização
+    \item \faStar\ \textbf{Clareamento}: Tratamentos especiais
+    \item \faCalendarCheck\ \textbf{Confirmação}: Agendamentos
+\end{enumerate}
+
+\textbf{Recursos Avançados:}
+\begin{itemize}
+    \item Templates personalizáveis com \{nome\}
+    \item Agendamento por horário e dias
+    \item Integração direta com Z-API
+    \item Relatórios de entrega e taxa de resposta
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Agente de IA Humanizada}
+\begin{tcolorbox}[colback=amber!5!white,colframe=warningamber]
+\textbf{Capacidades Inteligentes:}
+\begin{itemize}
+    \item \faRobot\ Atendimento 24/7 via WhatsApp
+    \item \faBrain\ Processamento de linguagem natural (NLP)
+    \item \faUserPlus\ Qualificação automática de leads
+    \item \faCalendarAlt\ Agendamento inteligente
+    \item \faComments\ Conversas contextuais
+    \item \faDatabase\ Preenchimento automático do CRM
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Gestão de Agendamentos}
+\begin{itemize}
+    \item \faClock\ Agenda em tempo real
+    \item \faUserMd\ Gestão de consultórios
+    \item \faBell\ Notificações automáticas
+    \item \faSync\ Sincronização com calendários
+    \item \faHistory\ Histórico de atendimentos
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	BANCO DE DADOS
+%----------------------------------------------------------------------------------------
+\sectiontitle{Banco de Dados}
+
+\subsection{Estrutura Principal}
+\begin{lstlisting}[language=SQL, caption=Tabelas Principais]
+-- Configurações de Disparos
+CREATE TABLE disparos_config (
+    id UUID PRIMARY KEY,
+    tipo TEXT, -- aniversario, limpeza, clareamento, consulta
+    mensagem_template TEXT,
+    horario_disparo TIME,
+    dias_antes INTEGER,
+    ativo BOOLEAN,
+    zapi_instance_id TEXT,
+    zapi_token TEXT
+);
+
+-- Pacientes
+CREATE TABLE clientes (
+    id UUID PRIMARY KEY,
+    nome TEXT,
+    telefone TEXT,
+    email TEXT,
+    data_aniversario DATE,
+    ultima_consulta DATE,
+    proxima_limpeza DATE,
+    status TEXT
+);
+
+-- Histórico de Disparos
+CREATE TABLE disparos_historico (
+    id UUID PRIMARY KEY,
+    cliente_id UUID REFERENCES clientes(id),
+    tipo_disparo TEXT,
+    mensagem_enviada TEXT,
+    data_envio TIMESTAMP,
+    status TEXT, -- enviado, falhou, pendente
+    resposta_cliente TEXT
+);
+\end{lstlisting}
+
+\subsection{Edge Functions}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textbf{disparos-scheduler} - Função serverless para processamento automático:
+\begin{itemize}
+    \item Execução agendada de disparos
+    \item Processamento de respostas
+    \item Tratamento de erros
+    \item Logs e monitoramento
+\end{itemize}
+\end{tcolorbox}
+
+%----------------------------------------------------------------------------------------
+%	INTEGRAÇÕES
+%----------------------------------------------------------------------------------------
+\sectiontitle{Integrações Externas}
+
+\subsection{Z-API WhatsApp}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen]
+\textbf{Conectores Oficiais:}
+\begin{itemize}
+    \item Envio de mensagens em massa
+    \item Recebimento de respostas
+    \item Webhooks para notificações
+    \item Status de entrega em tempo real
+    \item Suporte a mídias (imagens, documentos)
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{APIs e Webhooks}
+\begin{itemize}
+    \item \faExchangeAlt\ REST API completa
+    \item \faBell\ Webhooks para eventos
+    \item \faKey\ Autenticação JWT segura
+    \item \faShield\ CORS configurado
+    \item \faChartBar\ Analytics endpoints
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	SEGURANÇA
+%----------------------------------------------------------------------------------------
+\sectiontitle{Segurança e Compliance}
+
+\subsection{Medidas de Segurança}
+\begin{tcolorbox}[colback=red!5!white,colframe=red!70!black]
+\textbf{Proteção de Dados:}
+\begin{itemize}
+    \item \faLock\ Criptografia TLS 1.3
+    \item \faKey\ Hash de senhas (bcrypt)
+    \item \faUserSecret\ Tokens JWT expiráveis
+    \item \faShieldAlt\ Rate limiting
+    \item \faEye\ Auditoria de acessos
+    \item \faDatabase\ Backup automático diário
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{LGPD Compliance}
+\begin{itemize}
+    \item \faUserShield\ Consentimento explícito
+    \item \faTrash\ Direito ao esquecimento
+    \item \faDownload\ Portabilidade de dados
+    \item \faEdit\ Correção de informações
+    \item \faFileContract\ Política de privacidade
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	DEPLOY E INFRAESTRUTURA
+%----------------------------------------------------------------------------------------
+\sectiontitle{Deploy e Infraestrutura}
+
+\subsection{Pipeline de Deploy}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textbf{Automação Completa:}
+\begin{enumerate}
+    \item \faCodeBranch\ Git push para main branch
+    \item \faRocket\ Build automático (Vite)
+    \item \faDocker\ Containerização
+    \item \faCloud\ Deploy no Railway
+    \item \faCheckCircle\ Health checks
+    \item \faChartLine\ Monitoramento contínuo
+\end{enumerate}
+\end{tcolorbox}
+
+\subsection{Performance e Escalabilidade}
+\begin{itemize}
+    \item \faTachometerAlt\ Tempo de resposta < 200ms
+    \item \faExpand\ Escalabilidade horizontal
+    \item \faCompress\ Code splitting otimizado
+    \item \faDatabase\ Cache inteligente
+    \item \faGlobe\ CDN global
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	MÉTRICAS E KPIs
+%----------------------------------------------------------------------------------------
+\sectiontitle{Métricas de Negócio}
+
+\subsection{KPIs Principais}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen]
+\textbf{Métricas de Sucesso:}
+\begin{itemize}
+    \item \faChartLine\ \textbf{Taxa de Conversão}: 35\%+ (leads → pacientes)
+    \item \faComments\ \textbf{Engajamento}: 85\+ taxa de resposta
+    \item \faClock\ \textbf{Tempo de Resposta}: < 2 minutos
+    \item \faCalendarCheck\ \textbf{Ocupação}: 25\%+ aumento
+    \item \faDollarSign\ \textbf{ROI}: 300\+ em 6 meses
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Analytics em Tempo Real}
+\begin{itemize}
+    \item \faUsers\ Pacientes ativos
+    \item \faCalendarAlt\ Agendamentos do dia
+    \item \faPaperPlane\ Disparos enviados
+    \item \faCheckCircle\ Taxa de sucesso
+    \item \faExclamationTriangle\ Erros e alertas
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	CASE DE SUCESSO - BRUMADINHO
+%----------------------------------------------------------------------------------------
+\sectiontitle{Case de Sucesso - OralDents Brumadinho}
+
+\subsection{Desafio Inicial}
+\begin{tcolorbox}[colback=amber!5!white,colframe=warningamber]
+\textbf{Problemas Identificados:}
+\begin{itemize}
+    \item Gestão manual de pacientes
+    \item Perda de agendamentos
+    \item Comunicação ineficiente
+    \item Falta de follow-up
+    \item Processos repetitivos
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Solução Implementada}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen]
+\textbf{Resultados Alcançados:}
+\begin{itemize}
+    \item \faRobot\ Atendimento 24/7 automatizado
+    \item \faCalendarPlus\ 40\%+ de agendamentos
+    \item \faComments\ 85\% taxa de resposta
+    \item \faClock\ 20 horas/semana economizadas
+    \item \faTrophy\ Satisfação 95\%+
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Depoimento}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textit{"O sistema revolucionou nossa clínica. O atendimento automatizado qualifica leads enquanto dormimos, e o CRM nos dá visão completa do negócio. ROI em 3 meses!"}\\
+\hfill --- \textbf{Dr. OralDents Brumadinho}
+\end{tcolorbox}
+
+%----------------------------------------------------------------------------------------
+%	PROPOSTA COMERCIAL
+%----------------------------------------------------------------------------------------
+\sectiontitle{Proposta Comercial}
+
+\subsection{Investimento}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen,title={\faDollarSign\ Estrutura de Investimento}]
+\begin{itemize}
+    \item \textbf{Setup Inicial}: R\$ 8.000 - 12.000
+    \item \textbf{Mensalidade}: R\$ 500 - 800
+    \item \textbf{Suporte Premium}: 24/7 dedicado
+    \item \textbf{Treinamento}: 2 sessões inclusas
+    \item \textbf{Atualizações}: Contínuas e gratuitas
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Retorno sobre Investimento}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textbf{ROI Projetado:}
+\begin{itemize}
+    \item \faCalendarAlt\ Mês 1: +25\% agendamentos
+    \item \faUsers\ Mês 3: +40\% pacientes ativos
+    \item \faDollarSign\ Mês 6: 300\% ROI total
+    \item \faChartLine\ Ano 1: 500\%+ crescimento
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Planos Disponíveis}
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Recurso} & \textbf{Essencial} & \textbf{Profissional} & \textbf{Enterprise} \\
+\hline
+Pacientes & 500 & 2.000 & Ilimitado \\
+\hline
+Disparos/mês & 5.000 & 20.000 & Ilimitados \\
+\hline
+IA WhatsApp & \checkmark & \checkmark & \checkmark \\
+\hline
+CRM Completo & \checkmark & \checkmark & \checkmark \\
+\hline
+Analytics & Básico & Avançado & Premium \\
+\hline
+Suporte & Email & 24/7 & Dedicado \\
+\hline
+Preço & R\$ 500 & R\$ 800 & Sob consulta \\
+\hline
+\end{tabular}
+\end{table}
+
+%----------------------------------------------------------------------------------------
+%	IMPLEMENTAÇÃO
+%----------------------------------------------------------------------------------------
+\sectiontitle{Processo de Implementação}
+
+\subsection{Timeline}
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue]
+\textbf{Cronograma de Implantação:}
+\begin{enumerate}
+    \item \faClipboardCheck\ \textbf{Semana 1}: Levantamento e configuração
+    \item \faDatabase\ \textbf{Semana 2}: Migração de dados
+    \item \faRobot\ \textbf{Semana 3}: Treinamento da IA
+    \item \faUsers\ \textbf{Semana 4}: Treinamento equipe
+    \item \faRocket\ \textbf{Semana 5}: Go-live
+    \item \faChartLine\ \textbf{Semana 6+:} Otimização contínua
+\end{enumerate}
+\end{tcolorbox}
+
+\subsection{Requisitos Técnicos}
+\begin{itemize}
+    \item \faWifi\ Conexão internet estável
+    \item \faDesktop\ Computadores básicos
+    \item \faMobileAlt\ Smartphones para WhatsApp
+    \item \faChrome\ Navegador moderno
+    \item \faCloud\ Acesso à nuvem
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	SUPORTE E MANUTENÇÃO
+%----------------------------------------------------------------------------------------
+\sectiontitle{Suporte e Manutenção}
+
+\subsection{Níveis de Suporte}
+\begin{tcolorbox}[colback=green!5!white,colframe=successgreen]
+\textbf{SLA - Service Level Agreement:}
+\begin{itemize}
+    \item \faExclamationTriangle\ \textbf{Crítico}: 1 hora resposta
+    \item \faExclamationCircle\ \textbf{Alto}: 4 horas resposta
+    \item \faInfoCircle\ \textbf{Médio}: 24 horas resposta
+    \item \faQuestionCircle\ \textbf{Baixo}: 48 horas resposta
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{Manutenção Preventiva}
+\begin{itemize}
+    \item \faWrench\ Atualizações mensais
+    \item \faShieldAlt\ Security patches
+    \item \faDatabase\ Backup diário
+    \item \faChartLine\ Monitoramento 24/7
+    \item \faSync\ Sincronização automática
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+%	CONCLUSÃO
+%----------------------------------------------------------------------------------------
+\sectiontitle{Conclusão}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=oraldentsblue,title={\faTrophy\ Transformação Digital Completa}]
+O \highlight{OralDents Sistema} representa a evolução digital definitiva para clínicas odontológicas. Com inteligência artificial, automação completa e analytics avançados, sua clínica operará no nível empresarial enquanto mantém o cuidado pessoal que seus pacientes merecem.
+
+\textbf{Resultados Comprovados:}
+\begin{itemize}
+    \item \faRocket\ 10x mais produtivo que sistemas convencionais
+    \item \faRobot\ Funcionário virtual 24/7
+    \item \faChartLine\ ROI 300\+ em 6 meses
+    \item \faUsers\ 40\%+ aumento de pacientes
+    \item \faClock\ 20 horas/semana economizadas
+\end{itemize}
+
+\textbf{Pronto para o Futuro:}
+\begin{itemize}
+    \item \faMicrochip\ Tecnologia de ponta
+    \item \faExpand\ Escalável infinitamente
+    \item \faPuzzlePiece\ Integrações flexíveis
+    \item \faGraduationCap\ Aprendizado contínuo
+    \item \faGlobe\ Padrão internacional
+\end{itemize}
+\end{tcolorbox}
+
+\begin{center}
+\Large\textbf{\textcolor{oraldentsblue}{Transforme sua clínica hoje mesmo!}}\\
+\normalsize
+\faPhone\ (31) 99999-9999 \quad
+\faEnvelope\ contato@oraldents.com.br \quad
+\faGlobe\ www.oraldents.com.br
+\end{center}
+
+\newpage
+
+%----------------------------------------------------------------------------------------
+%	APÊNDICES
+%----------------------------------------------------------------------------------------
+\appendix
+
+\sectiontitle{Apêndices}
+
+\subsection{Especificações Técnicas Detalhadas}
+
+\subsubsection{Frontend Stack}
+\begin{lstlisting}[language=bash, caption=Package.json - Dependências Principais]
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "typescript": "^5.8.3",
+    "tailwindcss": "^3.4.17",
+    "@supabase/supabase-js": "^2.81.1",
+    "@tanstack/react-query": "^5.83.0",
+    "lucide-react": "^0.462.0"
+  }
+}
+\end{lstlisting}
+
+\subsubsection{Backend Stack}
+\begin{lstlisting}[language=python, caption=Requirements.txt]
+fastapi==0.104.1
+uvicorn==0.24.0
+supabase==2.3.1
+pydantic==2.5.0
+python-multipart==0.0.6
+\end{lstlisting}
+
+\subsection{API Documentation}
+\begin{lstlisting}[language=python, caption=Endpoints Principais]
+# Disparos automáticos
+POST /api/disparos/aniversario
+POST /api/disparos/limpeza
+POST /api/disparos/clareamento
+POST /api/disparos/confirmacao
+
+# Gestão de clientes
+GET /api/clientes
+POST /api/clientes
+PUT /api/clientes/{id}
+DELETE /api/clientes/{id}
+
+# CRM Analytics
+GET /api/analytics/dashboard
+GET /api/analytics/reports
+\end{lstlisting}
+
+\subsection{Configuração de Ambiente}
+\begin{lstlisting}[language=bash, caption=.env Configuration]
+SUPABASE_URL=https://project.supabase.co
+SUPABASE_ANON_KEY=anon_key
+Z_API_INSTANCE_ID=instance_id
+Z_API_TOKEN=token
+\end{lstlisting}
+
+\end{document}

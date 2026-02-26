@@ -1,0 +1,11 @@
+pandas==2.2.3
+requests==2.32.3
+python-dotenv==1.0.1
+fastapi==0.115.5
+uvicorn==0.32.0
+python-multipart==0.0.17
+tzdata==2025.2
+openpyxl==3.1.2
+xlrd==2.0.1
+supabase==2.3.0
+gunicorn==21.2.0

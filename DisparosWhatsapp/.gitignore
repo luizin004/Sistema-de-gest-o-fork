@@ -1,0 +1,27 @@
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+.venv/
+venv/
+ENV/
+
+# logs/resultados gerados
+execucao.log
+*.log
+
+# arquivos gerados pelo app
+/data/uploads/
+/data/results/
+relatorio_final.csv
+
+# editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

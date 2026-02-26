@@ -1,0 +1,52 @@
+# ========================================
+# NOVAS CREDENCIAIS Z-API
+# ========================================
+# 
+# Copie este conteúdo para o arquivo .env
+# Localização: DisparosWhatsapp/.env
+#
+# ========================================
+
+# Z-API - Nova Instância
+ZAPI_BASE_URL=https://api.z-api.io
+ZAPI_INSTANCE_ID=3EA393219EB5B1BE0FAE5ACC6E4ED72E
+ZAPI_TOKEN=DAA40A3A8BFE6084CF78071B
+
+# Supabase (para storage de arquivos em produção)
+SUPABASE_URL=https://wtqhpovjntjbjhobqttk.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts
+
+# (Opcional) Modo web
+# Se definido, a API exige o header: x-api-key: <API_KEY>
+API_KEY=
+
+# (Opcional) CORS para frontend externo
+CORS_ORIGINS=*
+
+# Ambiente (development ou production)
+ENVIRONMENT=development
+
+# ========================================
+# INSTRUÇÕES:
+# ========================================
+# 
+# 1. Abra o arquivo: DisparosWhatsapp/.env
+# 2. Copie TODO o conteúdo acima (a partir de "# Z-API")
+# 3. Cole no arquivo .env substituindo o conteúdo antigo
+# 4. Salve o arquivo
+# 
+# ========================================
+# RAILWAY (Variáveis de Ambiente):
+# ========================================
+# 
+# No Railway Dashboard, adicione estas variáveis:
+# 
+# ZAPI_BASE_URL=https://api.z-api.io
+# ZAPI_INSTANCE_ID=3EA393219EB5B1BE0FAE5ACC6E4ED72E
+# ZAPI_TOKEN=DAA40A3A8BFE6084CF78071B
+# SUPABASE_URL=https://wtqhpovjntjbjhobqttk.supabase.co
+# SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts
+# ENVIRONMENT=production
+# CORS_ORIGINS=*
+# 
+# ========================================

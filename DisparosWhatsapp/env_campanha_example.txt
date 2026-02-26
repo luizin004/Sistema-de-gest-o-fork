@@ -1,0 +1,16 @@
+# Configurações para o Processador de Campanhas
+# Copie este arquivo para .env e preencha com seus valores
+
+# Configurações Supabase
+SUPABASE_URL=https://wtqhpovjntjbjhobqttk.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=seu_service_role_key_aqui
+
+# Configurações UAZAPI
+UAZAPI_BASE_URL=https://oralaligner.uazapi.com
+UAZAPI_INSTANCE_TOKEN=seu_instance_token_aqui
+UAZAPI_ADMIN_TOKEN=seu_admin_token_aqui
+
+# Configurações de Envio
+DELAY_ENTRE_ENVIOS=5  # segundos entre mensagens
+MAX_TENTATIVAS=3       # máximo de tentativas de envio
+TIMEOUT_REQUEST=30     # timeout das requisições em segundos
