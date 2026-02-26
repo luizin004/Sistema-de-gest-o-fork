@@ -7,10 +7,15 @@ export default function Logout() {
 
   useEffect(() => {
     const performLogout = () => {
+      console.log('Logout: Iniciando processo de logout');
+      
       // Limpar dados do usuário do localStorage
+      const usuario = localStorage.getItem('usuario');
+      console.log('Logout: Usuário encontrado:', usuario);
       localStorage.removeItem('usuario');
       
       // Redirecionar para a página de login
+      console.log('Logout: Redirecionando para /login');
       navigate('/login');
     };
 
