@@ -13,20 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { extrairTelefoneBase } from "@/lib/utils";
-
-interface Post {
-  id: string;
-  nome: string;
-  status: string;
-  data: string | null;
-  horario: string | null;
-  tratamento: string | null;
-  telefone: string | null;
-  dentista: string | null;
-  data_marcada: string | null;
-  created_at: string;
-  feedback: string | null;
-}
+import { useAuth } from "@/components/AuthProvider";
 
 const meshBackground = {
   backgroundImage: `
@@ -38,7 +25,7 @@ const meshBackground = {
 };
 
 export const CRMLayout = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -46,12 +33,18 @@ export const CRMLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user: authUser, session } = useAuth();
 
   useEffect(() => {
-    // Removida verificação de autenticação para permitir acesso direto ao CRM
-    fetchPosts();
+    // Usar AuthProvider em vez de verificação manual
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+    setUser(authUser);
+    fetchPostsData();
     
-    const channel = supabase
+    const channel = (supabase as any)
       .channel('posts-changes')
       .on(
         'postgres_changes',
@@ -61,7 +54,7 @@ export const CRMLayout = () => {
           table: 'posts'
         },
         () => {
-          fetchPosts();
+          fetchPostsData();
         }
       )
       .subscribe();
@@ -69,44 +62,42 @@ export const CRMLayout = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [session, authUser, navigate]);
 
-  // Função checkUser removida para permitir acesso direto ao CRM sem autenticação
-  // const checkUser = async () => {
-  //   const { data: { session } } = await supabase.auth.getSession();
-  //   
-  //   if (!session) {
-  //     navigate('/auth');
-  //     return;
-  //   }
-
-  //   setUser(session.user);
-  //   fetchPosts();
-  // };
-
-  const fetchPosts = async () => {
+  const fetchPostsData = async () => {
     try {
       setRefreshing(true);
       const { data, error } = await supabase
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
-
+      
       if (error) throw error;
 
       // Adicionar telefone base para comparação (SEM MODIFICAR DADOS ORIGINAIS)
       const postsComTelefoneBase = (data || []).map(post => ({
         ...post,
         telefone_base: extrairTelefoneBase(post.telefone || ''),
-        tem_duplicado: false // será calculado depois se necessário
       }));
 
-      setPosts(postsComTelefoneBase);
+      // Detectar duplicados de telefone (SEM MODIFICAR DADOS ORIGINAIS)
+      const telefones = postsComTelefoneBase.map(p => p.telefone_base).filter(Boolean);
+      const contagemTelefones = telefones.reduce((acc, tel) => {
+        acc[tel] = (acc[tel] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const postsComDuplicados = postsComTelefoneBase.map(post => ({
+        ...post,
+        tem_duplicado: post.telefone_base ? contagemTelefones[post.telefone_base] > 1 : false,
+      }));
+
+      setPosts(postsComDuplicados);
     } catch (error) {
       console.error('Erro ao buscar posts:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar leads",
+        description: "Não foi possível carregar os dados.",
         variant: "destructive",
       });
     } finally {
@@ -116,8 +107,8 @@ export const CRMLayout = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
+    await signOut();
+    navigate('/login');
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -187,7 +178,7 @@ export const CRMLayout = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchPosts}
+                  onClick={fetchPostsData}
                   disabled={refreshing}
                   className="rounded-2xl border-white/60 bg-white text-slate-700 hover:bg-white"
                 >
@@ -238,7 +229,7 @@ export const CRMLayout = () => {
         </header>
 
         <main className="container mx-auto px-4 py-6">
-          <Outlet context={{ posts, refreshPosts: fetchPosts }} />
+          <Outlet context={{ posts, refreshPosts: fetchPostsData }} />
         </main>
       </div>
 

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Persistência de Sessão</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .step {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .instructions {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Teste de Persistência de Sessão Supabase</h1>
+        
+        <div class="instructions">
+            <h3>📋 Instruções de Teste:</h3>
+            <ol>
+                <li><strong>Passo 1:</strong> Clique em "Fazer Login" para autenticar</li>
+                <li><strong>Passo 2:</strong> Abra esta mesma página em uma nova aba (Ctrl+T)</li>
+                <li><strong>Passo 3:</strong> Na nova aba, clique em "Verificar Sessão"</li>
+                <li><strong>Passo 4:</strong> A sessão deve estar ativa sem pedir login novamente!</li>
+                <li><strong>Passo 5:</strong> Teste recarregar a página (F5) - sessão deve persistir</li>
+            </ol>
+        </div>
+        
+        <div class="buttons">
+            <button onclick="testSession()">🔍 Verificar Sessão Atual</button>
+            <button onclick="testLogin()">🔐 Fazer Login (admin@sistema.com)</button>
+            <button onclick="testLoginUser2()">👤 Login Usuário 2</button>
+            <button onclick="testLogout()"🚪 Fazer Logout</button>
+            <button onclick="clearLogs()">🧹 Limpar Logs</button>
+            <button onclick="openNewTab()">🔗 Abrir Nova Aba</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="session-info"></div>
+        
+        <h3>📋 Logs:</h3>
+        <div id="logs" class="log"></div>
+        
+        <div class="grid">
+            <div>
+                <h3>📱 localStorage:</h3>
+                <pre id="localstorage"></pre>
+            </div>
+            <div>
+                <h3>🍪 Cookies:</h3>
+                <pre id="cookies"></pre>
+            </div>
+        </div>
+        
+        <div class="step">
+            <h3>🎯 Objetivo do Teste</h3>
+            <p>Verificar se a sessão do Supabase persiste corretamente entre abas do navegador e recarregamentos da página.</p>
+            <ul>
+                <li>✅ Login deve criar sessão persistente</li>
+                <li>✅ Nova aba deve detectar sessão existente</li>
+                <li>✅ Recarregar página deve manter sessão</li>
+                <li>✅ Logout deve limpar sessão em todas as abas</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0ZXNjYWxjbW1oaGx6c21nZGZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMTgwMTIsImV4cCI6MjA4NzY5NDAxMn0.8Mi6u5wI9jbRIyxubba13JdTj8qCd2u48vLdA1SFSho';
+        
+        // Configurar cliente Supabase com persistência
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                storage: localStorage,
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+                flowType: 'pkce',
+            }
+        });
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = {
+                'info': '#fff',
+                'success': '#d4edda',
+                'error': '#f8d7da',
+                'warning': '#fff3cd'
+            }[type] || '#fff';
+            
+            logs.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+        
+        function updateLocalStorage() {
+            const ls = document.getElementById('localstorage');
+            const usuario = localStorage.getItem('usuario');
+            ls.textContent = usuario ? JSON.stringify(JSON.parse(usuario), null, 2) : 'Nenhum dado encontrado';
+        }
+        
+        function updateCookies() {
+            const cookies = document.getElementById('cookies');
+            cookies.textContent = document.cookie || 'Nenhum cookie encontrado';
+        }
+        
+        async function testSession() {
+            log('🔍 Verificando sessão atual...', 'info');
+            
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    log(`❌ Erro ao verificar sessão: ${error.message}`, 'error');
+                    showStatus('Erro ao verificar sessão', 'error');
+                    return;
+                }
+                
+                if (session) {
+                    log('✅ Sessão encontrada!', 'success');
+                    log(`   User ID: ${session.user.id}`, 'info');
+                    log(`   Email: ${session.user.email}`, 'info');
+                    log(`   Expires: ${new Date(session.expires_at * 1000).toLocaleString()}`, 'info');
+                    log(`   Access Token: ${session.access_token.substring(0, 30)}...`, 'info');
+                    
+                    const sessionInfo = document.getElementById('session-info');
+                    sessionInfo.innerHTML = `
+                        <div class="status success">
+                            <strong>✅ Sessão Ativa</strong><br>
+                            Usuário: ${session.user.email}<br>
+                            ID: ${session.user.id}<br>
+                            Expira: ${new Date(session.expires_at * 1000).toLocaleString()}<br>
+                            <small>Token: ${session.access_token.substring(0, 20)}...</small>
+                        </div>
+                    `;
+                    showStatus('Sessão encontrada com sucesso! ✅', 'success');
+                } else {
+                    log('❌ Nenhuma sessão ativa encontrada', 'error');
+                    showStatus('Nenhuma sessão ativa - Faça login primeiro', 'warning');
+                    document.getElementById('session-info').innerHTML = '';
+                }
+                
+            } catch (error) {
+                log(`❌ Erro no teste: ${error.message}`, 'error');
+                showStatus('Erro no teste de sessão', 'error');
+            }
+            
+            updateLocalStorage();
+            updateCookies();
+        }
+        
+        async function testLogin() {
+            log('🔐 Tentando login com admin@sistema.com...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@sistema.com',
+                    password: 'admin123'
+                });
+                
+                if (error) {
+                    log(`❌ Erro no login: ${error.message}`, 'error');
+                    showStatus('Erro no login', 'error');
+                    return;
+                }
+                
+                log('✅ Login realizado com sucesso!', 'success');
+                log(`   User: ${data.user.email}`, 'info');
+                log(`   Session: ${data.session ? 'Criada' : 'Não criada'}`, 'info');
+                
+                // Salvar no localStorage para compatibilidade
+                const usuarioData = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    nome: 'Administrador',
+                    cargo: 'admin',
+                    tenant_id: '8a170107-9622-409d-8198-633166770ee5',
+                    empresa: 'Sistema Demo'
+                };
+                
+                localStorage.setItem('usuario', JSON.stringify(usuarioData));
+                log('💾 Dados salvos no localStorage', 'info');
+                
+                showStatus('Login realizado com sucesso! ✅', 'success');
+                
+                // Verificar sessão após login
+                setTimeout(testSession, 1000);
+                
+            } catch (error) {
+                log(`❌ Erro no login: ${error.message}`, 'error');
+                showStatus('Erro no login', 'error');
+            }
+        }
+        
+        async function testLoginUser2() {
+            log('👤 Tentando login com usuario2@sistema.com...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'usuario2@sistema.com',
+                    password: 'usuario123'
+                });
+                
+                if (error) {
+                    log(`❌ Erro no login: ${error.message}`, 'error');
+                    showStatus('Erro no login usuário 2', 'error');
+                    return;
+                }
+                
+                log('✅ Login usuário 2 realizado com sucesso!', 'success');
+                log(`   User: ${data.user.email}`, 'info');
+                
+                // Salvar no localStorage
+                const usuarioData = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    nome: 'Usuário Teste 2',
+                    cargo: 'usuario',
+                    tenant_id: 'ad411b57-f313-4c6e-a889-2ac6c28c21c8',
+                    empresa: 'Empresa Teste 2'
+                };
+                
+                localStorage.setItem('usuario', JSON.stringify(usuarioData));
+                log('💾 Dados salvos no localStorage', 'info');
+                
+                showStatus('Login usuário 2 realizado! ✅', 'success');
+                
+                setTimeout(testSession, 1000);
+                
+            } catch (error) {
+                log(`❌ Erro no login usuário 2: ${error.message}`, 'error');
+                showStatus('Erro no login usuário 2', 'error');
+            }
+        }
+        
+        async function testLogout() {
+            log('🚪 Fazendo logout...', 'info');
+            
+            try {
+                const { error } = await supabase.auth.signOut();
+                
+                if (error) {
+                    log(`❌ Erro no logout: ${error.message}`, 'error');
+                    showStatus('Erro no logout', 'error');
+                    return;
+                }
+                
+                localStorage.removeItem('usuario');
+                log('🗑️ localStorage limpo', 'info');
+                log('✅ Logout realizado com sucesso!', 'success');
+                showStatus('Logout realizado ✅', 'success');
+                
+                document.getElementById('session-info').innerHTML = '';
+                
+                updateLocalStorage();
+                updateCookies();
+                
+            } catch (error) {
+                log(`❌ Erro no logout: ${error.message}`, 'error');
+                showStatus('Erro no logout', 'error');
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            log('📋 Logs limpos', 'info');
+        }
+        
+        function openNewTab() {
+            log('🔗 Abrindo nova aba...', 'info');
+            window.open(window.location.href, '_blank');
+        }
+        
+        // Configurar listener para mudanças de auth
+        supabase.auth.onAuthStateChange((event, session) => {
+            log(`🔄 Auth state changed: ${event}`, 'warning');
+            if (session) {
+                log(`   User: ${session.user.email}`, 'info');
+            } else {
+                log('   No session', 'info');
+            }
+            
+            // Atualizar interface
+            setTimeout(() => {
+                testSession();
+            }, 500);
+        });
+        
+        // Verificar quando a aba ganha foco
+        window.addEventListener('focus', () => {
+            log('👁️ Aba ganhou foco - verificando sessão...', 'info');
+            testSession();
+        });
+        
+        // Verificar sessão ao carregar a página
+        window.addEventListener('load', () => {
+            log('🚀 Página carregada', 'info');
+            log('📍 URL: ' + window.location.href, 'info');
+            testSession();
+        });
+        
+        // Verificar antes de sair da página
+        window.addEventListener('beforeunload', () => {
+            log('👋 Saindo da página...', 'warning');
+        });
+        
+        // Verificar visibilidade da página
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                log('👁️ Página visível - verificando sessão...', 'info');
+                testSession();
+            }
+        });
+    </script>
+</body>
+</html>

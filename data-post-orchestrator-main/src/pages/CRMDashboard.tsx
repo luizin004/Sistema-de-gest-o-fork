@@ -2,25 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Dashboard } from "@/components/Dashboard";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Post {
-  id: string;
-  nome: string;
-  status: string;
-  data: string | null;
-  horario: string | null;
-  tratamento: string | null;
-  telefone: string | null;
-  dentista: string | null;
-  data_marcada: string | null;
-  created_at: string;
-}
+import { useCRMData, Post, Arquivado } from "@/hooks/useCRMData";
 
 interface CRMContext {
   posts: Post[];
 }
-
-type Arquivado = Post;
 
 function getDateCutoff(period: string): Date | null {
   if (period === 'all') return null;
@@ -37,22 +23,19 @@ const CRMDashboard = () => {
   const [lastDisparosTotal, setLastDisparosTotal] = useState(0);
   const [funnelPeriod, setFunnelPeriod] = useState('all');
   const [arquivados, setArquivados] = useState<Arquivado[]>([]);
+  const { fetchArquivados } = useCRMData();
 
   useEffect(() => {
-    const fetchArquivados = async () => {
-      const { data, error } = await supabase
-        .from('arquivados' as any)
-        .select('id, nome, status, data, horario, tratamento, telefone, dentista, data_marcada, created_at');
-      if (!error && data) {
-        setArquivados(data as unknown as Arquivado[]);
-      }
+    const loadArquivados = async () => {
+      const data = await fetchArquivados();
+      setArquivados(data);
     };
-    fetchArquivados();
-  }, []);
+    loadArquivados();
+  }, [fetchArquivados]);
 
   const fetchCampanhaDisparos = useCallback(async (period: string) => {
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from('tabela_campanha')
         .select('*', { count: 'exact', head: true })
         .eq('disparo_feito', true);

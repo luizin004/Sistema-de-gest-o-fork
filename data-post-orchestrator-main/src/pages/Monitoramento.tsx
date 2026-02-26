@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useCRMData } from "@/hooks/useCRMData";
 
 const SUPABASE_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts';
@@ -51,6 +52,7 @@ interface StatsGerais {
 }
 
 const Monitoramento = () => {
+  const { tenantId } = useCRMData();
   const [todaysHumanMessages, setTodaysHumanMessages] = useState(0);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -83,6 +85,7 @@ const Monitoramento = () => {
       const { data: allMessages, error: messagesError } = await supabase
         .from('uazapi_chat_messages')
         .select('*')
+        .eq('tenant_id', tenantId)
         .eq('direction', 'outbound')
         .eq('metadata->>wasSentByApi', 'false')
         .gte('created_at', startDate.toISOString())
@@ -426,6 +429,7 @@ const Monitoramento = () => {
       const { data: messages, error } = await supabase
         .from('uazapi_chat_messages')
         .select('*')
+        .eq('tenant_id', tenantId)
         .gte('created_at', startOfDay.toISOString())
         .lt('created_at', endOfDay.toISOString())
         .eq('direction', 'outbound')
@@ -483,6 +487,7 @@ const Monitoramento = () => {
       const { data: allMessages, error: messagesError } = await supabase
         .from('uazapi_chat_messages')
         .select('*')
+        .eq('tenant_id', tenantId)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .eq('direction', 'outbound')
@@ -1079,6 +1084,7 @@ const Monitoramento = () => {
       const { data, error, count } = await supabase
         .from('uazapi_chat_messages')
         .select('id', { count: 'exact' })
+        .eq('tenant_id', tenantId)
         .eq('direction', 'outbound')
         .eq('metadata->>wasSentByApi', 'false')
         .gte('created_at', startOfDay.toISOString())
@@ -1126,6 +1132,7 @@ const Monitoramento = () => {
       let query = supabase
         .from('uazapi_chat_messages')
         .select('id', { count: 'exact' })
+        .eq('tenant_id', tenantId)
         .eq('direction', 'outbound')
         .eq('metadata->>wasSentByApi', 'false')
         .gte('created_at', startOfDay.toISOString())
@@ -1219,6 +1226,7 @@ const Monitoramento = () => {
         let query = supabase
           .from('uazapi_chat_messages')
           .select('*')
+          .eq('tenant_id', tenantId)
           .eq('direction', 'outbound')
           .eq('metadata->>wasSentByApi', 'false')
           .eq('metadata->>source', source)

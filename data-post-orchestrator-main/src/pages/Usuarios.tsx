@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, Plus, Edit, Trash2, Search, Building2, Mail, UserCircle, Shield } from 'lucide-react';
+import { Home, Users, Plus, Edit, Trash2, Search, Building2, Mail, UserCircle, Shield, Smartphone } from 'lucide-react';
 import { supabaseUntyped } from '@/integrations/supabase/client';
+import { UsuarioInstanceManager } from '@/components/UsuarioInstanceManager';
 
 interface Usuario {
   id: string;
@@ -31,6 +32,7 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDialog, setShowDialog] = useState(false);
+  const [showInstanceDialog, setShowInstanceDialog] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
   const [newUsuario, setNewUsuario] = useState({
     email: '',
@@ -281,6 +283,18 @@ export default function Usuarios() {
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
+                    <Button
+                      onClick={() => {
+                        setEditingUsuario(usuario);
+                        setShowInstanceDialog(true);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      Instâncias
+                    </Button>
                     {usuario.id !== usuarioAtual?.id && (
                       <Button
                         onClick={() => excluirUsuario(usuario.id)}
@@ -386,6 +400,16 @@ export default function Usuarios() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Instâncias UAZAPI */}
+        <UsuarioInstanceManager
+          tenantId={editingUsuario?.tenant_id || ''}
+          isOpen={showInstanceDialog}
+          onClose={() => {
+            setShowInstanceDialog(false);
+            setEditingUsuario(null);
+          }}
+        />
       </div>
     </div>
   );

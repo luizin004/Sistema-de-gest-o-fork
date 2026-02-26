@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dialog";
 
 import { Post } from "@/types/Post";
+import { useCRMData } from "@/hooks/useCRMData";
+import { getTenantId } from "@/utils/tenantUtils";
 
 interface KanbanBoardProps {
   posts: Post[];
@@ -228,7 +230,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('posts')
         .insert({
           nome: newLead.nome.trim(),
@@ -236,7 +238,8 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
           status: newLead.status.trim(),
           tratamento: newLead.tratamento.trim() || null,
           dentista: newLead.dentista.trim() || null,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          tenant_id: getTenantId()
         })
         .select()
         .single();
