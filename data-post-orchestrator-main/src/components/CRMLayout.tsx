@@ -48,7 +48,8 @@ export const CRMLayout = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkUser();
+    // Removida verificação de autenticação para permitir acesso direto ao CRM
+    fetchPosts();
     
     const channel = supabase
       .channel('posts-changes')
@@ -70,17 +71,18 @@ export const CRMLayout = () => {
     };
   }, []);
 
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      navigate('/auth');
-      return;
-    }
+  // Função checkUser removida para permitir acesso direto ao CRM sem autenticação
+  // const checkUser = async () => {
+  //   const { data: { session } } = await supabase.auth.getSession();
+  //   
+  //   if (!session) {
+  //     navigate('/auth');
+  //     return;
+  //   }
 
-    setUser(session.user);
-    fetchPosts();
-  };
+  //   setUser(session.user);
+  //   fetchPosts();
+  // };
 
   const fetchPosts = async () => {
     try {
