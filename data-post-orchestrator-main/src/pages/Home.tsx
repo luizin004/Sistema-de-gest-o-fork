@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Calendar, Building2, LayoutDashboard, Database } from "lucide-react";
+import { MessageSquare, Calendar, Building2, LayoutDashboard, Database, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const modules = [
   {
@@ -64,6 +65,21 @@ const meshBackground = {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Obter dados do usuário do localStorage
+  const usuario = typeof window !== 'undefined' 
+    ? JSON.parse(localStorage.getItem('usuario') || '{}') 
+    : {};
+
+  const handleLogout = () => {
+    localStorage.removeItem('usuario');
+    toast({
+      title: "Logout realizado",
+      description: "Você saiu do sistema com sucesso."
+    });
+    navigate('/login');
+  };
 
   return (
     <div className="font-['Myriad_Pro','Plus_Jakarta_Sans','Inter',sans-serif] relative min-h-screen overflow-hidden bg-slate-50 text-slate-900">
@@ -71,9 +87,30 @@ const Home = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/60 backdrop-blur-[2px]" />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
-        <div className="text-center pb-6">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
-          <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
+        {/* Header com informações do usuário */}
+        <div className="flex justify-between items-center pb-6">
+          <div className="text-center flex-1">
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
+            <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-slate-700">
+                <User className="w-4 h-4" />
+                <span className="font-medium">{usuario.nome || 'Usuário'}</span>
+              </div>
+              <div className="text-sm text-slate-500">{usuario.email || ''}</div>
+            </div>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 border-slate-300 hover:bg-slate-50"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
+          </div>
         </div>
 
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
