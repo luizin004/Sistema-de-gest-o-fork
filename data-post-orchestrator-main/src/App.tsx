@@ -62,11 +62,7 @@ const App = () => (
           <Route path="/index" element={<Navigate to="/login" replace />} />
           <Route path="/auth" element={<Navigate to="/login" replace />} />
           
-          <Route path="/crm" element={
-            <AuthGuard>
-              <CRMLayout />
-            </AuthGuard>
-          }>
+          <Route path="/crm" element={<CRMLayout />}>
             <Route index element={<Navigate to="/crm/dashboard" replace />} />
             <Route path="dashboard" element={<CRMDashboard />} />
             <Route path="kanban" element={<CRMKanban />} />
