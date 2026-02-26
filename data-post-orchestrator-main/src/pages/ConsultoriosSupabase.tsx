@@ -155,7 +155,7 @@ export default function ConsultoriosSupabase() {
       const [dentistasRes, consultoriosRes, escalaRes] = await Promise.all([
         supabase.from('dentistas').select('*').order('nome'),
         supabase.from('consultorios').select('*').order('numero'),
-        supabase.from('escala_semanal').select('*').order('semana')
+        supabase.from('escala_semanal').select('*').order('semana', 'dia_semana', 'horario_inicio')
       ]);
 
       if (dentistasRes.error) throw dentistasRes.error;
