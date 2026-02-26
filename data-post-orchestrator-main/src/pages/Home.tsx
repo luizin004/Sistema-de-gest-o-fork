@@ -108,30 +108,10 @@ const Home = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/60 backdrop-blur-[2px]" />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
-        {/* Header com informações do usuário */}
-        <div className="flex justify-between items-center pb-6">
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
-            <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="flex items-center gap-2 text-slate-700">
-                <User className="w-4 h-4" />
-                <span className="font-medium">{usuario.nome || 'Usuário'}</span>
-              </div>
-              <div className="text-sm text-slate-500">{usuario.email || ''}</div>
-            </div>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 border-slate-300 hover:bg-slate-50"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair
-            </Button>
-          </div>
+        {/* Header */}
+        <div className="text-center pb-6">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
+          <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
         </div>
 
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -226,7 +206,18 @@ const Home = () => {
         </div>
 
         <footer className="border-t border-slate-200 pt-4 pb-4 text-center text-sm text-slate-600">
-          Sistema de Gestão - 2026
+          <div className="flex justify-center items-center gap-4">
+            <span>Sistema de Gestão - 2026</span>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 hover:text-slate-700 h-8 px-3"
+            >
+              <LogOut className="w-4 h-4 mr-1" />
+              Sair
+            </Button>
+          </div>
         </footer>
       </div>
     </div>

@@ -50,8 +50,11 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/logout" element={<Logout />} />
           
+          {/* Rota Principal - Redireciona para Login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
           {/* Rotas Protegidas */}
-          <Route path="/" element={
+          <Route path="/home" element={
             <AuthGuard>
               <Home />
             </AuthGuard>

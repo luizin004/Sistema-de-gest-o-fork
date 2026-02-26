@@ -757,7 +757,7 @@ export default function ConsultoriosSupabase() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/home')}
                 className="flex items-center space-x-2 hover:bg-blue-50"
               >
                 <Home className="h-4 w-4" />
