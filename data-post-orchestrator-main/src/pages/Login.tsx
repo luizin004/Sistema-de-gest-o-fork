@@ -56,17 +56,6 @@ export default function Login() {
         .update({ ultimo_login: new Date().toISOString() })
         .eq('id', usuario.id);
 
-      // Criar sessão Supabase Auth para persistência
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.senha
-      });
-
-      if (signInError) {
-        console.warn('Erro ao criar sessão Supabase:', signInError);
-        // Continuar mesmo sem sessão Supabase (fallback)
-      }
-
       // Salvar dados do usuário no localStorage
       const usuarioData = {
         id: usuario.id,

@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { MessageSquare, Calendar, Building2, LayoutDashboard, Database, LogOut, User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/AuthProvider";
 
 const modules = [
   {
@@ -88,15 +87,14 @@ const meshBackground = {
 const Home = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, signOut } = useAuth();
   
-  // Obter dados do usuário do localStorage (fallback)
+  // Obter dados do usuário do localStorage
   const usuario = typeof window !== 'undefined' 
     ? JSON.parse(localStorage.getItem('usuario') || '{}') 
     : {};
 
-  const handleLogout = async () => {
-    await signOut();
+  const handleLogout = () => {
+    localStorage.removeItem('usuario');
     toast({
       title: "Logout realizado",
       description: "Você saiu do sistema com sucesso."

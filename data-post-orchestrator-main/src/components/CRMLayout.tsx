@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { extrairTelefoneBase } from "@/lib/utils";
-import { useAuth } from "@/components/AuthProvider";
+import { useCRMData, Post } from "@/hooks/useCRMData";
 
 const meshBackground = {
   backgroundImage: `
@@ -25,7 +25,7 @@ const meshBackground = {
 };
 
 export const CRMLayout = () => {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -33,15 +33,10 @@ export const CRMLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { user: authUser, session } = useAuth();
+  const { fetchPosts } = useCRMData();
 
   useEffect(() => {
-    // Usar AuthProvider em vez de verificação manual
-    if (!session) {
-      navigate('/login');
-      return;
-    }
-    setUser(authUser);
+    // Removida verificação de autenticação para permitir acesso direto ao CRM
     fetchPostsData();
     
     const channel = (supabase as any)
@@ -62,20 +57,15 @@ export const CRMLayout = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, authUser, navigate]);
+  }, []);
 
   const fetchPostsData = async () => {
     try {
       setRefreshing(true);
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchPosts();
 
       // Adicionar telefone base para comparação (SEM MODIFICAR DADOS ORIGINAIS)
-      const postsComTelefoneBase = (data || []).map(post => ({
+      const postsComTelefoneBase = data.map(post => ({
         ...post,
         telefone_base: extrairTelefoneBase(post.telefone || ''),
       }));
@@ -107,8 +97,8 @@ export const CRMLayout = () => {
   };
 
   const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
+    await supabase.auth.signOut();
+    navigate('/auth');
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -144,7 +134,7 @@ export const CRMLayout = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/home')}
                   className="rounded-2xl border-white/70 bg-white text-slate-700 hover:bg-white"
                   title="Voltar ao Menu Inicial"
                 >
@@ -178,7 +168,7 @@ export const CRMLayout = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchPostsData}
+                  onClick={fetchPosts}
                   disabled={refreshing}
                   className="rounded-2xl border-white/60 bg-white text-slate-700 hover:bg-white"
                 >
@@ -229,7 +219,7 @@ export const CRMLayout = () => {
         </header>
 
         <main className="container mx-auto px-4 py-6">
-          <Outlet context={{ posts, refreshPosts: fetchPostsData }} />
+          <Outlet context={{ posts, refreshPosts: fetchPosts }} />
         </main>
       </div>
 

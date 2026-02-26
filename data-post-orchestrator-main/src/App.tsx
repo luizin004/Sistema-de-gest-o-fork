@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./components/AuthProvider";
 import AuthGuard from "./components/AuthGuard";
 import Login from "./pages/Login";
 import Logout from "./pages/Logout";
@@ -42,11 +41,10 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
         <Routes>
           {/* Rotas Públicas */}
           <Route path="/login" element={<Login />} />
@@ -64,11 +62,7 @@ const App = () => (
           <Route path="/index" element={<Navigate to="/login" replace />} />
           <Route path="/auth" element={<Navigate to="/login" replace />} />
           
-          <Route path="/crm" element={
-            <AuthGuard>
-              <CRMLayout />
-            </AuthGuard>
-          }>
+          <Route path="/crm" element={<CRMLayout />}>
             <Route index element={<Navigate to="/crm/dashboard" replace />} />
             <Route path="dashboard" element={<CRMDashboard />} />
             <Route path="kanban" element={<CRMKanban />} />
@@ -177,9 +171,8 @@ const App = () => (
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 

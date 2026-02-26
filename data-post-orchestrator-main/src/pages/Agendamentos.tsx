@@ -180,10 +180,12 @@ const Agendamentos = () => {
   const displayedAgendamentos = filteredAgendamentos;
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate('/auth');
-    }
+    // REMOVIDO: Já verificado pelo AuthGuard
+    // const { data: { session } } = await supabase.auth.getSession();
+    // if (!session) {
+    //   navigate('/auth');
+    // }
+    console.log('[Agendamentos] checkAuth - pulando verificação (AuthGuard já cuida disso)');
   };
 
   const loadAgendamentos = async () => {
@@ -1765,7 +1767,7 @@ const Agendamentos = () => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/home')}
                 className="rounded-2xl border-white/70 bg-white/80 text-slate-700 hover:bg-white"
                 title="Voltar ao Menu Inicial"
               >

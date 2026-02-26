@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -20,49 +19,39 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Verificar autenticação via Supabase Auth
-    const checkAuth = async () => {
+    const checkAuth = () => {
+      console.log('[AuthGuard] Iniciando verificação de autenticação...');
+      console.log('[AuthGuard] URL atual:', window.location.href);
+      
       try {
-        // Primeiro verificar se há sessão do Supabase
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          // Se há sessão do Supabase, verificar se usuário existe no nosso banco
-          const { data: usuario, error } = await supabase
-            .from('usuarios')
-            .select('id, email, nome, cargo, tenant_id, empresa')
-            .eq('id', session.user.id)
-            .eq('ativo', true)
-            .single();
-          
-          if (usuario && !error) {
-            // Salvar dados atualizados no localStorage
-            localStorage.setItem('usuario', JSON.stringify(usuario));
-            setAuthenticated(true);
-            return;
-          }
-        }
-        
-        // Se não há sessão Supabase, verificar localStorage (fallback)
         const usuarioStr = localStorage.getItem('usuario');
+        console.log('[AuthGuard] Usuario do localStorage:', usuarioStr);
         
         if (!usuarioStr) {
+          console.log('[AuthGuard] Nenhum usuário encontrado, redirecionando para login');
           navigate('/login');
           return;
         }
 
         const usuario: Usuario = JSON.parse(usuarioStr);
+        console.log('[AuthGuard] Usuario parseado:', usuario);
         
         // Verificar se o usuário tem todos os campos necessários
         if (!usuario.id || !usuario.email || !usuario.nome) {
+          console.log('[AuthGuard] Usuário incompleto, campos faltando:', {
+            id: !!usuario.id,
+            email: !!usuario.email,
+            nome: !!usuario.nome
+          });
           localStorage.removeItem('usuario');
           navigate('/login');
           return;
         }
 
+        console.log('[AuthGuard] Usuário válido, autenticado!');
         setAuthenticated(true);
       } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
+        console.error('[AuthGuard] Erro ao verificar autenticação:', error);
         localStorage.removeItem('usuario');
         navigate('/login');
       } finally {
@@ -70,39 +59,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       }
     };
 
-    // Configurar listener para mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session);
-        
-        if (event === 'SIGNED_OUT') {
-          // Limpar localStorage e redirecionar para login
-          localStorage.removeItem('usuario');
-          setAuthenticated(false);
-          navigate('/login');
-        } else if (event === 'SIGNED_IN' && session) {
-          // Usuário fez login via Supabase
-          const { data: usuario, error } = await supabase
-            .from('usuarios')
-            .select('id, email, nome, cargo, tenant_id, empresa')
-            .eq('id', session.user.id)
-            .eq('ativo', true)
-            .single();
-          
-          if (usuario && !error) {
-            localStorage.setItem('usuario', JSON.stringify(usuario));
-            setAuthenticated(true);
-          }
-        }
-      }
-    );
-
     checkAuth();
-
-    // Limpar subscription quando componente desmontar
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [navigate]);
 
   if (loading) {

@@ -13,8 +13,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
   }
 });
 
@@ -24,7 +22,5 @@ export const supabaseUntyped = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_K
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
   }
 });
