@@ -13,10 +13,10 @@ export async function setupTenantData(tenantId: string) {
     // Se não tiver consultórios, criar os padrões
     if (!existingConsultorios || existingConsultorios.length === 0) {
       const consultoriosPadrao = [
-        { nome: 'Consultório 1', numero: 1, tenant_id: tenantId },
-        { nome: 'Consultório 2', numero: 2, tenant_id: tenantId },
-        { nome: 'Consultório 3', numero: 3, tenant_id: tenantId },
-        { nome: 'Consultório 4', numero: 4, tenant_id: tenantId }
+        { nome: 'Consultório Principal', tenant_id: tenantId },
+        { nome: 'Consultório Secundário', tenant_id: tenantId },
+        { nome: 'Consultório de Emergência', tenant_id: tenantId },
+        { nome: 'Consultório Especializado', tenant_id: tenantId }
       ];
 
       const { error: insertError } = await supabaseUntyped

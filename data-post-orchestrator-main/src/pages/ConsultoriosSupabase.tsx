@@ -23,7 +23,7 @@ interface Dentista {
 interface Consultorio {
   id: string;
   nome: string;
-  numero: number;
+  numero?: number;
   ativo: boolean;
   created_at: string;
 }
@@ -112,7 +112,7 @@ export default function ConsultoriosSupabase() {
   // Diálogos de Consultórios
   const [showConsultorioDialog, setShowConsultorioDialog] = useState(false);
   const [editingConsultorio, setEditingConsultorio] = useState<Consultorio | null>(null);
-  const [newConsultorio, setNewConsultorio] = useState({ nome: '', numero: 0 });
+  const [newConsultorio, setNewConsultorio] = useState({ nome: '', numero: undefined });
 
   // Carregar dados
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function ConsultoriosSupabase() {
       
       const [dentistasRes, consultoriosRes, escalaRes] = await Promise.all([
         supabaseUntyped.from('dentistas').select('*').eq('tenant_id', tenantId).order('nome'),
-        supabaseUntyped.from('consultorios').select('*').eq('tenant_id', tenantId).order('numero'),
+        supabaseUntyped.from('consultorios').select('*').eq('tenant_id', tenantId).order('nome'),
         supabaseUntyped.from('escala_semanal').select('*').eq('tenant_id', tenantId).order('semana').order('dia_semana').order('horario_inicio')
       ]);
 
@@ -303,7 +303,7 @@ export default function ConsultoriosSupabase() {
           if (error.code === '23505') {
             toast({
               title: 'Erro',
-              description: 'Já existe um consultório com este número',
+              description: 'Já existe um consultório com este nome',
               variant: 'destructive'
             });
             return;
@@ -315,7 +315,7 @@ export default function ConsultoriosSupabase() {
       
       setShowConsultorioDialog(false);
       setEditingConsultorio(null);
-      setNewConsultorio({ nome: '', numero: 0 });
+      setNewConsultorio({ nome: '', numero: undefined });
       carregarDados();
     } catch (error) {
       console.error('Erro ao salvar consultório:', error);
@@ -1104,7 +1104,12 @@ export default function ConsultoriosSupabase() {
                         <div className="flex items-center justify-between mb-2">
                           <CardTitle className="flex items-center gap-2">
                             <Building className="h-5 w-5" />
-                            <span>Consultório {consultorio.numero} <span className="text-sm font-normal text-gray-500 ml-1">({weekData.name})</span></span>
+                            <span>{consultorio.nome} <span className="text-sm font-normal text-gray-500 ml-1">({weekData.name})</span></span>
+                            {consultorio.numero && (
+                              <Badge variant="outline" className="ml-2 border-gray-200 text-gray-600 bg-gray-50">
+                                Nº {consultorio.numero}
+                              </Badge>
+                            )}
                             {selectedEspecialidade !== 'all' && selectedEspecialidade !== '' && (
                               <Badge variant="outline" className="ml-2 border-purple-200 text-purple-700 bg-purple-50">
                                 Filtrado: {selectedEspecialidade}
@@ -1171,7 +1176,12 @@ export default function ConsultoriosSupabase() {
                         <div className="flex flex-col">
                           <CardTitle className="flex items-center gap-2">
                             <Building className="h-5 w-5" />
-                            <span>Consultório {consultorio.numero} <span className="text-sm font-normal text-gray-500 ml-1">({weekData.name})</span></span>
+                            <span>{consultorio.nome} <span className="text-sm font-normal text-gray-500 ml-1">({weekData.name})</span></span>
+                            {consultorio.numero && (
+                              <Badge variant="outline" className="ml-2 border-gray-200 text-gray-600 bg-gray-50 text-xs">
+                                Nº {consultorio.numero}
+                              </Badge>
+                            )}
                           </CardTitle>
                           {/* Porcentagem de uso quando retraído - Abaixo do nome */}
                           <div className="flex items-center mt-2">
@@ -1516,25 +1526,27 @@ export default function ConsultoriosSupabase() {
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="nome-consultorio">Nome do Consultório</Label>
+              <Label htmlFor="nome-consultorio">Nome do Consultório *</Label>
               <Input
                 id="nome-consultorio"
                 value={newConsultorio.nome}
                 onChange={(e) => setNewConsultorio({ ...newConsultorio, nome: e.target.value })}
-                placeholder="Ex: Consultório A"
+                placeholder="Ex: Consultório Principal"
+                required
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="numero-consultorio">Número</Label>
+              <Label htmlFor="numero-consultorio">Número (opcional)</Label>
               <Input
                 id="numero-consultorio"
                 type="number"
                 min="1"
                 value={newConsultorio.numero || ''}
-                onChange={(e) => setNewConsultorio({ ...newConsultorio, numero: parseInt(e.target.value) || 0 })}
-                placeholder="Número do consultório"
+                onChange={(e) => setNewConsultorio({ ...newConsultorio, numero: e.target.value ? parseInt(e.target.value) : undefined })}
+                placeholder="Número de identificação (opcional)"
               />
+              <p className="text-xs text-gray-500">Opcional: Use um número para identificação interna</p>
             </div>
           </div>
 
@@ -1544,7 +1556,7 @@ export default function ConsultoriosSupabase() {
               onClick={() => {
                 setShowConsultorioDialog(false);
                 setEditingConsultorio(null);
-                setNewConsultorio({ nome: '', numero: 0 });
+                setNewConsultorio({ nome: '', numero: undefined });
               }}
             >
               Cancelar
