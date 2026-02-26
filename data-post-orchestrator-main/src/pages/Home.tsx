@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, Calendar, Building2, LayoutDashboard, Database } from "lucide-react";
-import OralDentsLogo from "@/components/OralDentsLogo";
 import { Button } from "@/components/ui/button";
 
 const modules = [
@@ -75,8 +74,9 @@ const Home = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/40 to-white/70 backdrop-blur-[3px]" />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
-        <div className="flex justify-center pb-6">
-          <OralDentsLogo size="hero" className="drop-shadow-[0_20px_50px_rgba(37,99,235,0.45)] animate-in fade-in slide-in-from-bottom-2 duration-700" />
+        <div className="text-center pb-6">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
+          <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
         </div>
 
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">

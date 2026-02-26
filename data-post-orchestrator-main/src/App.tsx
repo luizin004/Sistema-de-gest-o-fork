@@ -32,7 +32,6 @@ import FormataListas from "./pages/FormataListas";
 import Consultorios from "./pages/ConsultoriosSupabase";
 import Dados from "./pages/Dados";
 import NotFound from "./pages/NotFound";
-import OralDentsLogo from "./components/OralDentsLogo";
 
 const queryClient = new QueryClient();
 
@@ -77,11 +76,6 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-      <div className="fixed bottom-4 right-4 z-50 pointer-events-none select-none">
-        <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-2 shadow-lg flex items-center gap-2">
-          <OralDentsLogo size="sm" />
-        </div>
-      </div>
     </TooltipProvider>
   </QueryClientProvider>
 );
