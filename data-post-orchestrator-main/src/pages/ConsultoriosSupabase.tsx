@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Home, Building, Clock, Users, Edit, Trash2, Plus, Search, XCircle, Minimize2, Maximize2, Calendar, User, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseUntyped } from '@/integrations/supabase/client';
+import { setupTenantData } from '@/utils/setupTenant';
 
 interface Dentista {
   id: string;
@@ -160,11 +161,14 @@ export default function ConsultoriosSupabase() {
       if (!tenantId) {
         throw new Error('Usuário não autenticado ou sem tenant');
       }
+
+      // Garantir que existam dados para este tenant
+      await setupTenantData(tenantId);
       
       const [dentistasRes, consultoriosRes, escalaRes] = await Promise.all([
-        supabase.from('dentistas').select('*').eq('tenant_id', tenantId).order('nome'),
-        supabase.from('consultorios').select('*').eq('tenant_id', tenantId).order('numero'),
-        supabase.from('escala_semanal').select('*').eq('tenant_id', tenantId).order('semana').order('dia_semana').order('horario_inicio')
+        supabaseUntyped.from('dentistas').select('*').eq('tenant_id', tenantId).order('nome'),
+        supabaseUntyped.from('consultorios').select('*').eq('tenant_id', tenantId).order('numero'),
+        supabaseUntyped.from('escala_semanal').select('*').eq('tenant_id', tenantId).order('semana').order('dia_semana').order('horario_inicio')
       ]);
 
       if (dentistasRes.error) throw dentistasRes.error;
@@ -200,7 +204,7 @@ export default function ConsultoriosSupabase() {
       }
 
       if (editingDentista) {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('dentistas')
           .update(newDentista)
           .eq('id', editingDentista.id)
@@ -209,7 +213,7 @@ export default function ConsultoriosSupabase() {
         if (error) throw error;
         toast({ title: 'Sucesso', description: 'Dentista atualizado com sucesso' });
       } else {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseUntyped
           .from('dentistas')
           .insert([{ ...newDentista, ativo: true, tenant_id: tenantId }])
           .select();
@@ -243,7 +247,7 @@ export default function ConsultoriosSupabase() {
         throw new Error('Usuário não autenticado ou sem tenant');
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseUntyped
         .from('dentistas')
         .update({ ativo: false })
         .eq('id', id)
@@ -319,7 +323,7 @@ export default function ConsultoriosSupabase() {
         const deletePromises = cellsToDelete.map(async cell => {
           const [consultorioId, dia, hora] = cell.split('|');
           
-          return supabase
+          return supabaseUntyped
             .from('escala_semanal')
             .delete()
             .eq('consultorio_id', consultorioId)
@@ -347,7 +351,7 @@ export default function ConsultoriosSupabase() {
           };
         });
 
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('escala_semanal')
           .insert(escalasToInsert);
 
