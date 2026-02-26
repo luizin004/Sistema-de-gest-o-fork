@@ -293,29 +293,23 @@ export default function ConsultoriosSupabase() {
         if (error) throw error;
         toast({ title: 'Sucesso', description: 'Consultório atualizado com sucesso' });
       } else {
-        // Verificar se o número já existe
-        const { data: existingConsultorio } = await supabaseUntyped
-          .from('consultorios')
-          .select('*')
-          .eq('numero', newConsultorio.numero)
-          .eq('tenant_id', tenantId)
-          .single();
-
-        if (existingConsultorio) {
-          toast({
-            title: 'Erro',
-            description: 'Já existe um consultório com este número',
-            variant: 'destructive'
-          });
-          return;
-        }
-
         const { data, error } = await supabaseUntyped
           .from('consultorios')
           .insert([{ ...newConsultorio, ativo: true, tenant_id: tenantId }])
           .select();
         
-        if (error) throw error;
+        if (error) {
+          // Verificar se é erro de duplicação para dar mensagem amigável
+          if (error.code === '23505') {
+            toast({
+              title: 'Erro',
+              description: 'Já existe um consultório com este número',
+              variant: 'destructive'
+            });
+            return;
+          }
+          throw error;
+        }
         toast({ title: 'Sucesso', description: 'Consultório criado com sucesso' });
       }
       
