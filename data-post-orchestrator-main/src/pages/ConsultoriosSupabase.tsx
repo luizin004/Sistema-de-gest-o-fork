@@ -340,28 +340,25 @@ export default function ConsultoriosSupabase() {
         throw new Error('Usuário não autenticado ou sem tenant');
       }
 
-      // Primeiro, excluir todas as escalas associadas a este consultório
-      await supabaseUntyped
-        .from('escala_semanal')
-        .delete()
-        .eq('consultorio_id', id)
-        .eq('tenant_id', tenantId);
-
-      // Depois, excluir o consultório
+      // Excluir o consultório (CASCADE deve excluir as escalas automaticamente)
       const { error } = await supabaseUntyped
         .from('consultorios')
-        .update({ ativo: false })
+        .delete()
         .eq('id', id)
         .eq('tenant_id', tenantId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao excluir consultório:', error);
+        throw error;
+      }
+
       toast({ title: 'Sucesso', description: 'Consultório excluído com sucesso' });
       carregarDados();
     } catch (error) {
       console.error('Erro ao excluir consultório:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível excluir o consultório',
+        description: error.message || 'Não foi possível excluir o consultório',
         variant: 'destructive',
       });
     }
