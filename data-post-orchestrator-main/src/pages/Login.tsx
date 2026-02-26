@@ -30,9 +30,6 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    console.log('Login: Iniciando processo de login');
-    console.log('Login: Formulário:', { email: formData.email, senha: '***' });
-
     try {
       // Buscar usuário no banco
       const { data: usuario, error: userError } = await supabaseUntyped
@@ -42,23 +39,17 @@ export default function Login() {
         .eq('ativo', true)
         .single();
 
-      console.log('Login: Resposta do banco:', { usuario, error: userError });
-
       if (userError || !usuario) {
-        console.log('Login: Usuário não encontrado ou erro:', userError);
         setError('Email ou senha incorretos');
         return;
       }
 
       // Verificar senha (em produção, usar bcrypt)
-      console.log('Login: Verificando senha');
       if (usuario.senha_hash !== formData.senha) {
-        console.log('Login: Senha incorreta');
         setError('Email ou senha incorretos');
         return;
       }
 
-      console.log('Login: Senha correta, salvando sessão');
       // Atualizar último login
       await supabaseUntyped
         .from('usuarios')
@@ -75,7 +66,6 @@ export default function Login() {
         empresa: usuario.empresa
       };
       
-      console.log('Login: Salvando no localStorage:', usuarioData);
       localStorage.setItem('usuario', JSON.stringify(usuarioData));
 
       toast({
@@ -83,7 +73,6 @@ export default function Login() {
         description: `Bem-vindo(a), ${usuario.nome}!`
       });
 
-      console.log('Login: Redirecionando para /home');
       // Redirecionar para a página principal
       navigate('/home');
 

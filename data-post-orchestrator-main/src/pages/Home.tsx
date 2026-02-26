@@ -94,13 +94,11 @@ const Home = () => {
     : {};
 
   const handleLogout = () => {
-    console.log('Home: Iniciando logout');
     localStorage.removeItem('usuario');
     toast({
       title: "Logout realizado",
       description: "Você saiu do sistema com sucesso."
     });
-    console.log('Home: Redirecionando para /login');
     navigate('/login');
   };
 
