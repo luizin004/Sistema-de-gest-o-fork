@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const EXPORT_FUNCTION_URL = "https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/export-to-sheets";
+const EXPORT_FUNCTION_URL = "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/export-to-sheets";
 
 export interface Agendamento {
   id: string;

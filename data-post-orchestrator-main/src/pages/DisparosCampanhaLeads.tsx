@@ -207,7 +207,7 @@ const DisparosCampanhaLeads = () => {
       console.log(`[${new Date().toISOString()}] [frontend] 🚀 Iniciando busca de métricas...`);
       
       // Usar nova Edge Function com métricas
-      const url = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/campanha-metricas';
+      const url = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/campanha-metricas';
       console.log(`[${new Date().toISOString()}] [frontend] 📡 URL da requisição: ${url}`);
       
       const headers = {

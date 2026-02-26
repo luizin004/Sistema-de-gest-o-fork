@@ -133,7 +133,7 @@ const DisparosAniversarioConfig = () => {
     setTestingLoading(true);
     
     try {
-      const url = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/disparos-scheduler';
+      const url = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/disparos-scheduler';
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0MjQ4MDAsImV4cCI6MjA1MTAwMDQwMH0.W2h_4d7x3MzBPXPnBhJZ3KQYzXJhX8ZqF1wY8ZqF1wY'

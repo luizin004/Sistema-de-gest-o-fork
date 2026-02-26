@@ -55,10 +55,10 @@ const modules = [
 
 const meshBackground = {
   backgroundImage: `
-    radial-gradient(circle at 20% 25%, rgba(56,189,248,0.35), transparent 45%),
-    radial-gradient(circle at 75% 15%, rgba(59,130,246,0.32), transparent 50%),
-    radial-gradient(circle at 50% 80%, rgba(14,165,233,0.25), transparent 55%),
-    linear-gradient(120deg, #f5f9ff, #eef3ff, #f7fbff)
+    radial-gradient(circle at 20% 25%, rgba(56,189,248,0.15), transparent 45%),
+    radial-gradient(circle at 75% 15%, rgba(59,130,246,0.12), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(14,165,233,0.10), transparent 55%),
+    linear-gradient(120deg, #f8fafc, #f1f5f9, #f8fafc)
   `
 };
 
@@ -66,12 +66,9 @@ const Home = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="font-['Myriad_Pro','Plus_Jakarta_Sans','Inter',sans-serif] relative min-h-screen overflow-hidden bg-[#0b172f] text-slate-900">
+    <div className="font-['Myriad_Pro','Plus_Jakarta_Sans','Inter',sans-serif] relative min-h-screen overflow-hidden bg-slate-50 text-slate-900">
       <div className="absolute inset-0" style={meshBackground} />
-      <div
-        className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-[0.15]"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/40 to-white/70 backdrop-blur-[3px]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/60 backdrop-blur-[2px]" />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
         <div className="text-center pb-6">
@@ -133,8 +130,8 @@ const Home = () => {
           </button>
         </div>
 
-        <footer className="border-t border-white/40 pt-4 pb-4 text-center text-sm text-slate-600">
-          2026 OralDents Brumadinho
+        <footer className="border-t border-slate-200 pt-4 pb-4 text-center text-sm text-slate-600">
+          Sistema de Gestão - 2026
         </footer>
       </div>
     </div>

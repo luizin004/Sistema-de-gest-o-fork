@@ -160,7 +160,7 @@ const DisparosClareamentoConfig = () => {
 
     setTestingLoading(true);
     try {
-      const response = await fetch('https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/disparos-scheduler', {
+      const response = await fetch('https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/disparos-scheduler', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

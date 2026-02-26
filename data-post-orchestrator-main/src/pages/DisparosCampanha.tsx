@@ -10,11 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Send, Target, ArrowLeft, Plus, TrendingUp, Users, Calendar, MessageSquare, Edit3, Trash2, RefreshCw, BarChart3, AlertTriangle, CheckCircle, Clock, XCircle, Upload, FileText, ChevronDown, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 
-const SUPABASE_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co';
+const SUPABASE_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts';
-const EDGE_FUNCTION_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/cadastro-campanhas';
-const TOGGLE_DISPAROS_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/toggle-disparos';
-const METRICAS_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/campanha-metricas';
+const EDGE_FUNCTION_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/cadastro-campanhas';
+const TOGGLE_DISPAROS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/toggle-disparos';
+const METRICAS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/campanha-metricas';
 
 interface Campanha {
   id: string;

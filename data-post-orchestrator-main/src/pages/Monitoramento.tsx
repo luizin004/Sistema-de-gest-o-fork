@@ -14,13 +14,13 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const SUPABASE_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co';
+const SUPABASE_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const EDGE_FUNCTION_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/cadastro-campanhas';
-const TOGGLE_DISPAROS_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/toggle-disparos';
-const METRICAS_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/campanha-metricas';
+const EDGE_FUNCTION_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/cadastro-campanhas';
+const TOGGLE_DISPAROS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/toggle-disparos';
+const METRICAS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/campanha-metricas';
 
 interface Campanha {
   id: string;

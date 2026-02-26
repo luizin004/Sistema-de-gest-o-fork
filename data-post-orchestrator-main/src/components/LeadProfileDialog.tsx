@@ -237,7 +237,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
   const isScheduledOutside = formData.status?.toLowerCase() === "agendado por fora";
 
   const deleteFunctionUrl = useMemo(
-    () => "https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/delete-post",
+    () => "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/delete-post",
     []
   );
 

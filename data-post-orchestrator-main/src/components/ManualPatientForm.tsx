@@ -203,7 +203,7 @@ const ManualPatientForm = ({
         // Tentar Edge Function primeiro, fallback silencioso se falhar por CORS
         try {
           const response = await fetch(
-            "https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/disparos-brumadinho?tipo=consulta",
+            "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/disparos-brumadinho?tipo=consulta",
             {
               method: "POST",
               headers: {

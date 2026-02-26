@@ -134,7 +134,7 @@ const DisparosClareamento = () => {
       console.log("[DisparosClareamento] Iniciando importação para Supabase...");
       
       // Primeiro, salvar no Supabase via Edge Function
-      const response = await fetch(`https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1/disparos-brumadinho?tipo=clareamento`, {
+      const response = await fetch(`https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/disparos-brumadinho?tipo=clareamento`, {
         method: "POST",
         headers: {
           "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0MjQ4MDAsImV4cCI6MjA1MTAwMDQwMH0.W2h_4d7x3MzBPXPnBhJZ3KQYzXJhX8ZqF1wY8ZqF1wY",

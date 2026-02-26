@@ -10,346 +10,182 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
-      agendamento: {
+      consultorios: {
         Row: {
-          author_id: string
-          confirmado: boolean | null
-          created_at: string
-          data: string | null
-          data_marcada: string | null
-          dentista: string | null
-          horario: string | null
-          id: string
-          nome: string
-          presenca: string | null
-          telefone: string | null
-          updated_at: string
-        }
-        Insert: {
-          author_id: string
-          confirmado?: boolean | null
-          created_at?: string
-          data?: string | null
-          data_marcada?: string | null
-          dentista?: string | null
-          horario?: string | null
-          id?: string
-          nome: string
-          presenca?: string | null
-          telefone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          author_id?: string
-          confirmado?: boolean | null
-          created_at?: string
-          data?: string | null
-          data_marcada?: string | null
-          dentista?: string | null
-          horario?: string | null
-          id?: string
-          nome?: string
-          presenca?: string | null
-          telefone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      uazapi_chat_messages: {
-        Row: {
-          id: string;
-          lead_id: string | null;
-          phone_number: string;
-          direction: string;
-          content: string | null;
-          media_url: string | null;
-          media_type: string | null;
-          status: string;
-          provider_id: string | null;
-          message_type: string;
-          metadata: Record<string, any>;
-          created_at: string;
-          updated_at: string;
-        }
-        Insert: {
-          id?: string;
-          lead_id?: string | null;
-          phone_number: string;
-          direction: string;
-          content?: string | null;
-          media_url?: string | null;
-          media_type?: string | null;
-          status?: string;
-          provider_id?: string | null;
-          message_type?: string;
-          metadata?: Record<string, any>;
-          created_at?: string;
-          updated_at?: string;
-        }
-        Update: {
-          id?: string;
-          lead_id?: string | null;
-          phone_number?: string;
-          direction?: string;
-          content?: string | null;
-          media_url?: string | null;
-          media_type?: string | null;
-          status?: string;
-          provider_id?: string | null;
-          message_type?: string;
-          metadata?: Record<string, any>;
-          created_at?: string;
-          updated_at?: string;
-        }
-        Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          created_at: string
-          direction: string
-          id: string
-          message: string
-          message_id: string | null
-          phone: string
-          sender_name: string | null
-        }
-        Insert: {
-          created_at?: string
-          direction: string
-          id?: string
-          message: string
-          message_id?: string | null
-          phone: string
-          sender_name?: string | null
-        }
-        Update: {
-          created_at?: string
-          direction?: string
-          id?: string
-          message?: string
-          message_id?: string | null
-          phone?: string
-          sender_name?: string | null
-        }
-        Relationships: []
-      }
-      posts: {
-        Row: {
-          author_id: string | null
+          ativo: boolean | null
           created_at: string | null
-          data: string | null
-          data_marcada: string | null
-          dentista: string | null
-          feedback: string | null
-          horario: string | null
           id: string
           nome: string
-          status: string
-          telefone: string | null
-          tratamento: string | null
+          numero: number
           updated_at: string | null
-          nao_respondeu: boolean
-          ultima_mensagem_at: string | null
         }
         Insert: {
-          author_id?: string | null
+          ativo?: boolean | null
           created_at?: string | null
-          data?: string | null
-          data_marcada?: string | null
-          dentista?: string | null
-          feedback?: string | null
-          horario?: string | null
           id?: string
           nome: string
-          status: string
-          telefone?: string | null
-          tratamento?: string | null
+          numero: number
           updated_at?: string | null
-          nao_respondeu?: boolean
-          ultima_mensagem_at?: string | null
         }
         Update: {
-          author_id?: string | null
+          ativo?: boolean | null
           created_at?: string | null
-          data?: string | null
-          data_marcada?: string | null
-          dentista?: string | null
-          feedback?: string | null
-          horario?: string | null
           id?: string
           nome?: string
-          status?: string
-          telefone?: string | null
-          tratamento?: string | null
+          numero?: number
           updated_at?: string | null
-          nao_respondeu?: boolean
-          ultima_mensagem_at?: string | null
-        }
-        Relationships: []
-      }
-      teste: {
-        Row: {
-          created_at: string
-          teste: string
-        }
-        Insert: {
-          created_at?: string
-          teste: string
-        }
-        Update: {
-          created_at?: string
-          teste?: string
-        }
-        Relationships: []
-      }
-      disparos: {
-        Row: {
-          id: string
-          nome: string
-          telefone: string
-          data_nascimento: string | null
-          data_limpeza: string | null
-          data_clareamento: string | null
-          data_consulta: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          telefone: string
-          data_nascimento?: string | null
-          data_limpeza?: string | null
-          data_clareamento?: string | null
-          data_consulta?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          telefone?: string
-          data_nascimento?: string | null
-          data_limpeza?: string | null
-          data_clareamento?: string | null
-          data_consulta?: string | null
-          created_at?: string
         }
         Relationships: []
       }
       dentistas: {
         Row: {
+          ativo: boolean | null
+          cor_hex: string
+          created_at: string | null
+          especialidade: string
           id: string
           nome: string
-          especialidade: string | null
-          cor_hex: string | null
-          ativo: boolean | null
-          created_at: string | null
+          updated_at: string | null
         }
         Insert: {
+          ativo?: boolean | null
+          cor_hex?: string
+          created_at?: string | null
+          especialidade: string
           id?: string
           nome: string
-          especialidade?: string | null
-          cor_hex?: string | null
-          ativo?: boolean | null
-          created_at?: string | null
+          updated_at?: string | null
         }
         Update: {
+          ativo?: boolean | null
+          cor_hex?: string
+          created_at?: string | null
+          especialidade?: string
           id?: string
           nome?: string
-          especialidade?: string | null
-          cor_hex?: string | null
-          ativo?: boolean | null
-          created_at?: string | null
-        }
-        Relationships: []
-      }
-      consultorios: {
-        Row: {
-          id: string
-          nome: string
-          numero: number | null
-          ativo: boolean | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          nome: string
-          numero?: number | null
-          ativo?: boolean | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          nome?: string
-          numero?: number | null
-          ativo?: boolean | null
-          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
       escala_semanal: {
         Row: {
-          id: string
-          dentista_id: string
           consultorio_id: string
+          created_at: string | null
+          dentista_id: string
           dia_semana: number
           horario_inicio: string
-          created_at: string | null
+          id: string
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          dentista_id: string
           consultorio_id: string
+          created_at?: string | null
+          dentista_id: string
           dia_semana: number
           horario_inicio: string
-          created_at?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          dentista_id?: string
           consultorio_id?: string
+          created_at?: string | null
+          dentista_id?: string
           dia_semana?: number
           horario_inicio?: string
-          created_at?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "escala_semanal_consultorio_id_fkey"
             columns: ["consultorio_id"]
+            isOneToOne: false
             referencedRelation: "consultorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escala_semanal_consultorio_id_fkey"
+            columns: ["consultorio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_disponibilidade_consultorios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escala_semanal_consultorio_id_fkey"
+            columns: ["consultorio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_escala_completa"
+            referencedColumns: ["consultorio_id"]
+          },
+          {
+            foreignKeyName: "escala_semanal_dentista_id_fkey"
+            columns: ["dentista_id"]
+            isOneToOne: false
+            referencedRelation: "dentistas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "escala_semanal_dentista_id_fkey"
             columns: ["dentista_id"]
-            referencedRelation: "dentistas"
+            isOneToOne: false
+            referencedRelation: "vw_escala_completa"
+            referencedColumns: ["dentista_id"]
+          },
+          {
+            foreignKeyName: "escala_semanal_dentista_id_fkey"
+            columns: ["dentista_id"]
+            isOneToOne: false
+            referencedRelation: "vw_estatisticas_dentistas"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }
     Views: {
-      agendamentos_export: {
+      vw_disponibilidade_consultorios: {
         Row: {
-          dentista: string | null
-          horario: string | null
+          horarios_disponiveis: number | null
+          horarios_ocupados: number | null
+          id: string | null
           nome: string | null
-          telefone: string | null
+          numero: number | null
+          percentual_ocupacao: number | null
+          total_horarios_semana: number | null
         }
-        Insert: {
-          dentista?: string | null
-          horario?: string | null
-          nome?: string | null
-          telefone?: string | null
+        Relationships: []
+      }
+      vw_escala_completa: {
+        Row: {
+          consultorio_id: string | null
+          consultorio_nome: string | null
+          consultorio_numero: number | null
+          created_at: string | null
+          dentista_cor: string | null
+          dentista_especialidade: string | null
+          dentista_id: string | null
+          dentista_nome: string | null
+          dia_nome: string | null
+          dia_semana: number | null
+          horario_inicio: string | null
+          id: string | null
+          updated_at: string | null
         }
-        Update: {
-          dentista?: string | null
-          horario?: string | null
-          nome?: string | null
-          telefone?: string | null
+        Relationships: []
+      }
+      vw_estatisticas_dentistas: {
+        Row: {
+          cor_hex: string | null
+          especialidade: string | null
+          id: string | null
+          nome: string | null
+          primeiro_horario: string | null
+          total_consultorios: number | null
+          total_horarios: number | null
+          ultimo_horario: string | null
         }
         Relationships: []
       }

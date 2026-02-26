@@ -29,7 +29,7 @@ interface WhatsAppChatProps {
   contactPhone: string | null;
 }
 
-const SUPABASE_FUNCTIONS_URL = 'https://wtqhpovjntjbjhobqttk.supabase.co/functions/v1';
+const SUPABASE_FUNCTIONS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1';
 const SUPABASE_ANON_KEY_WA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts';
 const MEDIA_TYPES_WA = new Set(['audio', 'ptt', 'image', 'video', 'document', 'sticker']);
 
