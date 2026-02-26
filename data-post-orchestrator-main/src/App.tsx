@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthGuard from "./components/AuthGuard";
 import Login from "./pages/Login";
 import Logout from "./pages/Logout";
+import Usuarios from "./pages/Usuarios";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -160,6 +161,11 @@ const App = () => (
           <Route path="/monitoramento" element={
             <AuthGuard>
               <Monitoramento />
+            </AuthGuard>
+          } />
+          <Route path="/usuarios" element={
+            <AuthGuard>
+              <Usuarios />
             </AuthGuard>
           } />
           

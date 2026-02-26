@@ -61,7 +61,9 @@ export default function Login() {
         id: usuario.id,
         email: usuario.email,
         nome: usuario.nome,
-        cargo: usuario.cargo
+        cargo: usuario.cargo,
+        tenant_id: usuario.tenant_id,
+        empresa: usuario.empresa
       }));
 
       toast({

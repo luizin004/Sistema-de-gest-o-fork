@@ -144,18 +144,27 @@ export default function ConsultoriosSupabase() {
     [showSaturday]
   );
 
-  const carregarDados = async () => {
+  const carregarDados = async (isInitial = false) => {
     try {
-      if (dentistas.length === 0 && consultorios.length === 0) {
+      if (isInitial) {
         setInitialLoading(true);
       } else {
         setLoading(true);
       }
+
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
       
       const [dentistasRes, consultoriosRes, escalaRes] = await Promise.all([
-        supabase.from('dentistas').select('*').order('nome'),
-        supabase.from('consultorios').select('*').order('numero'),
-        supabase.from('escala_semanal').select('*').order('semana', 'dia_semana', 'horario_inicio')
+        supabase.from('dentistas').select('*').eq('tenant_id', tenantId).order('nome'),
+        supabase.from('consultorios').select('*').eq('tenant_id', tenantId).order('numero'),
+        supabase.from('escala_semanal').select('*').eq('tenant_id', tenantId).order('semana').order('dia_semana').order('horario_inicio')
       ]);
 
       if (dentistasRes.error) throw dentistasRes.error;
@@ -181,18 +190,28 @@ export default function ConsultoriosSupabase() {
   // Funções de gerenciamento
   const salvarDentista = async () => {
     try {
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
+
       if (editingDentista) {
         const { error } = await supabase
           .from('dentistas')
           .update(newDentista)
-          .eq('id', editingDentista.id);
+          .eq('id', editingDentista.id)
+          .eq('tenant_id', tenantId);
         
         if (error) throw error;
         toast({ title: 'Sucesso', description: 'Dentista atualizado com sucesso' });
       } else {
         const { data, error } = await supabase
           .from('dentistas')
-          .insert([{ ...newDentista, ativo: true }])
+          .insert([{ ...newDentista, ativo: true, tenant_id: tenantId }])
           .select();
         
         if (error) throw error;
@@ -215,10 +234,20 @@ export default function ConsultoriosSupabase() {
 
   const excluirDentista = async (id: string) => {
     try {
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
+
       const { error } = await supabase
         .from('dentistas')
         .update({ ativo: false })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
       
       if (error) throw error;
       toast({ title: 'Sucesso', description: 'Dentista excluído com sucesso' });
@@ -276,23 +305,28 @@ export default function ConsultoriosSupabase() {
     if (selectedCells.size === 0) return;
 
     try {
+      // Obter tenant_id do usuário logado
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+
+      if (!tenantId) {
+        throw new Error('Usuário não autenticado ou sem tenant');
+      }
+
       if (modo === 'exclusao') {
         const cellsToDelete = Array.from(selectedCells);
         const deletePromises = cellsToDelete.map(async cell => {
           const [consultorioId, dia, hora] = cell.split('|');
           
-          // @ts-ignore
-          let query = supabase
+          return supabase
             .from('escala_semanal')
             .delete()
             .eq('consultorio_id', consultorioId)
             .eq('dia_semana', diaParaNumero[dia])
-            .eq('horario_inicio', hora + ':00');
-
-          // @ts-ignore
-          query = query.eq('semana', selectedWeek);
-
-          return query;
+            .eq('horario_inicio', hora + ':00')
+            .eq('semana', selectedWeek)
+            .eq('tenant_id', tenantId);
         });
 
         await Promise.all(deletePromises);
@@ -308,7 +342,8 @@ export default function ConsultoriosSupabase() {
             consultorio_id: consultorioId,
             dia_semana: diaParaNumero[dia],
             horario_inicio: hora + ':00',
-            semana: selectedWeek
+            semana: selectedWeek,
+            tenant_id: tenantId
           };
         });
 
