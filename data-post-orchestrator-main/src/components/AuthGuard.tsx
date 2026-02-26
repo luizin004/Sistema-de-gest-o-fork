@@ -20,28 +20,37 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     const checkAuth = () => {
+      console.log('AuthGuard: Verificando autenticação');
       try {
         const usuarioStr = localStorage.getItem('usuario');
+        console.log('AuthGuard: Usuario no localStorage:', usuarioStr);
+        
         if (!usuarioStr) {
+          console.log('AuthGuard: Nenhum usuário encontrado, redirecionando para /login');
           navigate('/login');
           return;
         }
 
         const usuario: Usuario = JSON.parse(usuarioStr);
+        console.log('AuthGuard: Usuário parseado:', usuario);
         
         // Verificar se o usuário tem todos os campos necessários
         if (!usuario.id || !usuario.email || !usuario.nome) {
+          console.log('AuthGuard: Usuário incompleto, removendo e redirecionando');
           localStorage.removeItem('usuario');
           navigate('/login');
           return;
         }
 
+        console.log('AuthGuard: Usuário válido, autenticação confirmada');
         setAuthenticated(true);
       } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
+        console.error('AuthGuard: Erro ao verificar autenticação:', error);
+        console.log('AuthGuard: Erro detectado, limpando localStorage e redirecionando');
         localStorage.removeItem('usuario');
         navigate('/login');
       } finally {
+        console.log('AuthGuard: Finalizando verificação, loading:', loading);
         setLoading(false);
       }
     };
