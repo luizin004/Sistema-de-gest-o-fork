@@ -84,7 +84,7 @@ const DisparosWhatsapp = () => {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/home")}
               className="rounded-2xl border-white/60 bg-white/70 text-slate-700 hover:bg-white"
             >
               <Home className="h-4 w-4" />

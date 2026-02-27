@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Home, Users, Edit, Plus, Search, Trash2, Stethoscope, MessageSquare, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import OralDentsLogo from '@/components/OralDentsLogo';
-import Monitoramento from './Monitoramento';
 
 interface Dentista {
   id: string;
@@ -46,7 +45,7 @@ export default function Dados() {
   const [showTratamentoDialog, setShowTratamentoDialog] = useState(false);
   const [editingTratamento, setEditingTratamento] = useState<Tratamento | null>(null);
   const [newTratamento, setNewTratamento] = useState({ nome: '', descricao: '', valor: '' });
-  const [activeTab, setActiveTab] = useState<'dentistas' | 'tratamentos' | 'monitoramento'>('dentistas');
+  const [activeTab, setActiveTab] = useState<'dentistas' | 'tratamentos'>('dentistas');
 
   const [showDentistaDialog, setShowDentistaDialog] = useState(false);
   const [editingDentista, setEditingDentista] = useState<Dentista | null>(null);
@@ -282,7 +281,7 @@ export default function Dados() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/home')}
                 className="flex items-center space-x-2 hover:bg-blue-50"
               >
                 <Home className="h-4 w-4" />
@@ -293,6 +292,17 @@ export default function Dados() {
               <h1 className="text-2xl font-bold text-gray-900">Dados</h1>
             </div>
             </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/monitoramento')}
+                className="flex items-center space-x-2 hover:bg-green-50 border-green-300 text-green-700"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>Monitoramento</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -302,11 +312,10 @@ export default function Dados() {
           {[
             { id: 'dentistas', label: 'Dentistas' },
             { id: 'tratamentos', label: 'Tratamentos' },
-            { id: 'monitoramento', label: 'Monitoramento' },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'dentistas' | 'tratamentos' | 'monitoramento')}
+              onClick={() => setActiveTab(tab.id as 'dentistas' | 'tratamentos')}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                 activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border'
               }`}
@@ -316,64 +325,61 @@ export default function Dados() {
           ))}
         </div>
 
-        {activeTab !== 'monitoramento' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Search className="h-5 w-5" />
-                <span>{activeTab === 'dentistas' ? 'Filtros de Dentistas' : 'Filtros de Tratamentos'}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder={activeTab === 'dentistas' ? 'Buscar dentista...' : 'Buscar tratamento...'}
-                  value={activeTab === 'dentistas' ? searchTerm : tratamentoSearchTerm}
-                  onChange={(e) =>
-                    activeTab === 'dentistas'
-                      ? setSearchTerm(e.target.value)
-                      : setTratamentoSearchTerm(e.target.value)
-                  }
-                  className="pl-10"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Search className="h-5 w-5" />
+              <span>{activeTab === 'dentistas' ? 'Filtros de Dentistas' : 'Filtros de Tratamentos'}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder={activeTab === 'dentistas' ? 'Buscar dentista...' : 'Buscar tratamento...'}
+                value={activeTab === 'dentistas' ? searchTerm : tratamentoSearchTerm}
+                onChange={(e) =>
+                  activeTab === 'dentistas'
+                    ? setSearchTerm(e.target.value)
+                    : setTratamentoSearchTerm(e.target.value)
+                }
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        {activeTab !== 'monitoramento' ? (
-          <Card>
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center space-x-2">
-                  {activeTab === 'dentistas' ? <Users className="h-5 w-5" /> : <Stethoscope className="h-5 w-5" />}
-                  <span>
-                    {activeTab === 'dentistas'
-                      ? `Lista de Dentistas (${dentistasFiltrados.length})`
-                      : `Lista de Tratamentos (${tratamentosFiltrados.length})`}
-                  </span>
-                </CardTitle>
-                <CardDescription>
+        <Card>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                {activeTab === 'dentistas' ? <Users className="h-5 w-5" /> : <Stethoscope className="h-5 w-5" />}
+                <span>
                   {activeTab === 'dentistas'
-                    ? 'Gerencie o cadastro de dentistas da clínica. Esta lista é a mesma utilizada na aba de Consultórios.'
-                    : 'Visualize os tratamentos disponíveis e mantenha as informações alinhadas com os demais módulos.'}
-                </CardDescription>
-              </div>
-              {activeTab === 'dentistas' ? (
-                <Button size="sm" onClick={() => setShowDentistaDialog(true)} className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Dentista</span>
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => setShowTratamentoDialog(true)} className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Tratamento</span>
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {activeTab === 'dentistas' ? (
+                    ? `Lista de Dentistas (${dentistasFiltrados.length})`
+                    : `Lista de Tratamentos (${tratamentosFiltrados.length})`}
+                </span>
+              </CardTitle>
+              <CardDescription>
+                {activeTab === 'dentistas'
+                  ? 'Gerencie o cadastro de dentistas da clínica. Esta lista é a mesma utilizada na aba de Consultórios.'
+                  : 'Visualize os tratamentos disponíveis e mantenha as informações alinhadas com os demais módulos.'}
+              </CardDescription>
+            </div>
+            {activeTab === 'dentistas' ? (
+              <Button size="sm" onClick={() => setShowDentistaDialog(true)} className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span>Novo Dentista</span>
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => setShowTratamentoDialog(true)} className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" />
+                <span>Novo Tratamento</span>
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {activeTab === 'dentistas' ? (
               <>
                 {dentistasFiltrados.length === 0 ? (
                   <div className="text-center py-12">
@@ -521,9 +527,7 @@ export default function Dados() {
             )}
           </CardContent>
         </Card>
-        )}
-        
-        {activeTab !== 'monitoramento' && (
+
         <Card className="border-blue-200 bg-blue-50">
           <CardContent className="p-6">
             <div className="flex items-start space-x-3">
@@ -576,37 +580,110 @@ export default function Dados() {
             </div>
           </CardContent>
         </Card>
-        )}
-        
-        {activeTab !== 'monitoramento' ? (
-          <Card>
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center space-x-2">
-                  {activeTab === 'dentistas' ? <Users className="h-5 w-5" /> : <Stethoscope className="h-5 w-5" />}
-                  <span>
-                    {activeTab === 'dentistas'
-                      ? `Lista de Dentistas (${dentistasFiltrados.length})`
-                      : `Lista de Tratamentos (${tratamentosFiltrados.length})`}
-                  </span>
-                </CardTitle>
-                <CardDescription>
-                  {activeTab === 'dentistas'
-                    ? 'Gerencie o cadastro de dentistas da clínica. Esta lista é a mesma utilizada na aba de Consultórios.'
-                    : 'Visualize os tratamentos disponíveis e mantenha as informações alinhadas com os demais módulos.'}
-                </CardDescription>
-              </div>
-              {activeTab === 'dentistas' ? (
-                <Button size="sm" onClick={() => setShowDentistaDialog(true)} className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Dentista</span>
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => setShowTratamentoDialog(true)} className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Novo Tratamento</span>
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {activeTab === 'dentistas' ? (
+      </div>
+
+      <Dialog open={showDentistaDialog} onOpenChange={setShowDentistaDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingDentista ? 'Editar Dentista' : 'Novo Dentista'}</DialogTitle>
+            <DialogDescription>
+              {editingDentista ? 'Edite as informações do dentista selecionado' : 'Preencha os dados para cadastrar um novo dentista'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="nome">Nome *</Label>
+              <Input
+                id="nome"
+                placeholder="Nome completo do dentista"
+                value={newDentista.nome}
+                onChange={(e) => setNewDentista((prev) => ({ ...prev, nome: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="especialidade">Especialidade</Label>
+              <Input
+                id="especialidade"
+                placeholder="Ex: Ortodontia, Implante..."
+                value={newDentista.especialidade}
+                onChange={(e) => setNewDentista((prev) => ({ ...prev, especialidade: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDentistaDialog(false);
+                setEditingDentista(null);
+                setNewDentista({ nome: '', especialidade: '' });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={salvarDentista}>{editingDentista ? 'Atualizar' : 'Cadastrar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTratamentoDialog} onOpenChange={setShowTratamentoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingTratamento ? 'Editar Tratamento' : 'Novo Tratamento'}</DialogTitle>
+            <DialogDescription>
+              {editingTratamento
+                ? 'Edite as informações do tratamento selecionado'
+                : 'Preencha os dados para cadastrar um novo tratamento'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tratamento-nome">Nome *</Label>
+              <Input
+                id="tratamento-nome"
+                placeholder="Ex: Limpeza, Clareamento..."
+                value={newTratamento.nome}
+                onChange={(e) => setNewTratamento((prev) => ({ ...prev, nome: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tratamento-descricao">Descrição</Label>
+              <Input
+                id="tratamento-descricao"
+                placeholder="Detalhes ou observações"
+                value={newTratamento.descricao}
+                onChange={(e) => setNewTratamento((prev) => ({ ...prev, descricao: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tratamento-valor">Valor</Label>
+              <Input
+                id="tratamento-valor"
+                placeholder="Ex: 250.00"
+                value={newTratamento.valor}
+                onChange={(e) => setNewTratamento((prev) => ({ ...prev, valor: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowTratamentoDialog(false);
+                setEditingTratamento(null);
+                setNewTratamento({ nome: '', descricao: '', valor: '' });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={salvarTratamento}>{editingTratamento ? 'Atualizar' : 'Cadastrar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

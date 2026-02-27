@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { fetchAgendamentos, exportToGoogleSheets, type Agendamento } from "@/lib/agendamentoApi";
 import { Button } from "@/components/ui/button";
 import {
@@ -209,7 +209,7 @@ const Agendamentos = () => {
 
   const fetchPosts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseUntyped
         .from('posts')
         .select('*')
         .order('created_at', { ascending: false });
@@ -323,7 +323,7 @@ const Agendamentos = () => {
     const handleUpdateConfirmacao = async (agendamentoId: string, confirmado: boolean) => {
       setLoadingStates(prev => new Set(prev).add(agendamentoId));
       try {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('agendamento')
           .update({ confirmado })
           .eq('id', agendamentoId);
@@ -350,7 +350,7 @@ const Agendamentos = () => {
     const handleUpdatePresenca = async (agendamentoId: string, presenca: string) => {
       setPresenceLoadingIds(prev => new Set(prev).add(agendamentoId));
       try {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('agendamento')
           .update({ presenca })
           .eq('id', agendamentoId);
@@ -820,7 +820,7 @@ const Agendamentos = () => {
       console.log(`[${new Date().toISOString()}] [AGENDAMENTOS] 📝 Atualizando data marcada do agendamento ${id} para:`, date?.toISOString());
       
       // Fazer o PATCH real no banco
-      const { data, error } = await supabase
+      const { data, error } = await supabaseUntyped
         .from('agendamento')
         .update({ 
           data_marcada: date?.toISOString(),
@@ -942,7 +942,7 @@ const Agendamentos = () => {
     // Função para atualizar presença do agendamento
     const updatePresenca = async (agendamentoId: string, presenca: "Compareceu" | "Não compareceu" | null) => {
       try {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('agendamento')
           .update({ presenca })
           .eq('id', agendamentoId);
@@ -977,7 +977,7 @@ const Agendamentos = () => {
     // Função para atualizar o source do agendamento
     const updateSource = async (agendamentoId: string, source: string | null) => {
       try {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('agendamento')
           .update({ 
             source,

@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Home, Users, Edit, Plus, Search, Trash2, Stethoscope, MessageSquare, BarChart3 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabaseUntyped } from '@/integrations/supabase/client';
+import { getTenantId } from '@/utils/tenantUtils';
 import OralDentsLogo from '@/components/OralDentsLogo';
 
 interface Dentista {
@@ -23,6 +24,7 @@ interface Dentista {
   especialidade: string | null;
   ativo: boolean;
   created_at: string;
+  tenant_id?: string;
 }
 
 interface Tratamento {
@@ -31,6 +33,7 @@ interface Tratamento {
   descricao: string | null;
   valor: number | null;
   created_at: string;
+  tenant_id?: string;
 }
 
 export default function Dados() {
@@ -51,15 +54,29 @@ export default function Dados() {
   const [editingDentista, setEditingDentista] = useState<Dentista | null>(null);
   const [newDentista, setNewDentista] = useState({ nome: '', especialidade: '' });
 
+  const tenantId = getTenantId();
+
   const carregarDados = async () => {
+    if (!tenantId) {
+      toast({
+        title: 'Tenant não identificado',
+        description: 'Faça login novamente para carregar os dados corretos',
+        variant: 'destructive'
+      });
+      return;
+    }
     try {
       setLoading(true);
-      const dentistasPromise = supabase.from('dentistas').select('*').order('nome');
-      const tratamentosPromise = supabase
-        .from('tratamentos' as any)
+      const dentistasPromise = supabaseUntyped
+        .from('dentistas')
         .select('*')
-        .order('nome')
-        .returns<Tratamento[]>();
+        .eq('tenant_id', tenantId)
+        .order('nome');
+      const tratamentosPromise = supabaseUntyped
+        .from('tratamentos')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('nome');
 
       const [dentistasRes, tratamentosRes] = await Promise.all([dentistasPromise, tratamentosPromise]);
 
@@ -101,25 +118,27 @@ export default function Dados() {
       const valorNumero = newTratamento.valor ? parseFloat(newTratamento.valor.replace(',', '.')) : null;
 
       if (editingTratamento) {
-        const { error } = await supabase
-          .from('tratamentos' as any)
+        const { error } = await supabaseUntyped
+          .from('tratamentos')
           .update({
             nome: newTratamento.nome,
             descricao: newTratamento.descricao || null,
             valor: valorNumero,
           })
-          .eq('id', editingTratamento.id);
+          .eq('id', editingTratamento.id)
+          .eq('tenant_id', tenantId);
 
         if (error) throw error;
         toast({ title: 'Atualizado', description: 'Tratamento atualizado com sucesso' });
       } else {
-        const { error } = await supabase
-          .from('tratamentos' as any)
+        const { error } = await supabaseUntyped
+          .from('tratamentos')
           .insert([
             {
               nome: newTratamento.nome,
               descricao: newTratamento.descricao || null,
               valor: valorNumero,
+              tenant_id: tenantId,
             },
           ]);
 
@@ -147,7 +166,11 @@ export default function Dados() {
     }
 
     try {
-      const { error } = await supabase.from('tratamentos' as any).delete().eq('id', id);
+      const { error } = await supabaseUntyped
+        .from('tratamentos')
+        .delete()
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
       if (error) throw error;
 
       toast({ title: 'Excluído', description: 'Tratamento removido com sucesso' });
@@ -163,8 +186,16 @@ export default function Dados() {
   };
 
   useEffect(() => {
+    if (!tenantId) {
+      toast({
+        title: 'Sessão inválida',
+        description: 'Não foi possível identificar o tenant. Faça login novamente.',
+        variant: 'destructive'
+      });
+      return;
+    }
     carregarDados();
-  }, []);
+  }, [tenantId]);
 
   const excluirDentista = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este dentista? Essa ação não pode ser desfeita.')) {
@@ -172,7 +203,11 @@ export default function Dados() {
     }
 
     try {
-      const { error } = await supabase.from('dentistas').delete().eq('id', id);
+      const { error } = await supabaseUntyped
+        .from('dentistas')
+        .delete()
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
       if (error) throw error;
 
       toast({ title: 'Excluído', description: 'Dentista removido com sucesso' });
@@ -188,31 +223,32 @@ export default function Dados() {
   };
 
   const salvarDentista = async () => {
-    try {
-      if (!newDentista.nome.trim()) {
-        toast({
-          title: 'Nome obrigatório',
-          description: 'Informe o nome do dentista antes de salvar',
-          variant: 'destructive',
-        });
-        return;
-      }
+    if (!newDentista.nome.trim()) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Informe o nome do dentista antes de salvar',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    try {
       if (editingDentista) {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('dentistas')
           .update({
             nome: newDentista.nome,
-            especialidade: newDentista.especialidade || null,
+            especialidade: newDentista.especialidade?.trim() || 'Generalista',
           })
-          .eq('id', editingDentista.id);
+          .eq('id', editingDentista.id)
+          .eq('tenant_id', tenantId);
 
         if (error) throw error;
         toast({ title: 'Atualizado', description: 'Dentista atualizado com sucesso' });
       } else {
-        const { error } = await supabase
+        const { error } = await supabaseUntyped
           .from('dentistas')
-          .insert([{ nome: newDentista.nome, especialidade: newDentista.especialidade || null, ativo: true }]);
+          .insert([{ nome: newDentista.nome, especialidade: newDentista.especialidade?.trim() || 'Generalista', ativo: true, tenant_id: tenantId }]);
 
         if (error) throw error;
         toast({ title: 'Cadastrado', description: 'Dentista criado com sucesso' });
@@ -281,7 +317,7 @@ export default function Dados() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/home')}
                 className="flex items-center space-x-2 hover:bg-blue-50"
               >
                 <Home className="h-4 w-4" />

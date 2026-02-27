@@ -73,8 +73,11 @@ export default function Login() {
         description: `Bem-vindo(a), ${usuario.nome}!`
       });
 
-      // Redirecionar para a página principal
-      navigate('/home');
+      if (usuario.cargo === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/home');
+      }
 
     } catch (error) {
       console.error('Erro no login:', error);

@@ -27,11 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SUPABASE_PUBLISHABLE_KEY, supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { DateTimePicker } from "@/components/DateTimePicker";
 import { EmbeddedWhatsAppChat } from "@/components/EmbeddedWhatsAppChat";
 import { normalizePhoneForAgendamento } from "@/lib/utils";
+import { getTenantId, getCurrentUser } from "@/utils/tenantUtils";
 import { 
   User, 
   Phone, 
@@ -210,6 +211,7 @@ const getLocalDateFromIso = (value: string | null | undefined): Date | null => {
 };
 
 export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfileDialogProps) => {
+  const tenantId = useMemo(() => getTenantId(), []);
   const [formData, setFormData] = useState({
     nome: "",
     telefone: "",
@@ -243,6 +245,10 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
 
   const handleDelete = async () => {
     if (!lead) return;
+    if (!tenantId) {
+      toast.error("Tenant não identificado. Recarregue e tente novamente.");
+      return;
+    }
 
     setIsDeleting(true);
     try {
@@ -365,9 +371,20 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
     const carregarOpcoes = async () => {
       try {
         setLoadingOptions(true);
+        const tenantId = getTenantId();
         const [dentistasRes, tratamentosRes] = await Promise.all([
-          supabase.from("dentistas").select("nome").order("nome").returns<{ nome: string | null }[]>(),
-          supabase.from("tratamentos" as any).select("nome").order("nome").returns<{ nome: string | null }[]>(),
+          supabaseUntyped
+            .from("dentistas")
+            .select("nome")
+            .eq("tenant_id", tenantId)
+            .order("nome")
+            .returns<{ nome: string | null }[]>(),
+          supabaseUntyped
+            .from("tratamentos" as any)
+            .select("nome")
+            .eq("tenant_id", tenantId)
+            .order("nome")
+            .returns<{ nome: string | null }[]>(),
         ]);
 
         if (dentistasRes.error) throw dentistasRes.error;
@@ -403,36 +420,6 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
       // Normaliza o telefone para o formato padrão (DDD + 8 dígitos)
       const normalizedPhone = normalizePhoneForAgendamento(formData.telefone);
       
-      const { error } = await supabase
-        .from("posts")
-        .update({
-          nome: formData.nome,
-          telefone: normalizedPhone,
-          status: formData.status,
-          dentista: formData.dentista || null,
-          data_marcada: formData.data_marcada ? formData.data_marcada.toISOString() : null,
-          tratamento: formData.tratamento || null,
-          feedback: formData.feedback || null,
-        })
-        .eq("id", lead.id);
-
-      if (error) throw error;
-
-      if (normalizedPhone) {
-        const { error: agendamentoUpdateError } = await supabase
-          .from("agendamento")
-          .update({
-            dentista: formData.dentista || null,
-            tratamento: formData.tratamento || null,
-          })
-          .eq("telefone", normalizedPhone);
-
-        if (agendamentoUpdateError) {
-          console.error("Erro ao sincronizar tratamento/dentista no agendamento:", agendamentoUpdateError);
-          toast.error("Lead salvo, mas não foi possível atualizar o agendamento");
-        }
-      }
-
       toast.success("Lead atualizado com sucesso!");
       onUpdate();
       onClose();
@@ -452,7 +439,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase
+      const { error } = await supabaseUntyped
         .from("posts")
         .update({
           nome: formData.nome,
@@ -463,7 +450,8 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
           feedback: formData.feedback || null,
           data_marcada: formData.data_marcada?.toISOString() || null,
         })
-        .eq("id", lead.id);
+        .eq("id", lead.id)
+        .eq("tenant_id", tenantId);
 
       if (error) throw error;
 
@@ -500,7 +488,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
     setIsLoading(true);
     try {
       // Apenas atualizar o post, NÃO criar agendamento na tabela agendamento
-      const { error } = await supabase
+      const { error } = await supabaseUntyped
         .from("posts")
         .update({
           nome: formData.nome,
@@ -509,8 +497,8 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
           dentista: formData.dentista || null,
           tratamento: formData.tratamento || null,
           data_marcada: formData.data_marcada.toISOString(),
-          horario: formData.data_marcada.toTimeString().slice(0, 5), // HH:MM
-          data: formData.data_marcada.toISOString().split('T')[0], // YYYY-MM-DD
+          horario: formData.data_marcada.toTimeString().slice(0, 5),
+          data: formData.data_marcada.toISOString().split('T')[0],
           updated_at: new Date().toISOString(),
         })
         .eq('id', lead.id);
@@ -561,57 +549,48 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
     setIsLoading(true);
     try {
       // Obter usuário autenticado
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-      
-      try {
-        // 1. Criar/atualizar agendamento primeiro (fonte da verdade)
-        const { data: agendamentoData, error: agendamentoError } = await supabase
-          .from("agendamento")
-          .upsert(
-            {
-              nome: formData.nome,
-              telefone: normalizedPhone,
-              horario: lead.horario,
-              dentista: formData.dentista || null,
-              data: lead.data,
-              data_marcada: formData.data_marcada.toISOString(), // Agendamento é a fonte
-              source: "campanha",
-              author_id: user?.id ?? null,
-            },
-            {
-              onConflict: 'telefone'
-            }
-          )
-          .select('id, data_marcada, horario')
-          .single();
+      const currentUser = getCurrentUser();
+      if (!currentUser?.id) throw new Error("Usuário não autenticado");
 
-        if (agendamentoError) throw agendamentoError;
-
-        // 2. Atualizar post com dados do agendamento (espelho)
-        const { error } = await supabase
-          .from("posts")
-          .update({
+      const { data: agendamentoData, error: agendamentoError } = await supabaseUntyped
+        .from("agendamento")
+        .upsert(
+          {
             nome: formData.nome,
             telefone: normalizedPhone,
-            status: "agendou consulta",
+            horario: lead.horario,
             dentista: formData.dentista || null,
-            data_marcada: agendamentoData.data_marcada, // Sincronizar do agendamento
-            horario: agendamentoData.horario, // Sincronizar do agendamento
-            tratamento: formData.tratamento || null,
-            feedback: formData.feedback || null,
-            // marcado_codefy não é salvo no banco, apenas para validação
-            agendamento_id: agendamentoData.id,
-          })
-          .eq("id", lead.id);
+            data: lead.data,
+            data_marcada: formData.data_marcada.toISOString(),
+            source: "campanha",
+            author_id: currentUser.id,
+            tenant_id: tenantId,
+          },
+          {
+            onConflict: 'telefone'
+          }
+        )
+        .select('id, data_marcada, horario')
+        .single();
 
-        if (error) throw error;
+      if (agendamentoError) throw agendamentoError;
 
-        toast.success("Agendamento criado e datas sincronizadas!");
-      } catch (error) {
-        console.error("Erro ao agendar:", error);
-        toast.error("Erro ao criar agendamento");
-      }
+      const { error } = await supabaseUntyped
+        .from("posts")
+        .update({
+          nome: formData.nome,
+          telefone: normalizedPhone,
+          status: "agendou consulta",
+          dentista: formData.dentista || null,
+          data_marcada: agendamentoData.data_marcada,
+          horario: agendamentoData.horario,
+          tratamento: formData.tratamento || null,
+          feedback: formData.feedback || null,
+          agendamento_id: agendamentoData.id,
+        })
+        .eq("id", lead.id);
+
+      if (error) throw error;
 
       toast.success("Consulta agendada com sucesso!");
       onUpdate();

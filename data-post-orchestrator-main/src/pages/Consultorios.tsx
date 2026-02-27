@@ -98,7 +98,7 @@ const Consultorios = () => {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/home')}
               className="text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, Plus, Edit, Trash2, Search, Building2, Mail, UserCircle, Shield, Smartphone } from 'lucide-react';
+import { Home, Users, Plus, Edit, Trash2, Search, Building2, Mail, UserCircle, Shield, Smartphone, Copy } from 'lucide-react';
 import { supabaseUntyped } from '@/integrations/supabase/client';
 import { UsuarioInstanceManager } from '@/components/UsuarioInstanceManager';
 
@@ -34,6 +34,7 @@ export default function Usuarios() {
   const [showDialog, setShowDialog] = useState(false);
   const [showInstanceDialog, setShowInstanceDialog] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
+  const [copiedTenantId, setCopiedTenantId] = useState<string | null>(null);
   const [newUsuario, setNewUsuario] = useState({
     email: '',
     nome: '',
@@ -57,7 +58,7 @@ export default function Usuarios() {
         description: 'Apenas administradores podem acessar esta página',
         variant: 'destructive'
       });
-      navigate('/');
+      navigate('/home');
       return;
     }
     carregarUsuarios();
@@ -165,6 +166,18 @@ export default function Usuarios() {
     usuario.empresa.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleCopyTenantId = async (tenantId: string) => {
+    try {
+      await navigator.clipboard.writeText(tenantId);
+      setCopiedTenantId(tenantId);
+      toast({ title: 'Tenant copiado', description: 'ID copiado para a área de transferência' });
+      setTimeout(() => setCopiedTenantId(null), 2000);
+    } catch (error) {
+      console.error('Erro ao copiar tenant_id:', error);
+      toast({ title: 'Erro', description: 'Não foi possível copiar o tenant_id', variant: 'destructive' });
+    }
+  };
+
   const openEditDialog = (usuario: Usuario) => {
     setEditingUsuario(usuario);
     setNewUsuario({
@@ -208,7 +221,7 @@ export default function Usuarios() {
           </div>
           <div className="flex gap-3">
             <Button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/admin')}
               variant="outline"
               className="flex items-center gap-2"
             >
@@ -272,6 +285,23 @@ export default function Usuarios() {
                       {usuario.ultimo_login && (
                         <p>Último acesso: {new Date(usuario.ultimo_login).toLocaleDateString('pt-BR')}</p>
                       )}
+                    </div>
+
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold text-slate-500">Tenant ID</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <code className="px-2 py-1 rounded bg-slate-100 text-slate-700 break-all">
+                          {usuario.tenant_id}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleCopyTenantId(usuario.tenant_id)}
+                        >
+                          <Copy className={`h-4 w-4 ${copiedTenantId === usuario.tenant_id ? 'text-green-600' : ''}`} />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getTenantId } from "@/utils/tenantUtils";
-import { supabaseConfig, getFunctionUrl } from "@/config/supabase";
+import { supabaseConfig, getFunctionUrl, getDefaultHeaders } from "@/config/supabase";
 
 export interface Post {
   id: string;
@@ -134,16 +134,20 @@ export const useCRMData = () => {
   // Função para obter headers com autenticação
   const getAuthHeaders = useCallback(async () => {
     const token = await getCurrentUserToken();
-    if (!token) {
-      console.warn('[UAZAPI-INSTANCE-CONFIG] Nenhum token JWT disponível para o usuário atual');
-      return null;
+    if (token) {
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      } as Record<string, string>;
     }
-    
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    } as Record<string, string>;
-  }, [getCurrentUserToken]);
+
+    console.warn('[UAZAPI-INSTANCE-CONFIG] Nenhum token JWT disponível; usando cabeçalhos padrão (anon key)');
+    const fallbackHeaders = { ...getDefaultHeaders() } as Record<string, string>;
+    if (tenantId) {
+      fallbackHeaders['x-tenant-id'] = tenantId;
+    }
+    return fallbackHeaders;
+  }, [getCurrentUserToken, tenantId]);
   
   const fetchPosts = useCallback(async (): Promise<Post[]> => {
     if (!tenantId) return [];
@@ -615,18 +619,7 @@ export const useCRMData = () => {
     if (!tenantId) return [];
     
     try {
-      // Primeiro verificar se há sessão ativa
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.log('[UAZAPI-INSTANCE-CONFIG] Usuário não autenticado');
-        return [];
-      }
-      
       const headers = await getAuthHeaders();
-      if (!headers) {
-        console.log('[UAZAPI-INSTANCE-CONFIG] Usuário não autenticado ao listar instâncias');
-        return [];
-      }
       const response = await fetch(getFunctionUrl('uazapi-instance-config/instances'), {
         method: 'GET',
         headers
