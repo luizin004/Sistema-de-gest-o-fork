@@ -14,7 +14,6 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import OralDentsLogo from "@/components/OralDentsLogo";
 import { AccountMenu } from "@/components/AccountMenu";
 import {
   Home,
@@ -81,8 +80,9 @@ export const AppSidebar = () => {
     <Sidebar collapsible="icon" className="border-r border-slate-200/70 bg-white/95">
       <SidebarHeader className="pb-1">
         <div className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 shadow-sm">
-          <OralDentsLogo size="sm" className="hidden w-28 sm:block" />
-          <span className="text-sm font-semibold text-slate-700">OralDents</span>
+          <span className="text-lg font-bold text-slate-800">Odontomanager</span>
+          <span className="text-lg font-bold text-purple-600">Lamor</span>
+          <span className="text-lg font-bold text-purple-600">IA</span>
         </div>
       </SidebarHeader>
 

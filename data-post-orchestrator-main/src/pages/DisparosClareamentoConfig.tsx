@@ -54,7 +54,7 @@ const DisparosClareamentoConfig = () => {
   const createDefaultConfig = async () => {
     const defaultConfig: Partial<DisparoConfig> = {
       tipo: 'clareamento',
-      mensagem_template: '✨ Olá {nome}! Seu tratamento de clareamento dental está agendado para {data_clareamento}. Lembre-se de evitar alimentos pigmentados. 🌟 OralDents Brumadinho',
+      mensagem_template: '✨ Olá {nome}! Seu tratamento de clareamento dental está agendado para {data_clareamento}. Lembre-se de evitar alimentos pigmentados. 🌟 Odontomanager LamorIA',
       horario_disparo: '09:00',
       dias_antes: 1,
       ativo: true
@@ -215,7 +215,7 @@ const DisparosClareamentoConfig = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configuração - Clareamento</h1>
-                  <p className="text-sm text-gray-500">Tratamentos Automáticos - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Tratamentos Automáticos - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

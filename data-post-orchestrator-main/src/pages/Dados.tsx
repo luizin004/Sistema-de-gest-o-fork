@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Home, Users, Edit, Plus, Search, Trash2, Stethoscope, MessageSquare, BarChart3 } from 'lucide-react';
 import { supabaseUntyped } from '@/integrations/supabase/client';
 import { getTenantId } from '@/utils/tenantUtils';
-import OralDentsLogo from '@/components/OralDentsLogo';
 
 interface Dentista {
   id: string;
@@ -324,8 +323,8 @@ export default function Dados() {
                 <span>Início</span>
               </Button>
               <div className="flex items-center space-x-4">
-              <OralDentsLogo size="md" />
-              <h1 className="text-2xl font-bold text-gray-900">Dados</h1>
+              <span className="text-xl font-bold text-gray-900">Odontomanager LamorIA</span>
+              <span className="text-2xl font-bold text-gray-900">Dados</span>
             </div>
             </div>
             <div className="flex items-center space-x-2">

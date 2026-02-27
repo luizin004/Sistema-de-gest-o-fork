@@ -15,7 +15,7 @@ const DisparosConfirmacao = () => {
   const [messageLoading, setMessageLoading] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
   const [messageTemplate, setMessageTemplate] = useState(
-    "✅ Olá {nome}! Sua consulta está confirmada para {data_marcada}. Por favor, chegue 15 minutos antes. 🏥 OralDents Brumadinho"
+    "✅ Olá {nome}! Sua consulta está confirmada para {data_marcada}. Por favor, chegue 15 minutos antes. 🏥 Odontomanager LamorIA"
   );
   const [formSnapshot, setFormSnapshot] = useState<ManualPatientFormData>(
     manualPatientFormInitialState
@@ -92,7 +92,7 @@ const DisparosConfirmacao = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Confirmação de Consultas</h1>
-                  <p className="text-sm text-green-600">Gestão Urna - OralDents Brumadinho</p>
+                  <p className="text-sm text-green-600">Gestão Urna - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

@@ -54,7 +54,7 @@ const DisparosLimpezaConfig = () => {
   const createDefaultConfig = async () => {
     const defaultConfig: Partial<DisparoConfig> = {
       tipo: 'limpeza',
-      mensagem_template: '🦷 Olá {nome}! Seu agendamento para limpeza profissional está confirmado para {data_limpeza}. Por favor, chegue 15 minutos antes. 🏥 OralDents Brumadinho',
+      mensagem_template: '🦷 Olá {nome}! Seu agendamento para limpeza profissional está confirmado para {data_limpeza}. Por favor, chegue 15 minutos antes. 🏥 Odontomanager LamorIA',
       horario_disparo: '09:00',
       dias_antes: 1,
       ativo: true
@@ -215,7 +215,7 @@ const DisparosLimpezaConfig = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configuração - Limpeza</h1>
-                  <p className="text-sm text-gray-500">Disparos Automáticos - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Disparos Automáticos - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

@@ -137,7 +137,7 @@ const Monitoramento = () => {
         const confirmationMessages = dayMessages.filter(msg => 
           msg.content?.includes('passando pra lembrar') ||
           msg.content?.includes('horário com') ||
-          msg.content?.includes('clínica oraldents') ||
+          msg.content?.includes('clínica odontomanager') ||
           msg.content?.includes('confirmar?') ||
           msg.content?.includes('especialmente para você') ||
           msg.content?.includes('tolerância:') ||
@@ -240,7 +240,7 @@ const Monitoramento = () => {
           'Métrica': 'Confirmações',
           'Descrição': 'Mensagens automáticas de lembrete de horário',
           'Critérios': 'Contém padrões específicos de confirmação',
-          'Filtros': '"passando pra lembrar", "horário com", "clínica oraldents", etc.',
+          'Filtros': '"passando pra lembrar", "horário com", "clínica odontomanager", etc.',
           'Interpretação': 'Comunicação operacional de agendamentos'
         },
         {
@@ -517,7 +517,7 @@ const Monitoramento = () => {
           const content = msg.content || '';
           const isConfirmation = content.includes('passando pra lembrar') ||
                                 content.includes('horário com') ||
-                                content.includes('clínica oraldents') ||
+                                content.includes('clínica odontomanager') ||
                                 content.includes('confirmar?') ||
                                 content.includes('Obrigado por confirmar') ||
                                 content.includes('Gostaríamos de lembrar');
@@ -531,7 +531,7 @@ const Monitoramento = () => {
           const content = msg.content || '';
           return content.includes('passando pra lembrar') ||
                  content.includes('horário com') ||
-                 content.includes('clínica oraldents') ||
+                 content.includes('clínica odontomanager') ||
                  content.includes('confirmar?') ||
                  content.includes('Obrigado por confirmar') ||
                  content.includes('Gostaríamos de lembrar');
@@ -846,7 +846,7 @@ const Monitoramento = () => {
           name: 'Confirmações',
           desc: 'Mensagens automáticas de lembrete de horário',
           criteria: 'Contém padrões específicos de confirmação',
-          filters: '"passando pra lembrar", "horário com", "clínica oraldents", etc.',
+          filters: '"passando pra lembrar", "horário com", "clínica odontomanager", etc.',
           interpretation: 'Comunicação operacional de agendamentos'
         },
         {
@@ -935,7 +935,7 @@ const Monitoramento = () => {
         '• Excluir mensagens de confirmação de horário:',
         '  - "passando pra lembrar"',
         '  - "horário com"',
-        '  - "clínica oraldents"',
+        '  - "clínica odontomanager"',
         '  - "confirmar?"',
         '  - "especialmente para você"',
         '  - "tolerância:"',
@@ -1089,7 +1089,7 @@ const Monitoramento = () => {
         .eq('metadata->>wasSentByApi', 'false')
         .gte('created_at', startOfDay.toISOString())
         .lt('created_at', endOfDay.toISOString())
-        .or('content.ilike.%passando pra lembrar%,content.ilike.%horário com%,content.ilike.%clínica oraldents%,content.ilike.%confirmar?%,content.ilike.%especialmente para você%,content.ilike.%tolerância:%,content.ilike.%brackets% solta%');
+        .or('content.ilike.%passando pra lembrar%,content.ilike.%horário com%,content.ilike.%clínica odontomanager%,content.ilike.%confirmar?%,content.ilike.%especialmente para você%,content.ilike.%tolerância:%,content.ilike.%brackets% solta%');
       
       console.log('Confirmações - Data:', data);
       console.log('Confirmações - Error:', error);
@@ -1139,7 +1139,7 @@ const Monitoramento = () => {
         .lt('created_at', endOfDay.toISOString())
         .not('content', 'ilike', '%passando pra lembrar%')
         .not('content', 'ilike', '%horário com%')
-        .not('content', 'ilike', '%clínica oraldents%')
+        .not('content', 'ilike', '%clínica odontomanager%')
         .not('content', 'ilike', '%confirmar?%')
         .not('content', 'ilike', '%especialmente para você%')
         .not('content', 'ilike', '%tolerância:%')
@@ -1237,7 +1237,7 @@ const Monitoramento = () => {
         const exclusionPatterns = [
           '%passando pra lembrar%',
           '%horário com%',
-          '%clínica oraldents%',
+          '%clínica odontomanager%',
           '%confirmar?%',
           '%especialmente para você%',
           '%tolerância:%',

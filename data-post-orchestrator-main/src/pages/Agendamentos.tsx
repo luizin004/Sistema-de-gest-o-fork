@@ -1780,7 +1780,7 @@ const Agendamentos = () => {
                     {displayedAgendamentos.length} {displayedAgendamentos.length === 1 ? 'consulta' : 'consultas'}
                   </span>
                 </div>
-                <p className="text-sm text-slate-500">Cockpit de consultas e confirmações OralDents</p>
+                <p className="text-sm text-slate-500">Cockpit de consultas e confirmações Odontomanager LamorIA</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">

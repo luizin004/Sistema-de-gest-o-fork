@@ -244,7 +244,7 @@ const DisparosLimpeza = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-blue-900">Limpeza Profissional</h1>
-                  <p className="text-sm text-blue-600">Gestão de Lembretes - OralDents Brumadinho</p>
+                  <p className="text-sm text-blue-600">Gestão de Lembretes - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

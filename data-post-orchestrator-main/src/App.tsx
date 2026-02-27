@@ -83,7 +83,7 @@ const AppContent = () => {
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-slate-600" />
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Painel OralDents</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Painel Odontomanager LamorIA</p>
                 <p className="text-lg font-semibold text-slate-900">{pageLabel}</p>
               </div>
             </div>

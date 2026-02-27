@@ -54,7 +54,7 @@ const DisparosConfirmacaoConfig = () => {
   const createDefaultConfig = async () => {
     const defaultConfig: Partial<DisparoConfig> = {
       tipo: 'consulta',
-      mensagem_template: '✅ Olá {nome}! Sua consulta está confirmada para {data_consulta}. Por favor, chegue 15 minutos antes. 🏥 OralDents Brumadinho',
+      mensagem_template: '✅ Olá {nome}! Sua consulta está confirmada para {data_consulta}. Por favor, chegue 15 minutos antes. 🏥 Odontomanager LamorIA',
       horario_disparo: '09:00',
       dias_antes: 1,
       ativo: true
@@ -215,7 +215,7 @@ const DisparosConfirmacaoConfig = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configuração - Confirmação</h1>
-                  <p className="text-sm text-gray-500">Consultas Automáticas - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Consultas Automáticas - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

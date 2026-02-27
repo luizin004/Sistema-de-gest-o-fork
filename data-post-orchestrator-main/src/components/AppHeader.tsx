@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import OralDentsLogo from "@/components/OralDentsLogo";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/components/AccountMenu";
 import { Home } from "lucide-react";
@@ -53,9 +52,8 @@ export const AppHeader = () => {
           >
             <Home className="h-4 w-4 text-slate-700" />
           </button>
-          <OralDentsLogo size="sm" className="hidden sm:block" />
           <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Painel OralDents</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Painel Odontomanager LamorIA</span>
             <span className="text-base font-semibold text-slate-800">{pageLabel}</span>
           </div>
         </div>

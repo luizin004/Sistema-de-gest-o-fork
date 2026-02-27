@@ -54,7 +54,7 @@ const DisparosAniversarioConfig = () => {
   const createDefaultConfig = async () => {
     const defaultConfig: Partial<DisparoConfig> = {
       tipo: 'aniversario',
-      mensagem_template: '🎂 Parabéns {nome}! Todo time da OralDents Brumadinho deseja um feliz aniversário e muita saúde! 🦷✨',
+      mensagem_template: '🎂 Parabéns {nome}! Todo time da Odontomanager LamorIA deseja um feliz aniversário e muita saúde! 🦷✨',
       horario_disparo: '09:00',
       dias_antes: 0,
       ativo: true
@@ -212,7 +212,7 @@ const DisparosAniversarioConfig = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configuração - Aniversário</h1>
-                  <p className="text-sm text-gray-500">Parabéns Automáticos - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Parabéns Automáticos - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

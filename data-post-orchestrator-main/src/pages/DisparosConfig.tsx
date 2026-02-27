@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Settings, Clock, MessageSquare, Save, Play, Calendar, CheckCircle, AlertCircle, Sparkles, Cake, CheckSquare, Send, Users, FileSpreadsheet, Database } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import OralDentsLogo from "@/components/OralDentsLogo";
 
 interface DisparoConfig {
   id: string;
@@ -130,10 +129,10 @@ const DisparosConfig = () => {
                 Voltar
               </Button>
               <div className="flex items-center gap-3">
-                <OralDentsLogo size="md" className="rounded-lg shadow-sm" />
+                <span className="text-xl font-bold text-gray-900">Odontomanager LamorIA</span>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Configurações de Disparos</h1>
-                  <p className="text-sm text-gray-500">Central de Controle - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Central de Controle - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

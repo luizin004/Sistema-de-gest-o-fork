@@ -241,7 +241,7 @@ export const CRMLayout = () => {
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-slate-800">📋 Visão Geral</h3>
               <p className="text-sm text-slate-600">
-                O sistema CRM da OralDents permite gerenciar leads desde o primeiro contato até o agendamento final. 
+                O sistema CRM Odontomanager LamorIA permite gerenciar leads desde o primeiro contato até o agendamento final. 
                 Utilize as diferentes visualizações para acompanhar o progresso dos pacientes.
               </p>
             </div>

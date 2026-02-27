@@ -252,7 +252,7 @@ const DisparosClareamento = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Clareamento Dental</h1>
-                  <p className="text-sm text-gray-500">Gestão de Tratamentos - OralDents Brumadinho</p>
+                  <p className="text-sm text-gray-500">Gestão de Tratamentos - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>

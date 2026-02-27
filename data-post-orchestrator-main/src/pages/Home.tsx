@@ -110,7 +110,7 @@ const Home = () => {
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
         {/* Header */}
         <div className="text-center pb-6">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Odontomanager LamorIA</h1>
           <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
         </div>
 
@@ -207,7 +207,7 @@ const Home = () => {
 
         <footer className="border-t border-slate-200 pt-4 pb-4 text-center text-sm text-slate-600">
           <div className="flex justify-center items-center gap-4">
-            <span>Sistema de Gestão - 2026</span>
+            <span>Odontomanager LamorIA - 2026</span>
             <Button
               onClick={handleLogout}
               variant="ghost"

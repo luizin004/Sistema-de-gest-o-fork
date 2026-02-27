@@ -256,7 +256,7 @@ const DisparosAniversario = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-pink-900">Feliz Aniversário!</h1>
-                  <p className="text-sm text-pink-600">Gestão de Parabéns - OralDents Brumadinho</p>
+                  <p className="text-sm text-pink-600">Gestão de Parabéns - Odontomanager LamorIA</p>
                 </div>
               </div>
             </div>
