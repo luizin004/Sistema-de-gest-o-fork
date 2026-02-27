@@ -72,6 +72,7 @@ export const AppSidebar = () => {
   const { usuario, permissions } = useTenant();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const showLabels = !isCollapsed;
   const isAdmin = useMemo(() => {
     if (usuario?.cargo) return usuario.cargo === "admin";
     if (typeof window !== "undefined") {
@@ -134,10 +135,12 @@ export const AppSidebar = () => {
                     {(() => {
                       const allowed = item.permissionKey ? permissions[item.permissionKey] : true;
                       const content = (
-                        <div className={`flex items-center gap-2 ${allowed ? '' : 'pointer-events-none opacity-40'}`}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                          {item.badge !== undefined && (
+                        <div
+                          className={`flex items-center ${showLabels ? 'gap-2' : 'justify-center'} ${allowed ? '' : 'pointer-events-none opacity-40'}`}
+                        >
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
+                          <span className={showLabels ? 'truncate text-sm text-slate-700' : 'sr-only'}>{item.label}</span>
+                          {item.badge !== undefined && showLabels && (
                             <span className="ml-auto inline-flex items-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-600">
                               {item.badge}
                             </span>
@@ -147,7 +150,7 @@ export const AppSidebar = () => {
 
                       if (!allowed) {
                         return (
-                          <SidebarMenuButton isActive={false} className="text-slate-600">
+                          <SidebarMenuButton isActive={false} className="text-slate-600" title={item.label}>
                             {content}
                           </SidebarMenuButton>
                         );
@@ -159,7 +162,7 @@ export const AppSidebar = () => {
                           isActive={isActivePath(pathname, item.href)}
                           className="text-slate-600 hover:text-slate-900"
                         >
-                          <Link to={item.href} className="flex items-center gap-2">
+                          <Link to={item.href} className="block w-full" title={item.label}>
                             {content}
                           </Link>
                         </SidebarMenuButton>
