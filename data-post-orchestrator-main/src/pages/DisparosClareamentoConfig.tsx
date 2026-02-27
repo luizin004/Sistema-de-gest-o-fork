@@ -68,7 +68,7 @@ const DisparosClareamentoConfig = () => {
         .single();
 
       if (error) throw error;
-      setConfig(data as DisparoConfig);
+      setConfig(data as unknown as DisparoConfig);
     } catch (error) {
       console.error('Erro ao criar configuração padrão:', error);
       toast.error('Erro ao inicializar configuração');
