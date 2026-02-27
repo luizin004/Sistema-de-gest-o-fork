@@ -21,6 +21,12 @@ interface DisparoConfig {
   uazapi_admin_token?: string;
 }
 
+interface AgendamentoRow {
+  nome: string;
+  telefone: string;
+  data: string;
+}
+
 const DisparosConfirmacaoConfig = () => {
   const navigate = useNavigate();
   const [config, setConfig] = useState<DisparoConfig | null>(null);
@@ -115,16 +121,18 @@ const DisparosConfirmacaoConfig = () => {
     try {
       // Buscar todos os agendamentos futuros
       const { data: agendamentos, error: fetchError } = await supabase
-        .from('agendamento')
+        .from('agendamento' as any)
         .select('*')
         .gte('data', new Date().toISOString().split('T')[0]);
 
       if (fetchError) throw fetchError;
 
-      if (!agendamentos || agendamentos.length === 0) return;
+      const typedAgendamentos = (agendamentos as unknown as AgendamentoRow[]) ?? [];
+
+      if (typedAgendamentos.length === 0) return;
 
       // Calcular e atualizar datas de disparo
-      const disparosUpdates = agendamentos.map((ag) => {
+      const disparosUpdates = typedAgendamentos.map((ag) => {
         const dataConsulta = new Date(ag.data);
         const dataDisparo = new Date(dataConsulta);
         dataDisparo.setDate(dataDisparo.getDate() - config.dias_antes);

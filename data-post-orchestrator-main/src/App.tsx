@@ -13,6 +13,7 @@ import Home from "./pages/Home";
 import AdminDashboard from "./pages/AdminDashboard";
 import { CRMLayout } from "./components/CRMLayout";
 import { AppSidebar } from "./components/AppSidebar";
+import { FeatureGuard } from "./components/FeatureGuard";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import CRMDashboard from "./pages/CRMDashboard";
 import CRMKanban from "./pages/CRMKanban";
@@ -40,6 +41,8 @@ import Consultorios from "./pages/ConsultoriosSupabase";
 import Dados from "./pages/Dados";
 import NotFound from "./pages/NotFound";
 import MinhaConta from "./pages/MinhaConta";
+import logoLamor from "@/assets/lamoria.png";
+import { TenantProvider } from "@/hooks/useTenant";
 
 const queryClient = new QueryClient();
 
@@ -54,7 +57,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/crm/chat-ao-vivo": "CRM · Chat ao Vivo",
   "/agendamentos": "Agendamentos",
   "/disparos": "Disparos WhatsApp",
-  "/usuarios": "Usuários",
+  "/usuarios": "Administração",
   "/dentistas": "Dentistas & Tratamentos",
   "/consultorios": "Consultórios",
   "/monitoramento": "Monitoramento",
@@ -73,25 +76,27 @@ const getPageLabel = (pathname: string) => {
 const AppContent = () => {
   const location = useLocation();
   const pageLabel = getPageLabel(location.pathname);
+  const isAuthPage = location.pathname === "/login";
+  const standaloneRoutes = ["/admin", "/usuarios"];
+  const isStandaloneLayout = standaloneRoutes.includes(location.pathname);
 
-  return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="bg-slate-50/80">
-        <div className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="text-slate-600" />
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Painel Odontomanager LamorIA</p>
-                <p className="text-lg font-semibold text-slate-900">{pageLabel}</p>
-              </div>
-            </div>
+  const renderTopBar = (showSidebarTrigger: boolean) => (
+    <div className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {showSidebarTrigger && <SidebarTrigger className="text-slate-600" />}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Painel Odontomanager LamorIA</p>
+            <p className="text-lg font-semibold text-slate-900">{pageLabel}</p>
           </div>
         </div>
+        <img src={logoLamor} alt="LamorIA" className="h-12 w-auto" />
+      </div>
+    </div>
+  );
 
-        <div className="flex-1 px-2 py-4 md:px-4">
-          <Routes>
+  const routes = (
+    <Routes>
             {/* Rotas Públicas */}
             <Route path="/login" element={<Login />} />
             <Route path="/logout" element={<Logout />} />
@@ -113,7 +118,16 @@ const AppContent = () => {
             <Route path="/index" element={<Navigate to="/login" replace />} />
             <Route path="/auth" element={<Navigate to="/login" replace />} />
             
-            <Route path="/crm" element={<CRMLayout />}>
+            <Route
+              path="/crm"
+              element={
+                <AuthGuard>
+                  <FeatureGuard feature="crm">
+                    <CRMLayout />
+                  </FeatureGuard>
+                </AuthGuard>
+              }
+            >
               <Route index element={<Navigate to="/crm/dashboard" replace />} />
               <Route path="" element={<Navigate to="/crm/dashboard" replace />} />
               <Route path="dashboard" element={<CRMDashboard />} />
@@ -126,72 +140,100 @@ const AppContent = () => {
             
             <Route path="/agendamentos" element={
               <AuthGuard>
-                <Agendamentos />
+                <FeatureGuard feature="agendamentos">
+                  <Agendamentos />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos" element={
               <AuthGuard>
-                <DisparosWhatsapp />
+                <FeatureGuard feature="disparos_whatsapp">
+                  <DisparosWhatsapp />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/aniversario" element={
               <AuthGuard>
-                <DisparosAniversario />
+                <FeatureGuard feature="disparos_aniversario">
+                  <DisparosAniversario />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/aniversario/config" element={
               <AuthGuard>
-                <DisparosAniversarioConfig />
+                <FeatureGuard feature="disparos_aniversario">
+                  <DisparosAniversarioConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/limpeza" element={
               <AuthGuard>
-                <DisparosLimpeza />
+                <FeatureGuard feature="disparos_limpeza">
+                  <DisparosLimpeza />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/limpeza/config" element={
               <AuthGuard>
-                <DisparosLimpezaConfig />
+                <FeatureGuard feature="disparos_limpeza">
+                  <DisparosLimpezaConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/clareamento" element={
               <AuthGuard>
-                <DisparosClareamento />
+                <FeatureGuard feature="disparos_clareamento">
+                  <DisparosClareamento />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/clareamento/config" element={
               <AuthGuard>
-                <DisparosClareamentoConfig />
+                <FeatureGuard feature="disparos_clareamento">
+                  <DisparosClareamentoConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/manual" element={
               <AuthGuard>
-                <DisparosManual />
+                <FeatureGuard feature="disparos_manual">
+                  <DisparosManual />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/confirmacao" element={
               <AuthGuard>
-                <DisparosConfirmacao />
+                <FeatureGuard feature="disparos_confirmacao">
+                  <DisparosConfirmacao />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/confirmacao/config" element={
               <AuthGuard>
-                <DisparosConfirmacaoConfig />
+                <FeatureGuard feature="disparos_confirmacao">
+                  <DisparosConfirmacaoConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/campanha" element={
               <AuthGuard>
-                <DisparosCampanha />
+                <FeatureGuard feature="disparos_campanha">
+                  <DisparosCampanha />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/campanha/leads" element={
               <AuthGuard>
-                <DisparosCampanhaLeads />
+                <FeatureGuard feature="disparos_campanha">
+                  <DisparosCampanhaLeads />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/disparos/config" element={
               <AuthGuard>
-                <DisparosConfig />
+                <FeatureGuard feature="disparos_whatsapp">
+                  <DisparosConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/formata-listas" element={
@@ -201,7 +243,9 @@ const AppContent = () => {
             } />
             <Route path="/consultorios" element={
               <AuthGuard>
-                <Consultorios />
+                <FeatureGuard feature="consultorios">
+                  <Consultorios />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/dentistas" element={
@@ -228,22 +272,48 @@ const AppContent = () => {
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </div>
+  );
+  
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen bg-slate-50/80">
+        {routes}
+      </div>
+    );
+  }
+
+  if (isStandaloneLayout) {
+    return (
+      <div className="min-h-screen bg-slate-50/80">
+        {renderTopBar(false)}
+        <div className="flex-1 px-2 py-4 md:px-4">{routes}</div>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className="bg-slate-50/80">
+        {renderTopBar(true)}
+        <div className="flex-1 px-2 py-4 md:px-4">{routes}</div>
       </SidebarInset>
     </SidebarProvider>
   );
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <TenantProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </TenantProvider>
 );
 
 export default App;

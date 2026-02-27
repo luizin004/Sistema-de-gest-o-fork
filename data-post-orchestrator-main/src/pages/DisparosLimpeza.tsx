@@ -40,7 +40,7 @@ const DisparosLimpeza = () => {
     setLoadingClients(true);
     try {
       const { data, error } = await supabase
-        .from('disparos')
+        .from('disparos' as any)
         .select('*')
         .not('data_limpeza', 'is', null)
         .order('nome');
@@ -51,7 +51,8 @@ const DisparosLimpeza = () => {
         return;
       }
       
-      setClients(data || []);
+      const typedClients = (data as unknown as DisparoClient[]) ?? [];
+      setClients(typedClients);
     } catch (error) {
       console.error('Error fetching clients:', error);
       toast.error('Erro ao carregar clientes');
@@ -165,13 +166,13 @@ const DisparosLimpeza = () => {
         if (!clientsToSync || !Array.isArray(clientsToSync)) {
           console.log("[DisparosLimpeza] Buscando clientes recém-inseridos...");
           const { data: recentClients } = await supabase
-            .from('disparos')
+            .from('disparos' as any)
             .select('*')
             .not('data_limpeza', 'is', null)
             .order('created_at', { ascending: false })
             .limit(data.inserted || 1);
           
-          clientsToSync = recentClients || [];
+          clientsToSync = (recentClients as unknown as DisparoClient[]) ?? [];
         }
         
         if (clientsToSync && Array.isArray(clientsToSync) && clientsToSync.length > 0) {

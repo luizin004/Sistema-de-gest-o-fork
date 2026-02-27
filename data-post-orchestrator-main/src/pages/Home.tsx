@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Calendar, Building2, LayoutDashboard, Database, LogOut, User, Users } from "lucide-react";
+import { MessageSquare, Calendar, Building2, LayoutDashboard, Database, LogOut, User, Users, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/hooks/useTenant";
 
 const modules = [
   {
@@ -87,11 +88,27 @@ const meshBackground = {
 const Home = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Obter dados do usuário do localStorage
-  const usuario = typeof window !== 'undefined' 
-    ? JSON.parse(localStorage.getItem('usuario') || '{}') 
-    : {};
+  const { usuario: usuarioContext, permissions } = useTenant();
+  const usuario = usuarioContext || (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("usuario") || "{}") : {});
+
+  const moduleAccessMap: Record<string, boolean> = {
+    disparos: permissions.allowDisparosWhatsapp,
+    agendamentos: permissions.allowCrmAgendamentos,
+    consultorios: permissions.allowConsultorios,
+    crm: permissions.allowCrmAgendamentos,
+  };
+
+  const handleModuleClick = (href: string, isLocked: boolean) => {
+    if (isLocked) {
+      toast({
+        title: "Acesso restrito",
+        description: "Você não tem acesso a essa funcionalidade, entre em contato conosco para saber mais sobre os planos.",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigate(href);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('usuario');
@@ -108,44 +125,54 @@ const Home = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/60 backdrop-blur-[2px]" />
 
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-12 px-4 py-12">
-        {/* Header */}
-        <div className="text-center pb-6">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Odontomanager LamorIA</h1>
-          <p className="text-lg text-slate-600">Plataforma completa para gestão de consultórios</p>
-        </div>
+        {/* Header removed per request */}
 
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {modules.map(({ id, title, href, badge, description, icon: Icon, accentGradient, iconGradient, dotClass, features }, index) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => navigate(href)}
-              className="group relative flex h-full flex-col gap-5 overflow-hidden rounded-[30px] border border-white/35 bg-white/22 p-7 text-left text-slate-700 shadow-[0_40px_80px_-45px_rgba(15,23,42,0.9)] backdrop-blur-[28px] transition-all duration-300 hover:-translate-y-3 hover:border-white/80 hover:shadow-[0_55px_110px_-50px_rgba(15,23,42,0.95)] animate-in fade-in slide-in-from-bottom-2"
-              style={{ animationDelay: `${index * 0.08 + 0.2}s` }}
-            >
-              <div className={`absolute inset-px rounded-[26px] bg-gradient-to-br ${accentGradient} opacity-0 transition-opacity duration-500 group-hover:opacity-100`} />
-              <div className="relative flex items-start justify-between">
-                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${iconGradient} text-white shadow-lg shadow-black/25`}>
-                  <Icon className="h-7 w-7" />
+          {modules.map(({ id, title, href, badge, description, icon: Icon, accentGradient, iconGradient, dotClass, features }, index) => {
+            const isLocked = moduleAccessMap[id] === false;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleModuleClick(href, isLocked)}
+                className={`group relative flex h-full flex-col gap-5 overflow-hidden rounded-[30px] border border-white/35 bg-white/22 p-7 text-left text-slate-700 shadow-[0_40px_80px_-45px_rgba(15,23,42,0.9)] backdrop-blur-[28px] transition-all duration-300 hover:-translate-y-3 hover:border-white/80 hover:shadow-[0_55px_110px_-50px_rgba(15,23,42,0.95)] animate-in fade-in slide-in-from-bottom-2 ${
+                  isLocked ? "cursor-not-allowed opacity-80" : ""
+                }`}
+                style={{ animationDelay: `${index * 0.08 + 0.2}s` }}
+              >
+                <div className={`absolute inset-px rounded-[26px] bg-gradient-to-br ${accentGradient} opacity-0 transition-opacity duration-500 group-hover:opacity-100`} />
+                <div className="relative flex items-start justify-between">
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${iconGradient} text-white shadow-lg shadow-black/25`}>
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <span className="rounded-full border border-white/60 bg-white/55 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                    {badge}
+                  </span>
                 </div>
-                <span className="rounded-full border border-white/60 bg-white/55 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
-                  {badge}
-                </span>
-              </div>
-              <div className="relative space-y-3">
-                <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
-                <p className="text-sm text-slate-500">{description}</p>
-                <div className="flex flex-col gap-2 text-sm font-medium">
-                  {features.map((feature) => (
-                    <span key={feature} className="inline-flex items-center gap-2 text-slate-600">
-                      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-                      {feature}
-                    </span>
-                  ))}
+                <div className="relative space-y-3">
+                  <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
+                  <p className="text-sm text-slate-500">{description}</p>
+                  <div className="flex flex-col gap-2 text-sm font-medium">
+                    {features.map((feature) => (
+                      <span key={feature} className="inline-flex items-center gap-2 text-slate-600">
+                        <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+                {isLocked && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/85 text-center text-slate-700 backdrop-blur">
+                    <Lock className="h-6 w-6" />
+                    <p className="text-sm font-semibold">Acesso restrito</p>
+                    <p className="px-6 text-xs text-slate-500">
+                      Entre em contato conosco para saber mais sobre os planos.
+                    </p>
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </section>
 
         {/* Módulos de Admin */}

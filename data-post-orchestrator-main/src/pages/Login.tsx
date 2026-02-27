@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff, Lock, Mail, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase, supabaseUntyped } from '@/integrations/supabase/client';
+import { useTenant } from '@/hooks/useTenant';
 
 interface LoginFormData {
   email: string;
@@ -17,6 +18,7 @@ interface LoginFormData {
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshUsuario } = useTenant();
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     senha: ''
@@ -63,10 +65,20 @@ export default function Login() {
         nome: usuario.nome,
         cargo: usuario.cargo,
         tenant_id: usuario.tenant_id,
-        empresa: usuario.empresa
+        empresa: usuario.empresa,
+        allow_consultorios: usuario.allow_consultorios ?? true,
+        allow_crm_agendamentos: usuario.allow_crm_agendamentos ?? true,
+        allow_disparos_whatsapp: usuario.allow_disparos_whatsapp ?? true,
+        allow_disparos_limpeza: usuario.allow_disparos_limpeza ?? true,
+        allow_disparos_clareamento: usuario.allow_disparos_clareamento ?? true,
+        allow_disparos_confirmacao: usuario.allow_disparos_confirmacao ?? true,
+        allow_disparos_aniversario: usuario.allow_disparos_aniversario ?? true,
+        allow_disparos_campanha: usuario.allow_disparos_campanha ?? true,
+        allow_disparos_manual: usuario.allow_disparos_manual ?? true
       };
       
       localStorage.setItem('usuario', JSON.stringify(usuarioData));
+      refreshUsuario();
 
       toast({
         title: 'Login realizado com sucesso',

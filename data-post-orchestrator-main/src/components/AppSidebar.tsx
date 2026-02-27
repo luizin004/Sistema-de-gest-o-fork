@@ -15,6 +15,9 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { AccountMenu } from "@/components/AccountMenu";
+import { useTenant, TenantContextType } from "@/hooks/useTenant";
+import logoLamor from "@/assets/lamoria-logo.png";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   Home,
   LayoutDashboard,
@@ -23,12 +26,11 @@ import {
   Table,
   CalendarDays,
   MessageCircle,
-  Users,
   Database,
-  Building2,
   Settings,
   ClipboardList,
   Share2,
+  Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -36,25 +38,25 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string | number;
+  permissionKey?: keyof TenantContextType['permissions'];
 }
 
 const crmItems: NavItem[] = [
-  { label: "Dashboard", href: "/crm/dashboard", icon: LayoutDashboard },
-  { label: "Kanban de Ação", href: "/crm/kanban-acao", icon: Activity },
-  { label: "Kanban Geral", href: "/crm/kanban", icon: Columns },
-  { label: "Agendar", href: "/crm/agendar", icon: CalendarDays },
-  { label: "Tabela", href: "/crm/tabela", icon: Table },
-  { label: "Chat ao vivo", href: "/crm/chat-ao-vivo", icon: MessageCircle },
+  { label: "Dashboard", href: "/crm/dashboard", icon: LayoutDashboard, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Kanban de Ação", href: "/crm/kanban-acao", icon: Activity, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Kanban Geral", href: "/crm/kanban", icon: Columns, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Agendar", href: "/crm/agendar", icon: CalendarDays, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Tabela", href: "/crm/tabela", icon: Table, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Chat ao vivo", href: "/crm/chat-ao-vivo", icon: MessageCircle, permissionKey: 'allowCrmAgendamentos' },
 ];
 
-const operationsItems: NavItem[] = [
+const baseOperationsItems: NavItem[] = [
   { label: "Home", href: "/home", icon: Home },
-  { label: "Agendamentos", href: "/agendamentos", icon: CalendarDays },
-  { label: "Monitoramento", href: "/monitoramento", icon: ClipboardList },
-  { label: "Consultórios", href: "/consultorios", icon: Building2 },
+  { label: "Agendamentos", href: "/agendamentos", icon: CalendarDays, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Monitoramento", href: "/monitoramento", icon: ClipboardList, permissionKey: 'allowCrmAgendamentos' },
+  { label: "Consultórios", href: "/consultorios", icon: ClipboardList, permissionKey: 'allowConsultorios' },
   { label: "Dados", href: "/dentistas", icon: Database },
-  { label: "Usuários", href: "/usuarios", icon: Users },
-  { label: "Disparos", href: "/disparos", icon: Share2 },
+  { label: "Disparos", href: "/disparos", icon: Share2, permissionKey: 'allowDisparosWhatsapp' },
   { label: "Configurações", href: "/admin", icon: Settings },
 ];
 
@@ -67,22 +69,55 @@ const isActivePath = (pathname: string, href: string) => {
 export const AppSidebar = () => {
   const location = useLocation();
   const pathname = location.pathname;
+  const { usuario, permissions } = useTenant();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+  const isAdmin = useMemo(() => {
+    if (usuario?.cargo) return usuario.cargo === "admin";
+    if (typeof window !== "undefined") {
+      try {
+        const stored = JSON.parse(localStorage.getItem("usuario") || "null");
+        return stored?.cargo === "admin";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }, [usuario?.cargo]);
 
   const groupedNav = useMemo(
-    () => [
-      { title: "Principal", items: operationsItems },
-      { title: "CRM", items: crmItems },
-    ],
-    []
+    () => {
+      const principalItems = [...baseOperationsItems];
+      if (isAdmin) {
+        principalItems.splice(4, 0, {
+          label: "Usuários",
+          href: "/usuarios",
+          icon: Users,
+        });
+      }
+
+      return [
+        { title: "Principal", items: principalItems },
+        { title: "CRM", items: crmItems },
+      ];
+    },
+    [isAdmin]
   );
 
   return (
     <Sidebar collapsible="icon" className="border-r border-slate-200/70 bg-white/95">
       <SidebarHeader className="pb-1">
-        <div className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 shadow-sm">
-          <span className="text-lg font-bold text-slate-800">Odontomanager</span>
-          <span className="text-lg font-bold text-purple-600">Lamor</span>
-          <span className="text-lg font-bold text-purple-600">IA</span>
+        <div className="relative flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 shadow-sm">
+          <div className={`flex items-center gap-2 transition-opacity ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
+            <span className="text-lg font-bold text-slate-800">Odontomanager</span>
+            <span className="text-lg font-bold text-purple-600">Lamor</span>
+            <span className="text-lg font-bold text-purple-600">IA</span>
+          </div>
+          <img
+            src={logoLamor}
+            alt="LamorIA"
+            className={`absolute left-2 top-2 h-6 w-auto transition-all ${isCollapsed ? "opacity-100 -translate-x-[17%]" : "opacity-0 translate-x-0"}`}
+          />
         </div>
       </SidebarHeader>
 
@@ -96,21 +131,40 @@ export const AppSidebar = () => {
               <SidebarMenu>
                 {section.items.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActivePath(pathname, item.href)}
-                      className="text-slate-600 hover:text-slate-900"
-                    >
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                        {item.badge !== undefined && (
-                          <span className="ml-auto inline-flex items-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-600">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
+                    {(() => {
+                      const allowed = item.permissionKey ? permissions[item.permissionKey] : true;
+                      const content = (
+                        <div className={`flex items-center gap-2 ${allowed ? '' : 'pointer-events-none opacity-40'}`}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                          {item.badge !== undefined && (
+                            <span className="ml-auto inline-flex items-center rounded-full bg-slate-100 px-2 text-xs font-semibold text-slate-600">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      );
+
+                      if (!allowed) {
+                        return (
+                          <SidebarMenuButton isActive={false} className="text-slate-600">
+                            {content}
+                          </SidebarMenuButton>
+                        );
+                      }
+
+                      return (
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActivePath(pathname, item.href)}
+                          className="text-slate-600 hover:text-slate-900"
+                        >
+                          <Link to={item.href} className="flex items-center gap-2">
+                            {content}
+                          </Link>
+                        </SidebarMenuButton>
+                      );
+                    })()}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
