@@ -349,49 +349,36 @@ const Home = () => {
           </div>
         </header>
 
-        <section className="space-y-3">
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Gestão</h2>
-            <span className="text-xs text-slate-400">Agenda e operação diária</span>
+            <h2 className="text-lg font-semibold text-slate-900">Acesso rápido</h2>
+            <p className="text-xs text-slate-500">Módulos respeitando as permissões do plano</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {managementCards.map(({ label, value, detail, accent, icon: Icon }) => (
-              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
-                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {quickModules.map(({ id, title, description, href, permissionKey, accent, icon: Icon }) => {
+              const allowed = permissions[permissionKey];
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleModuleClick(href, allowed)}
+                  className={`group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition hover:shadow-md ${
+                    allowed ? "" : "opacity-50"
+                  }`}
+                >
+                  <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${accent} p-3 text-white`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
-                  <p className="text-xs text-slate-500">{detail}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Performance</h2>
-            <span className="text-xs text-slate-400">Funil e tecnologia</span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {performanceCards.map(({ label, value, detail, accent, icon: Icon }) => (
-              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
-                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
-                  <p className="text-xs text-slate-500">{detail}</p>
-                </CardContent>
-              </Card>
-            ))}
+                  <p className="text-base font-semibold text-slate-900">{title}</p>
+                  <p className="text-sm text-slate-500">{description}</p>
+                  {!allowed && (
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-white/80 text-center text-xs text-slate-500">
+                      <Lock className="mb-1 h-4 w-4" />
+                      Solicite upgrade para acessar
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -411,7 +398,7 @@ const Home = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                  <div className="space-y-3 h-[600px] overflow-y-auto pr-1">
                     {agendamentosHojeList.length === 0 && (
                       <p className="text-sm text-slate-500">Nenhum agendamento para hoje até o momento.</p>
                     )}
@@ -433,31 +420,6 @@ const Home = () => {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-white shadow-xl shadow-slate-200/80">
-                <CardHeader>
-                  <CardTitle className="text-slate-900">Funil de conversão</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {funnelBars.map((bar) => (
-                    <div key={bar.label} className="space-y-2">
-                      <div className="flex justify-between text-xs text-slate-500">
-                        <span>{bar.label}</span>
-                        <span>{bar.value} leads</span>
-                      </div>
-                      <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className={`h-full rounded-full bg-gradient-to-r ${bar.color}`}
-                          style={{
-                            width: funnelCounts.totalLeads ? `${(bar.value / funnelCounts.totalLeads) * 100}%` : "0%",
-                            minWidth: bar.value ? "6%" : "0",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </CardContent>
               </Card>
             </div>
@@ -545,37 +507,74 @@ const Home = () => {
           </div>
         </section>
 
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Acesso rápido</h2>
-            <p className="text-xs text-slate-500">Módulos respeitando as permissões do plano</p>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Gestão</h2>
+            <span className="text-xs text-slate-400">Agenda e operação diária</span>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {quickModules.map(({ id, title, description, href, permissionKey, accent, icon: Icon }) => {
-              const allowed = permissions[permissionKey];
-              return (
-                <button
-                  key={id}
-                  onClick={() => handleModuleClick(href, allowed)}
-                  className={`group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition hover:shadow-md ${
-                    allowed ? "" : "opacity-50"
-                  }`}
-                >
-                  <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${accent} p-3 text-white`}>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {managementCards.map(({ label, value, detail, accent, icon: Icon }) => (
+              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
+                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <p className="text-base font-semibold text-slate-900">{title}</p>
-                  <p className="text-sm text-slate-500">{description}</p>
-                  {!allowed && (
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-white/80 text-center text-xs text-slate-500">
-                      <Lock className="mb-1 h-4 w-4" />
-                      Solicite upgrade para acessar
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
+                  <p className="text-xs text-slate-500">{detail}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Performance</h2>
+            <span className="text-xs text-slate-400">Funil e tecnologia</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {performanceCards.map(({ label, value, detail, accent, icon: Icon }) => (
+              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
+                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
+                  <p className="text-xs text-slate-500">{detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="border border-white shadow-xl shadow-slate-200/80">
+            <CardHeader>
+              <CardTitle className="text-slate-900">Funil de conversão</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {funnelBars.map((bar) => (
+                <div key={bar.label} className="space-y-2">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>{bar.label}</span>
+                    <span>{bar.value} leads</span>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${bar.color}`}
+                      style={{
+                        width: funnelCounts.totalLeads ? `${(bar.value / funnelCounts.totalLeads) * 100}%` : "0%",
+                        minWidth: bar.value ? "6%" : "0",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </section>
 
         <footer className="border-t border-slate-200 pt-4 text-center text-xs text-slate-500">
