@@ -64,7 +64,7 @@ const quickModules = [
     description: "Calendário, confirmações e ausências",
     href: "/agendamentos",
     permissionKey: "allowCrmAgendamentos" as const,
-    accent: "from-emerald-400/40 to-emerald-500/70",
+    accent: "from-emerald-500 to-emerald-600",
     icon: CalendarClock,
   },
   {
@@ -73,7 +73,7 @@ const quickModules = [
     description: "Escalas e lotação dos boxes",
     href: "/consultorios",
     permissionKey: "allowConsultorios" as const,
-    accent: "from-indigo-400/40 to-indigo-500/70",
+    accent: "from-indigo-500 to-indigo-600",
     icon: Gauge,
   },
   {
@@ -82,7 +82,7 @@ const quickModules = [
     description: "Funil e relacionamento com leads",
     href: "/crm",
     permissionKey: "allowCrmAgendamentos" as const,
-    accent: "from-amber-400/40 to-amber-500/70",
+    accent: "from-amber-500 to-amber-600",
     icon: LineChart,
   },
   {
@@ -91,7 +91,7 @@ const quickModules = [
     description: "Campanhas e cadências automáticas",
     href: "/disparos",
     permissionKey: "allowDisparosWhatsapp" as const,
-    accent: "from-sky-400/40 to-sky-500/70",
+    accent: "from-sky-500 to-sky-600",
     icon: Sparkles,
   },
 ];
@@ -174,7 +174,12 @@ const Home = () => {
       const postsData = postsRes.data || [];
       const dentistasData = dentistasRes.data || [];
       const consultoriosData = consultoriosRes.data || [];
+      
+      // Removido filtro manual já que a Edge Function já retorna apenas do tenant correto
       const instancesData = instancesRes || [];
+      
+      console.log(`[Home] Carregando dashboard para tenant: ${tenantId}`);
+      console.log(`[Home] Instâncias recebidas:`, instancesData);
 
       const leadsHoje = postsData.filter((post: any) => {
         if (!post?.data_marcada) return false;

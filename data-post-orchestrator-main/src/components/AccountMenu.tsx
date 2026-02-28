@@ -100,11 +100,13 @@ export const AccountMenu = ({ compact = false }: AccountMenuProps) => {
         <Button
           variant="outline"
           className={cn(
-            "flex items-center gap-3 rounded-full border-slate-200 bg-white/80 text-sm font-medium shadow-sm",
-            compact ? "w-full justify-center px-2 py-2" : "px-3 py-2"
+            "flex items-center gap-3 transition-all duration-200",
+            compact 
+              ? "w-full justify-center px-2 py-2 border-0 bg-transparent shadow-none hover:bg-slate-50" 
+              : "rounded-2xl border-slate-200/60 bg-white/90 text-sm font-medium shadow-md hover:shadow-lg hover:border-slate-300/80 hover:bg-white px-3 py-2.5"
           )}
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className={`flex items-center justify-center text-primary transition-all ${compact ? "text-lg font-bold" : "h-9 w-9 rounded-full bg-gradient-to-br from-primary/10 to-primary/5"}`}>
             {initials}
           </div>
           {!compact && (

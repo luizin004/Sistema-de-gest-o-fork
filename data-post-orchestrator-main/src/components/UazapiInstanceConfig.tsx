@@ -15,6 +15,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance, onRefresh }) => {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      // Para uso geral, não passa tenant_id específico (usa o do usuário autenticado)
       await refreshInstanceStatus(instance.id);
       onRefresh();
     } catch (error) {
@@ -29,6 +30,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({ instance, onRefresh }) => {
     
     setRemoving(true);
     try {
+      // Para uso geral, não passa tenant_id específico (usa o do usuário autenticado)
       await removeInstance(instance.id);
       onRefresh();
     } catch (error) {
@@ -102,6 +104,7 @@ export const UazapiInstanceConfig: React.FC<UazapiInstanceConfigProps> = ({ onIn
 
   const loadInstances = async () => {
     try {
+      // Para uso geral, não passa tenant_id específico (usa o do usuário autenticado)
       const instances = await getInstances();
       setInstances(instances);
     } catch (error) {
@@ -120,6 +123,7 @@ export const UazapiInstanceConfig: React.FC<UazapiInstanceConfigProps> = ({ onIn
     setSuccess('');
     
     try {
+      // Para uso geral, não passa tenant_id específico (usa o do usuário autenticado)
       const instance = await configureInstance(token);
       if (instance) {
         setToken('');

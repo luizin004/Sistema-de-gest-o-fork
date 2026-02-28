@@ -35,14 +35,15 @@ export const UsuarioInstanceManager: React.FC<UsuarioInstanceManagerProps> = ({
     
     setLoading(true);
     try {
-      const instancesData = await getInstances();
+      // Passar o tenantId específico para buscar instâncias deste usuário
+      const instancesData = await getInstances(tenantId);
       setInstances(instancesData);
       
       // Log informativo sobre o estado
       if (instancesData.length === 0) {
         console.log('[UsuarioInstanceManager] Nenhuma instância configurada para este tenant');
       } else {
-        console.log(`[UsuarioInstanceManager] ${instancesData.length} instâncias carregadas`);
+        console.log(`[UsuarioInstanceManager] ${instancesData.length} instâncias carregadas para o tenant ${tenantId}`);
       }
     } catch (error) {
       console.error('Erro ao carregar instâncias:', error);
@@ -68,7 +69,8 @@ export const UsuarioInstanceManager: React.FC<UsuarioInstanceManagerProps> = ({
 
     setAddingInstance(true);
     try {
-      const instance = await configureInstance(newToken);
+      // Passar o tenantId do usuário selecionado para a configuração
+      const instance = await configureInstance(newToken, tenantId);
       if (instance) {
         setNewToken('');
         setShowAddDialog(false);
@@ -98,7 +100,7 @@ export const UsuarioInstanceManager: React.FC<UsuarioInstanceManagerProps> = ({
 
   const handleRefreshInstance = async (instanceId: string) => {
     try {
-      await refreshInstanceStatus(instanceId);
+      await refreshInstanceStatus(instanceId, tenantId);
       await loadInstances();
       toast({
         title: 'Sucesso',
@@ -118,7 +120,7 @@ export const UsuarioInstanceManager: React.FC<UsuarioInstanceManagerProps> = ({
     if (!confirm('Tem certeza que deseja remover esta instância?')) return;
 
     try {
-      await removeInstance(instanceId);
+      await removeInstance(instanceId, tenantId);
       await loadInstances();
       toast({
         title: 'Sucesso',

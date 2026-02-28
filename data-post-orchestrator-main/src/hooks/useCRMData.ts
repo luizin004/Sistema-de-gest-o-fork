@@ -586,8 +586,9 @@ export const useCRMData = () => {
   }, [getUazapiConfig, createMessage]);
 
   // Funções de configuração de instâncias UAZAPI
-  const configureInstance = useCallback(async (token: string): Promise<UazapiInstance | null> => {
-    if (!tenantId) return null;
+  const configureInstance = useCallback(async (token: string, targetTenantId?: string): Promise<UazapiInstance | null> => {
+    const tenantToUse = targetTenantId || tenantId;
+    if (!tenantToUse) return null;
     
     try {
       const headers = await getAuthHeaders();
@@ -598,7 +599,7 @@ export const useCRMData = () => {
       const response = await fetch(getFunctionUrl('uazapi-instance-config/configure'), {
         method: 'POST',
         headers,
-        body: JSON.stringify({ token })
+        body: JSON.stringify({ token, tenant_id: targetTenantId })
       });
       
       if (!response.ok) {
@@ -615,11 +616,19 @@ export const useCRMData = () => {
     }
   }, [tenantId, getAuthHeaders]);
 
-  const getInstances = useCallback(async (): Promise<UazapiInstance[]> => {
-    if (!tenantId) return [];
+  const getInstances = useCallback(async (targetTenantId?: string): Promise<UazapiInstance[]> => {
+    const tenantToUse = targetTenantId || tenantId;
+    if (!tenantToUse) return [];
+    
+    console.log(`[useCRMData] getInstances chamado com tenant: ${tenantToUse} (target: ${targetTenantId}, current: ${tenantId})`);
     
     try {
       const headers = await getAuthHeaders();
+      // Se tiver um tenant específico, adiciona ao header
+      if (targetTenantId) {
+        headers['x-tenant-id'] = targetTenantId;
+      }
+      console.log(`[useCRMData] Headers:`, headers);
       const response = await fetch(getFunctionUrl('uazapi-instance-config/instances'), {
         method: 'GET',
         headers
@@ -640,7 +649,8 @@ export const useCRMData = () => {
       const result = await response.json();
       const instances = result.instances || [];
       
-      console.log(`[UAZAPI-INSTANCE-CONFIG] ${instances.length} instâncias encontradas para o tenant`);
+      console.log(`[UAZAPI-INSTANCE-CONFIG] ${instances.length} instâncias encontradas para o tenant ${tenantToUse}`);
+      console.log(`[UAZAPI-INSTANCE-CONFIG] Instâncias:`, instances);
       return instances;
     } catch (error) {
       console.error('Erro ao buscar instâncias UAZAPI:', error);
@@ -648,11 +658,16 @@ export const useCRMData = () => {
     }
   }, [tenantId, getAuthHeaders]);
 
-  const refreshInstanceStatus = useCallback(async (instanceId: string): Promise<UazapiInstance | null> => {
-    if (!tenantId) return null;
+  const refreshInstanceStatus = useCallback(async (instanceId: string, targetTenantId?: string): Promise<UazapiInstance | null> => {
+    const tenantToUse = targetTenantId || tenantId;
+    if (!tenantToUse) return null;
     
     try {
       const headers = await getAuthHeaders();
+      // Se tiver um tenant específico, adiciona ao header
+      if (targetTenantId) {
+        headers['x-tenant-id'] = targetTenantId;
+      }
       if (!headers) {
         console.warn('[UAZAPI-INSTANCE-CONFIG] Usuário não autenticado ao atualizar instância');
         return null;
@@ -676,11 +691,16 @@ export const useCRMData = () => {
     }
   }, [tenantId, getAuthHeaders]);
 
-  const removeInstance = useCallback(async (instanceId: string): Promise<boolean> => {
-    if (!tenantId) return false;
+  const removeInstance = useCallback(async (instanceId: string, targetTenantId?: string): Promise<boolean> => {
+    const tenantToUse = targetTenantId || tenantId;
+    if (!tenantToUse) return false;
     
     try {
       const headers = await getAuthHeaders();
+      // Se tiver um tenant específico, adiciona ao header
+      if (targetTenantId) {
+        headers['x-tenant-id'] = targetTenantId;
+      }
       if (!headers) {
         console.warn('[UAZAPI-INSTANCE-CONFIG] Usuário não autenticado ao remover instância');
         return false;

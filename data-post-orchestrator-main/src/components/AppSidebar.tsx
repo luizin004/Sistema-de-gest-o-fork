@@ -117,7 +117,7 @@ export const AppSidebar = () => {
           <img
             src={logoLamor}
             alt="LamorIA"
-            className={`absolute left-2 top-2 h-6 w-auto transition-all ${isCollapsed ? "opacity-100 -translate-x-[17%]" : "opacity-0 translate-x-0"}`}
+            className={`absolute left-2 top-2 h-5 w-auto transition-all ${isCollapsed ? "opacity-100 -translate-x-[17%]" : "opacity-0 translate-x-0"}`}
           />
         </div>
       </SidebarHeader>
@@ -179,7 +179,7 @@ export const AppSidebar = () => {
       <SidebarSeparator className="my-2" />
       <SidebarFooter>
         <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-2 text-sm text-slate-600">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Sessão</p>
+          <p className={`text-xs uppercase tracking-[0.2em] text-slate-400 ${isCollapsed ? 'hidden' : ''}`}>Sessão</p>
           <AccountMenu compact />
         </div>
       </SidebarFooter>
