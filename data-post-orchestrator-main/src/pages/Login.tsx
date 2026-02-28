@@ -108,17 +108,36 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        backgroundImage: 'linear-gradient(rgba(10, 16, 32, 0.75), rgba(10, 16, 32, 0.75)), url(/login-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
       <div className="w-full max-w-md">
         {/* Logo e Título */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Building2 className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src="/lamoria-br.png"
+              alt="Logo LamorIA"
+              className="w-32 h-20 object-contain drop-shadow-2xl"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Sistema de Gestão</h1>
-          <p className="text-slate-600">Faça login para acessar o sistema</p>
+          <div className="flex flex-col items-center gap-1">
+            <h1 className="login-display text-5xl md:text-6xl font-black text-white uppercase mb-1 tracking-[0.02em] drop-shadow-[0_4px_24px_rgba(15,23,42,0.65)]">
+              Odontomanager
+            </h1>
+            <p className="login-display text-lg font-extrabold text-white mb-2 drop-shadow-[0_4px_20px_rgba(15,23,42,0.7)]">
+              Lamor
+              <span className="text-purple-400">I</span>
+              <span className="text-purple-500">A</span>
+            </p>
+          </div>
+          <p className="text-slate-100">Faça login para acessar o sistema</p>
         </div>
 
         {/* Card de Login */}

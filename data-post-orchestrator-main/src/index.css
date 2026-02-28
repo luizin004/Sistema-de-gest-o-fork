@@ -144,6 +144,11 @@ All colors MUST be HSL.
   .interactive-element {
     @apply transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
   }
+
+  .login-display {
+    font-family: 'Century Gothic', 'Century Schoolbook', 'Century', serif;
+    letter-spacing: -0.01em;
+  }
 }
 
 /* Performance optimizations */

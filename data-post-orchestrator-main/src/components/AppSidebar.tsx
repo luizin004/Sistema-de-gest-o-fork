@@ -53,7 +53,6 @@ const crmItems: NavItem[] = [
 const baseOperationsItems: NavItem[] = [
   { label: "Home", href: "/home", icon: Home },
   { label: "Agendamentos", href: "/agendamentos", icon: CalendarDays, permissionKey: 'allowCrmAgendamentos' },
-  { label: "Monitoramento", href: "/monitoramento", icon: ClipboardList, permissionKey: 'allowCrmAgendamentos' },
   { label: "Consultórios", href: "/consultorios", icon: ClipboardList, permissionKey: 'allowConsultorios' },
   { label: "Dados", href: "/dentistas", icon: Database },
   { label: "Disparos", href: "/disparos", icon: Share2, permissionKey: 'allowDisparosWhatsapp' },
@@ -110,9 +109,7 @@ export const AppSidebar = () => {
       <SidebarHeader className="pb-1">
         <div className="relative flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 shadow-sm">
           <div className={`flex items-center gap-2 transition-opacity ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
-            <span className="text-lg font-bold text-slate-800">Odontomanager</span>
-            <span className="text-lg font-bold text-purple-600">Lamor</span>
-            <span className="text-lg font-bold text-purple-600">IA</span>
+            <span className="text-xl font-bold text-slate-800 tracking-[0.2em]">Odontomanager</span>
           </div>
           <img
             src={logoLamor}

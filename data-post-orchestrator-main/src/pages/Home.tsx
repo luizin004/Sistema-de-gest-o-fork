@@ -152,28 +152,34 @@ const Home = () => {
         .select("id,status,created_at,data_marcada")
         .order("created_at", { ascending: false });
 
-      let dentistasQuery = supabaseUntyped.from("dentistas").select("id");
-      let consultoriosQuery = supabaseUntyped.from("consultorios").select("id");
+      let dentistasQuery = supabaseUntyped.from("dentistas").select("id").eq("ativo", true);
+      let consultoriosQuery = supabaseUntyped.from("consultorios").select("id").eq("ativo", true);
+      let escalaSemanalQuery = supabaseUntyped
+        .from("escala_semanal")
+        .select("consultorio_id,dia_semana,horario_inicio,semana");
 
       if (tenantId) {
         agendamentoQuery = agendamentoQuery.eq("tenant_id", tenantId);
         postsQuery = postsQuery.eq("tenant_id", tenantId);
         dentistasQuery = dentistasQuery.eq("tenant_id", tenantId);
         consultoriosQuery = consultoriosQuery.eq("tenant_id", tenantId);
+        escalaSemanalQuery = escalaSemanalQuery.eq("tenant_id", tenantId);
       }
 
-      const [agendamentosRes, postsRes, dentistasRes, consultoriosRes, instancesRes] = await Promise.all([
+      const [agendamentosRes, postsRes, dentistasRes, consultoriosRes, instancesRes, escalaSemanalRes] = await Promise.all([
         agendamentoQuery,
         postsQuery,
         dentistasQuery,
         consultoriosQuery,
         getInstances(),
+        escalaSemanalQuery,
       ]);
 
       const agendamentosData = agendamentosRes.data || [];
       const postsData = postsRes.data || [];
-      const dentistasData = dentistasRes.data || [];
-      const consultoriosData = consultoriosRes.data || [];
+      const dentistasData = (dentistasRes.data || []).filter((dent: any) => dent?.ativo !== false);
+      const consultoriosData = (consultoriosRes.data || []).filter((c: any) => c?.ativo !== false);
+      const escalaSemanalData = escalaSemanalRes.data || [];
       
       // Removido filtro manual já que a Edge Function já retorna apenas do tenant correto
       const instancesData = instancesRes || [];
@@ -199,8 +205,11 @@ const Home = () => {
       const conversasConduzidas = leadsInteressados + leadsAgendados;
       const taxaConversao = totalLeads > 0 ? (leadsAgendados / totalLeads) * 100 : 0;
 
-      const lotacaoCapacidade = Math.max(consultoriosData.length * 8, 1);
-      const lotacaoPercent = Math.min(100, (agendamentosData.length / lotacaoCapacidade) * 100);
+      const lotacaoCapacidade = Math.max(consultoriosData.length, 1);
+      const ocupacaoSlots = Math.min(dentistasData.length, lotacaoCapacidade);
+      const lotacaoPercent = lotacaoCapacidade > 0
+        ? Math.min(100, (ocupacaoSlots / lotacaoCapacidade) * 100)
+        : 0;
 
       const funnelRespondeu = postsData.filter((post: any) => (STATUS_LEVEL[(post?.status || "").toLowerCase()] ?? 1) >= 2).length;
       const funnelInteragiu = postsData.filter((post: any) => (STATUS_LEVEL[(post?.status || "").toLowerCase()] ?? 1) >= 3).length;
@@ -221,6 +230,8 @@ const Home = () => {
         instanciasOnline,
         instanciasOffline,
         conversasConduzidas,
+        capacidadeConsultorios: Math.max(lotacaoCapacidade, 1),
+        ocupacaoConsultorios: ocupacaoSlots,
       });
       setFunnelCounts({
         respondeu: funnelRespondeu,
@@ -279,9 +290,9 @@ const Home = () => {
       icon: CalendarClock,
     },
     {
-      label: "Consultórios ativos",
+      label: "Utilização dos consultórios",
       value: metrics.consultoriosAtivos,
-      detail: `Lotação ${metrics.lotacaoPercent.toFixed(1)}% hoje`,
+      detail: `${metrics.ocupacaoConsultorios ?? 0} de ${metrics.consultoriosAtivos} consultórios em uso (${metrics.lotacaoPercent.toFixed(1)}%)`,
       accent: "from-indigo-400 to-indigo-600",
       icon: Gauge,
     },
@@ -432,7 +443,7 @@ const Home = () => {
             <div className="space-y-6">
               <Card className="border border-slate-200 shadow-lg shadow-slate-200/70">
                 <CardHeader>
-                  <CardTitle className="text-slate-900">Lotação de consultórios</CardTitle>
+                  <CardTitle className="text-slate-900">Utilização dos consultórios</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">

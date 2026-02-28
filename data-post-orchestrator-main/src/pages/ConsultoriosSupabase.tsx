@@ -446,28 +446,62 @@ export default function ConsultoriosSupabase() {
           description: `${selectedCells.size} horários removidos com sucesso`,
         });
       } else if (modo === 'alocacao' && selectedDentista) {
-        const escalasToInsert = Array.from(selectedCells).map(cell => {
+        const escalasToInsert: EscalaSemanal[] = [];
+
+        for (const cell of Array.from(selectedCells)) {
           const [consultorioId, dia, hora] = cell.split('|');
-          return {
+          const diaSemana = diaParaNumero[dia];
+          const horarioCompleto = hora + ':00';
+
+          const { data: existingSlot, error: selectError } = await supabaseUntyped
+            .from('escala_semanal')
+            .select('id')
+            .eq('dentista_id', selectedDentista)
+            .eq('dia_semana', diaSemana)
+            .eq('horario_inicio', horarioCompleto)
+            .eq('semana', selectedWeek)
+            .eq('tenant_id', tenantId)
+            .maybeSingle();
+
+          if (selectError) {
+            console.error('Erro ao validar horário existente:', selectError);
+            throw selectError;
+          }
+
+          if (existingSlot) {
+            console.warn('Horário duplicado detectado e ignorado:', cell);
+            continue;
+          }
+
+          escalasToInsert.push({
+            id: crypto.randomUUID(),
             dentista_id: selectedDentista,
             consultorio_id: consultorioId,
-            dia_semana: diaParaNumero[dia],
-            horario_inicio: hora + ':00',
+            dia_semana: diaSemana,
+            horario_inicio: horarioCompleto,
             semana: selectedWeek,
-            tenant_id: tenantId
-          };
-        });
+            tenant_id: tenantId,
+            created_at: new Date().toISOString(),
+          } as unknown as EscalaSemanal);
+        }
 
-        const { error } = await supabaseUntyped
-          .from('escala_semanal')
-          .insert(escalasToInsert);
+        if (escalasToInsert.length === 0) {
+          toast({
+            title: 'Nada a alocar',
+            description: 'Todos os horários selecionados já estavam reservados.',
+          });
+        } else {
+          const { error } = await supabaseUntyped
+            .from('escala_semanal')
+            .insert(escalasToInsert.map(({ id, ...payload }) => payload));
 
-        if (error) throw error;
+          if (error) throw error;
 
-        toast({
-          title: 'Sucesso',
-          description: `${selectedCells.size} horários alocados com sucesso`,
-        });
+          toast({
+            title: 'Sucesso',
+            description: `${escalasToInsert.length} horários alocados com sucesso`,
+          });
+        }
       } else {
         toast({
           title: 'Atenção',

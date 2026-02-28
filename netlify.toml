@@ -1,0 +1,14 @@
+[build]
+  command = "cd data-post-orchestrator-main && npm install && npm run build"
+  publish = "data-post-orchestrator-main/dist"
+
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  publish = "data-post-orchestrator-main"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
