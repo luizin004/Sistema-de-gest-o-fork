@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dialog";
 import { extrairTelefoneBase } from "@/lib/utils";
 import { useCRMData, Post } from "@/hooks/useCRMData";
+import { getTenantId } from "@/utils/tenantUtils";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 const meshBackground = {
   backgroundImage: `
@@ -24,8 +26,13 @@ const meshBackground = {
   `
 };
 
+type PostWithDerived = Post & {
+  telefone_base?: string | null;
+  tem_duplicado?: boolean;
+};
+
 export const CRMLayout = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithDerived[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -34,55 +41,37 @@ export const CRMLayout = () => {
   const location = useLocation();
   const { toast } = useToast();
   const { fetchPosts } = useCRMData();
+  const tenantId = useMemo(() => getTenantId(), []);
+  const rawPostsRef = useRef<Post[]>([]);
 
-  useEffect(() => {
-    // Removida verificação de autenticação para permitir acesso direto ao CRM
-    fetchPostsData();
-    
-    const channel = (supabase as any)
-      .channel('posts-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'posts'
-        },
-        () => {
-          fetchPostsData();
-        }
-      )
-      .subscribe();
+  const preparePosts = useCallback((data: Post[]): PostWithDerived[] => {
+    const postsComTelefoneBase = data.map((post) => ({
+      ...post,
+      telefone_base: extrairTelefoneBase(post.telefone || ""),
+    }));
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const telefones = postsComTelefoneBase.map((p) => p.telefone_base).filter(Boolean) as string[];
+    const contagemTelefones = telefones.reduce((acc, tel) => {
+      acc[tel] = (acc[tel] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return postsComTelefoneBase.map((post) => ({
+      ...post,
+      tem_duplicado: post.telefone_base ? contagemTelefones[post.telefone_base] > 1 : false,
+    }));
   }, []);
 
-  const fetchPostsData = async () => {
+  const setPostsFromRaw = useCallback((data: Post[]) => {
+    rawPostsRef.current = data;
+    setPosts(preparePosts(data));
+  }, [preparePosts]);
+
+  const fetchPostsData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const data = await fetchPosts();
-
-      // Adicionar telefone base para comparação (SEM MODIFICAR DADOS ORIGINAIS)
-      const postsComTelefoneBase = data.map(post => ({
-        ...post,
-        telefone_base: extrairTelefoneBase(post.telefone || ''),
-      }));
-
-      // Detectar duplicados de telefone (SEM MODIFICAR DADOS ORIGINAIS)
-      const telefones = postsComTelefoneBase.map(p => p.telefone_base).filter(Boolean);
-      const contagemTelefones = telefones.reduce((acc, tel) => {
-        acc[tel] = (acc[tel] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const postsComDuplicados = postsComTelefoneBase.map(post => ({
-        ...post,
-        tem_duplicado: post.telefone_base ? contagemTelefones[post.telefone_base] > 1 : false,
-      }));
-
-      setPosts(postsComDuplicados);
+      const data = (await fetchPosts()) || [];
+      setPostsFromRaw(data);
     } catch (error) {
       console.error('Erro ao buscar posts:', error);
       toast({
@@ -94,7 +83,68 @@ export const CRMLayout = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [fetchPosts, setPostsFromRaw, toast]);
+
+  const applyRealtimeUpdate = useCallback((updater: (current: Post[]) => Post[]) => {
+    setPostsFromRaw(updater(rawPostsRef.current));
+  }, [setPostsFromRaw]);
+
+  const handleRealtimePost = useCallback((payload: RealtimePostgresChangesPayload<Post>) => {
+    if (!tenantId) return;
+
+    const newRecord = payload.new as (Post & { tenant_id?: string }) | null;
+    const oldRecord = payload.old as (Post & { tenant_id?: string }) | null;
+    const recordTenant = newRecord?.tenant_id ?? oldRecord?.tenant_id;
+
+    if (recordTenant && recordTenant !== tenantId) {
+      return;
+    }
+
+    switch (payload.eventType) {
+      case 'INSERT':
+        if (!newRecord) return;
+        applyRealtimeUpdate((current) => [...current.filter((post) => post.id !== newRecord.id), newRecord]);
+        break;
+      case 'UPDATE':
+        if (!newRecord) return;
+        applyRealtimeUpdate((current) => current.map((post) => (post.id === newRecord.id ? { ...post, ...newRecord } : post)));
+        break;
+      case 'DELETE':
+        if (!oldRecord) return;
+        applyRealtimeUpdate((current) => current.filter((post) => post.id !== oldRecord.id));
+        break;
+      default:
+        fetchPostsData();
+        break;
+    }
+  }, [tenantId, applyRealtimeUpdate, fetchPostsData]);
+
+  useEffect(() => {
+    // Removida verificação de autenticação para permitir acesso direto ao CRM
+    fetchPostsData();
+  }, [fetchPostsData]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const channel = (supabase as any)
+      .channel(`posts-changes-${tenantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'posts',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        handleRealtimePost
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, handleRealtimePost]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -168,7 +218,7 @@ export const CRMLayout = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchPosts}
+                  onClick={fetchPostsData}
                   disabled={refreshing}
                   className="rounded-2xl border-white/60 bg-white text-slate-700 hover:bg-white"
                 >
@@ -219,7 +269,7 @@ export const CRMLayout = () => {
         </header>
 
         <main className="container mx-auto px-4 py-6">
-          <Outlet context={{ posts, refreshPosts: fetchPosts }} />
+          <Outlet context={{ posts, refreshPosts: fetchPostsData }} />
         </main>
       </div>
 

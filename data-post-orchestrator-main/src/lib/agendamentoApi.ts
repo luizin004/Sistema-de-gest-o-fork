@@ -1,6 +1,8 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
+import { getTenantId } from "@/utils/tenantUtils";
 
 const EXPORT_FUNCTION_URL = "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/export-to-sheets";
+const agendamentoTable = () => (supabaseUntyped as any).from('agendamento');
 
 export interface Agendamento {
   id: string;
@@ -45,9 +47,15 @@ async function getAuthHeaders() {
 }
 
 export async function fetchAgendamentos(): Promise<Agendamento[]> {
-  const { data, error } = await supabase
-    .from('agendamento')
+  const tenantId = getTenantId();
+  if (!tenantId) {
+    console.warn('[agendamentoApi] fetchAgendamentos chamado sem tenant ativo');
+    return [];
+  }
+
+  const { data, error } = await agendamentoTable()
     .select('*')
+    .eq('tenant_id', tenantId)
     .order('data_marcada', { ascending: true });
   
   if (error) {
@@ -62,11 +70,19 @@ export async function upsertAgendamento(
   agendamento: AgendamentoInput,
   options?: UpsertOptions
 ): Promise<Agendamento> {
+  const tenantId = getTenantId();
+  if (!tenantId) {
+    throw new Error("Tenant não encontrado ao salvar agendamento");
+  }
+
   console.log("Iniciando upsertAgendamento via cliente Supabase:", agendamento);
   
   // Usando 'as any' para permitir campos que podem não estar na definição de tipo gerada (ex: source)
-  const { data, error } = await (supabase.from('agendamento') as any)
-    .upsert(agendamento, {
+  const { data, error } = await agendamentoTable()
+    .upsert({
+      ...agendamento,
+      tenant_id: tenantId,
+    }, {
       onConflict: options?.onConflict ?? 'telefone',
     })
     .select()
@@ -80,10 +96,15 @@ export async function upsertAgendamento(
 }
 
 export async function deleteAgendamento(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('agendamento')
+  const tenantId = getTenantId();
+  if (!tenantId) {
+    throw new Error("Tenant não encontrado ao deletar agendamento");
+  }
+
+  const { error } = await agendamentoTable()
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
   
   if (error) {
     throw new Error(error.message || 'Failed to delete agendamento');

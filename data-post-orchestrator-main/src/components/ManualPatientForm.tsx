@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar, Users, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { upsertAgendamento } from "@/lib/agendamentoApi";
 import { normalizePhoneForAgendamento } from "@/lib/utils";
+import { getTenantId } from "@/utils/tenantUtils";
 
 export interface ManualPatientFormData {
   nome: string;
@@ -53,6 +53,7 @@ const ManualPatientForm = ({
   const [dentistaOptions, setDentistaOptions] = useState<string[]>([]);
   const [tratamentoOptions, setTratamentoOptions] = useState<string[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  const tenantId = useMemo(() => getTenantId(), []);
 
   useEffect(() => {
     onFormStateChange?.(formData);
@@ -62,20 +63,24 @@ const ManualPatientForm = ({
     const carregarOpcoes = async () => {
       try {
         setLoadingOptions(true);
+        if (!tenantId) {
+          throw new Error("Tenant não encontrado ao carregar opções");
+        }
+
         const [dentistasRes, tratamentosRes] = await Promise.all([
-          supabase.from("dentistas").select("nome").order("nome").returns<{ nome: string | null }[]>(),
-          supabase.from("tratamentos" as any).select("nome").order("nome").returns<{ nome: string | null }[]>(),
+          supabaseUntyped.from("dentistas").select("nome").eq("tenant_id", tenantId).order("nome"),
+          supabaseUntyped.from("tratamentos").select("nome").eq("tenant_id", tenantId).order("nome"),
         ]);
 
         if (dentistasRes.error) throw dentistasRes.error;
-        const dentistasData = dentistasRes.data ?? [];
+        const dentistasData = (dentistasRes.data as { nome: string | null }[] | null) ?? [];
         setDentistaOptions(dentistasData.map((d) => d.nome).filter((nome): nome is string => Boolean(nome)));
 
         if (tratamentosRes.error) {
           console.warn("Não foi possível carregar tratamentos:", tratamentosRes.error);
           setTratamentoOptions([]);
         } else {
-          const tratamentosData = tratamentosRes.data ?? [];
+          const tratamentosData = (tratamentosRes.data as { nome: string | null }[] | null) ?? [];
           setTratamentoOptions(tratamentosData.map((t) => t.nome).filter((nome): nome is string => Boolean(nome)));
         }
       } catch (error) {
@@ -116,6 +121,12 @@ const ManualPatientForm = ({
     setLoading(true);
 
     try {
+      if (!tenantId) {
+        toast.error("Tenant não encontrado. Refaça o login para continuar.");
+        setLoading(false);
+        return;
+      }
+
       const normalizedPhone = normalizePhoneForAgendamento(formData.telefone);
       if (!normalizedPhone) {
         toast.error("Informe um telefone válido (DDD + número)");
@@ -140,7 +151,7 @@ const ManualPatientForm = ({
 
       try {
         // 1. Criar agendamento primeiro (fonte da verdade)
-        const { data, error } = await supabase
+        const { data, error } = await supabaseUntyped
           .from('agendamento')
           .insert({
             nome: formData.nome,
@@ -149,6 +160,7 @@ const ManualPatientForm = ({
             dentista: formData.dentista || null,
             tratamento: formData.tratamento || null,
             author_id: user.id,
+            tenant_id: tenantId,
           })
           .select('id, data_marcada, horario')
           .single();
@@ -163,7 +175,7 @@ const ManualPatientForm = ({
       }
 
         // 2. Criar post com dados do agendamento (espelho)
-        const { error: postError } = await supabase
+        const { error: postError } = await supabaseUntyped
           .from('posts')
           .insert({
             nome: formData.nome,
@@ -176,6 +188,7 @@ const ManualPatientForm = ({
             horario: data.horario, // Sincronizar do agendamento
             agendamento_id: data.id,
             author_id: user.id,
+            tenant_id: tenantId,
           });
 
         if (postError) throw postError;
