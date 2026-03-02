@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, Send, CheckCircle2, Gift, Sparkles, SunMedium, ArrowRight, Target } from "lucide-react";
+import { Home, Send, CheckCircle2, Gift, Sparkles, SunMedium, ArrowRight, Target, Smartphone } from "lucide-react";
 
 const DisparosWhatsapp = () => {
   const navigate = useNavigate();
@@ -58,6 +58,15 @@ const DisparosWhatsapp = () => {
       accent: "from-purple-500/20 via-purple-500/5 to-transparent",
       badge: "bg-purple-500/15 text-purple-600",
       iconBg: "from-purple-500 to-violet-600",
+    },
+    {
+      title: "Por Emulador",
+      description: "Suba listas CSV e dispare via emuladores ADB configurados por tenant.",
+      to: "/disparos/emulador",
+      icon: Smartphone,
+      accent: "from-blue-500/20 via-blue-500/5 to-transparent",
+      badge: "bg-blue-500/15 text-blue-600",
+      iconBg: "from-blue-600 to-cyan-500",
     },
   ];
 

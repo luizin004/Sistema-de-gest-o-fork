@@ -35,6 +35,7 @@ import DisparosClareamentoConfig from "./pages/DisparosClareamentoConfig";
 import DisparosConfirmacaoConfig from "./pages/DisparosConfirmacaoConfig";
 import DisparosCampanha from "./pages/DisparosCampanha";
 import DisparosCampanhaLeads from "./pages/DisparosCampanhaLeads";
+import DisparosEmulador from "./pages/DisparosEmulador";
 import Monitoramento from "./pages/Monitoramento";
 import FormataListas from "./pages/FormataListas";
 import Consultorios from "./pages/ConsultoriosSupabase";
@@ -227,6 +228,11 @@ const AppContent = () => {
                 <FeatureGuard feature="disparos_campanha">
                   <DisparosCampanhaLeads />
                 </FeatureGuard>
+              </AuthGuard>
+            } />
+            <Route path="/disparos/emulador" element={
+              <AuthGuard>
+                <DisparosEmulador />
               </AuthGuard>
             } />
             <Route path="/disparos/config" element={
