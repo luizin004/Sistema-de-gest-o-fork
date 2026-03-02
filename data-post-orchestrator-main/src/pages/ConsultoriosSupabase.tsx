@@ -783,52 +783,33 @@ export default function ConsultoriosSupabase() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/home')}
-                className="flex items-center space-x-2 hover:bg-blue-50"
-              >
-                <Home className="h-4 w-4" />
-                <span>Início</span>
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">Consultórios</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                onClick={() => setShowConsultorioDialog(true)}
-                className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
-              >
-                <Building className="h-4 w-4" />
-                <span>Novo consultório</span>
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowDentistaDialog(true)}
-                className="flex items-center space-x-1"
-              >
-                <User className="h-4 w-4" />
-                <span>Novo dentista</span>
-              </Button>
-              
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
-                  {new Date().toLocaleString('pt-BR')}
-                </span>
-              </div>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-end items-center gap-3 mb-6">
+          <Button
+            size="sm"
+            onClick={() => setShowConsultorioDialog(true)}
+            className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
+          >
+            <Building className="h-4 w-4" />
+            <span>Novo consultório</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowDentistaDialog(true)}
+            className="flex items-center space-x-1"
+          >
+            <User className="h-4 w-4" />
+            <span>Novo dentista</span>
+          </Button>
+          
+          <div className="flex items-center space-x-2">
+            <Clock className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-600">
+              {new Date().toLocaleString('pt-BR')}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Dentistas List */}
           <div className="lg:col-span-1 lg:max-w-xs">

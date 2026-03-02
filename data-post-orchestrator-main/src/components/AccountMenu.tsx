@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface AccountMenuProps {
   compact?: boolean;
+  collapsed?: boolean;
 }
 
 interface StoredUser {
@@ -25,7 +26,7 @@ interface StoredUser {
   tenant_id?: string;
 }
 
-export const AccountMenu = ({ compact = false }: AccountMenuProps) => {
+export const AccountMenu = ({ compact = false, collapsed = false }: AccountMenuProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<StoredUser | null>(null);
@@ -100,20 +101,34 @@ export const AccountMenu = ({ compact = false }: AccountMenuProps) => {
         <Button
           variant="outline"
           className={cn(
-            "flex items-center gap-3 transition-all duration-200",
-            compact 
-              ? "w-full justify-center px-2 py-2 border-0 bg-transparent shadow-none hover:bg-slate-50" 
-              : "rounded-2xl border-slate-200/60 bg-white/90 text-sm font-medium shadow-md hover:shadow-lg hover:border-slate-300/80 hover:bg-white px-3 py-2.5"
+            "transition-all duration-200",
+            collapsed
+              ? "h-10 w-10 p-0 rounded-full border-0 bg-transparent hover:bg-slate-100/50 flex items-center justify-center"
+              : compact 
+                ? "w-full justify-start px-3 py-3 rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-50 to-pink-50/50 shadow-sm hover:shadow-md hover:border-purple-400/50 hover:from-purple-100/80 hover:to-pink-100/80 flex items-center gap-3" 
+                : "rounded-2xl border-purple-200/60 bg-gradient-to-br from-purple-50 to-pink-50/50 text-sm font-medium shadow-md hover:shadow-lg hover:border-purple-300/80 hover:from-purple-100/80 hover:to-pink-100/80 px-3 py-2.5 flex items-center gap-3"
           )}
         >
-          <div className={`flex items-center justify-center text-primary transition-all ${compact ? "text-lg font-bold" : "h-9 w-9 rounded-full bg-gradient-to-br from-primary/10 to-primary/5"}`}>
-            {initials}
-          </div>
-          {!compact && (
-            <div className="hidden text-left sm:block">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Minha conta</p>
-              <p className="text-sm font-semibold text-slate-800 line-clamp-1">{user.nome}</p>
-            </div>
+          {collapsed ? (
+            <UserCircle2 className="h-5 w-5 text-slate-600" />
+          ) : (
+            <>
+              <div className="flex items-center justify-center text-sm font-bold text-slate-700">
+                {initials}
+              </div>
+              {compact && (
+                <div className="flex-1 text-left overflow-hidden">
+                  <p className="text-xs font-semibold text-slate-700 truncate">{user.nome}</p>
+                  <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                </div>
+              )}
+              {!compact && (
+                <div className="hidden text-left sm:block">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Minha conta</p>
+                  <p className="text-sm font-semibold text-slate-800 line-clamp-1">{user.nome}</p>
+                </div>
+              )}
+            </>
           )}
         </Button>
       </DropdownMenuTrigger>

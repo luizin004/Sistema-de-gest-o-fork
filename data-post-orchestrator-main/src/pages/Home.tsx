@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/hooks/useTenant";
-import { supabaseUntyped } from "@/integrations/supabase/client";
+import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { useCRMData, type UazapiInstance } from "@/hooks/useCRMData";
 import { Progress } from "@/components/ui/progress";
 
@@ -96,6 +96,20 @@ const quickModules = [
   },
 ];
 
+type DashboardMetrics = {
+  agendamentosHoje: number;
+  leadsHoje: number;
+  consultoriosAtivos: number;
+  lotacaoPercent: number;
+  taxaConversao: number;
+  dentistasAtivos: number;
+  instanciasOnline: number;
+  instanciasOffline: number;
+  conversasConduzidas: number;
+  capacidadeConsultorios: number;
+  ocupacaoConsultorios: number;
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -105,7 +119,7 @@ const Home = () => {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [agendamentosHojeList, setAgendamentosHojeList] = useState<AgendamentoResumo[]>([]);
   const [instances, setInstances] = useState<UazapiInstance[]>([]);
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<DashboardMetrics>({
     agendamentosHoje: 0,
     leadsHoje: 0,
     consultoriosAtivos: 0,
@@ -115,6 +129,8 @@ const Home = () => {
     instanciasOnline: 0,
     instanciasOffline: 0,
     conversasConduzidas: 0,
+    capacidadeConsultorios: 0,
+    ocupacaoConsultorios: 0,
   });
   const [funnelCounts, setFunnelCounts] = useState({
     respondeu: 0,
@@ -126,6 +142,7 @@ const Home = () => {
   });
 
   const tenantId = usuario?.tenant_id || null;
+  const realtimeDebounceRef = useRef<number | null>(null);
 
   const formatTime = (value: string | null) => {
     if (!value) return "--";
@@ -260,6 +277,80 @@ const Home = () => {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeDebounceRef.current) {
+      window.clearTimeout(realtimeDebounceRef.current);
+    }
+    realtimeDebounceRef.current = window.setTimeout(() => {
+      loadDashboardData();
+    }, 500);
+  }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const channel = (supabase as any)
+      .channel(`home-dashboard-${tenantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agendamento',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'posts',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dentistas',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'consultorios',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'escala_semanal',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeDebounceRef.current) {
+        window.clearTimeout(realtimeDebounceRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, scheduleRealtimeRefresh]);
+
   const handleModuleClick = (href: string, allowed: boolean) => {
     if (!allowed) {
       toast({
@@ -348,9 +439,9 @@ const Home = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 text-slate-900">
       <div className="absolute inset-0" style={meshBackground} />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/80 to-white" />
+      <div className="absolute inset-0 bg-gradient-to-b from-purple-100/40 via-blue-100/30 to-pink-100/40" />
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -377,11 +468,11 @@ const Home = () => {
                 <button
                   key={id}
                   onClick={() => handleModuleClick(href, allowed)}
-                  className={`group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition hover:shadow-md ${
+                  className={`group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02] hover:border-slate-200 ${
                     allowed ? "" : "opacity-50"
                   }`}
                 >
-                  <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${accent} p-3 text-white`}>
+                  <div className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${accent} p-3 text-white transition-transform duration-200 group-hover:scale-110`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <p className="text-base font-semibold text-slate-900">{title}</p>
@@ -401,10 +492,9 @@ const Home = () => {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Operações do dia</h2>
-            <span className="text-xs text-slate-400">Agenda, lotação e infraestrutura</span>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className={`grid gap-6 lg:grid-cols-3 transition-all duration-300 ${loading ? 'blur-sm opacity-60 pointer-events-none' : ''}`}>
             <div className="space-y-6 lg:col-span-2">
               <Card className="border border-slate-200 shadow-xl shadow-slate-200/80">
                 <CardHeader>

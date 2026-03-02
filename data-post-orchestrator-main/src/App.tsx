@@ -81,10 +81,10 @@ const AppContent = () => {
   const isStandaloneLayout = standaloneRoutes.includes(location.pathname);
 
   const renderTopBar = (showSidebarTrigger: boolean) => (
-    <div className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur">
+    <div className="sticky top-0 z-20 border-b border-purple-200/50 bg-gradient-to-r from-purple-50/90 via-blue-50/90 to-pink-50/90 px-4 py-3 backdrop-blur-md shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {showSidebarTrigger && <SidebarTrigger className="text-slate-600" />}
+          {showSidebarTrigger && <SidebarTrigger className="text-slate-600 hover:text-slate-700" />}
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Painel Odontomanager LamorIA</p>
             <p className="text-lg font-semibold text-slate-900">{pageLabel}</p>
@@ -276,7 +276,7 @@ const AppContent = () => {
   
   if (isAuthPage) {
     return (
-      <div className="min-h-screen bg-slate-50/80">
+      <div className="min-h-screen">
         {routes}
       </div>
     );
@@ -284,9 +284,9 @@ const AppContent = () => {
 
   if (isStandaloneLayout) {
     return (
-      <div className="min-h-screen bg-slate-50/80">
+      <div className="min-h-screen">
         {renderTopBar(false)}
-        <div className="flex-1 px-2 py-4 md:px-4">{routes}</div>
+        <div className="flex-1">{routes}</div>
       </div>
     );
   }
@@ -294,9 +294,9 @@ const AppContent = () => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="bg-slate-50/80">
+      <SidebarInset>
         {renderTopBar(true)}
-        <div className="flex-1 px-2 py-4 md:px-4">{routes}</div>
+        <div className="flex-1">{routes}</div>
       </SidebarInset>
     </SidebarProvider>
   );

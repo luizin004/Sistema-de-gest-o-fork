@@ -175,9 +175,9 @@ export const AppSidebar = () => {
 
       <SidebarSeparator className="my-2" />
       <SidebarFooter>
-        <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-2 text-sm text-slate-600">
+        <div className={`rounded-2xl border border-slate-200/80 bg-white/90 text-sm text-slate-600 ${isCollapsed ? 'p-0 bg-transparent border-0' : 'p-2'}`}>
           <p className={`text-xs uppercase tracking-[0.2em] text-slate-400 ${isCollapsed ? 'hidden' : ''}`}>Sessão</p>
-          <AccountMenu compact />
+          <AccountMenu compact={!isCollapsed} collapsed={isCollapsed} />
         </div>
       </SidebarFooter>
       <SidebarRail />

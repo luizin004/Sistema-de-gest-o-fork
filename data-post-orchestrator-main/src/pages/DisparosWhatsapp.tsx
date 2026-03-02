@@ -73,9 +73,6 @@ const DisparosWhatsapp = () => {
   return (
     <div className="font-['Myriad_Pro','Plus_Jakarta_Sans','Inter',sans-serif] relative min-h-screen overflow-hidden bg-[#06122b] text-slate-900">
       <div className="absolute inset-0" style={meshBackground} />
-      <div
-        className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-[0.1]"
-      />
       <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/35 to-white/65 backdrop-blur-[4px]" />
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">

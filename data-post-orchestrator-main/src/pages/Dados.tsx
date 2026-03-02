@@ -309,40 +309,20 @@ export default function Dados() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/home')}
-                className="flex items-center space-x-2 hover:bg-blue-50"
-              >
-                <Home className="h-4 w-4" />
-                <span>Início</span>
-              </Button>
-              <div className="flex items-center space-x-4">
-              <span className="text-xl font-bold text-gray-900">Odontomanager LamorIA</span>
-              <span className="text-2xl font-bold text-gray-900">Dados</span>
-            </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/monitoramento')}
-                className="flex items-center space-x-2 hover:bg-green-50 border-green-300 text-green-700"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span>Monitoramento</span>
-              </Button>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/monitoramento')}
+            className="flex items-center space-x-2 hover:bg-green-50 border-green-300 text-green-700"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Monitoramento</span>
+          </Button>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="space-y-6">
         <div className="flex flex-wrap gap-2">
           {[
             { id: 'dentistas', label: 'Dentistas' },
@@ -719,6 +699,7 @@ export default function Dados() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
