@@ -25,6 +25,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Verificar env vars primeiro
+  if (!TAREFAS_ADMIN_URL || !TAREFAS_ADMIN_KEY) {
+    console.error("Missing env vars:", {
+      TAREFAS_ADMIN_URL: !!TAREFAS_ADMIN_URL,
+      TAREFAS_ADMIN_KEY: !!TAREFAS_ADMIN_KEY
+    });
+    return new Response(JSON.stringify({ 
+      error: "Server configuration error - Missing environment variables",
+      details: {
+        TAREFAS_ADMIN_URL: TAREFAS_ADMIN_URL ? "SET" : "MISSING",
+        TAREFAS_ADMIN_KEY: TAREFAS_ADMIN_KEY ? "SET" : "MISSING"
+      },
+      message: "Configure TAREFAS_ADMIN_URL and TAREFAS_ADMIN_KEY in Supabase Dashboard"
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -45,13 +64,18 @@ serve(async (req) => {
       });
     }
 
-    console.log("Proxy request:", { tenantId, userId });
+    console.log("Proxy request:", { tenantId, userId, method: req.method });
 
     const url = new URL(req.url);
     const targetUrl = new URL(TAREFAS_ADMIN_URL);
     url.searchParams.forEach((value, key) => {
       targetUrl.searchParams.set(key, value);
     });
+
+    // Adicionar cliente_id aos query params para GET requests
+    if (req.method === "GET") {
+      targetUrl.searchParams.set("cliente_id", tenantId);
+    }
 
     let body: any = undefined;
     let targetBody: string | undefined = undefined;
@@ -62,19 +86,6 @@ serve(async (req) => {
         body.cliente_id = tenantId;
       }
       targetBody = JSON.stringify(body);
-    }
-
-    if (!TAREFAS_ADMIN_URL || !TAREFAS_ADMIN_KEY) {
-      return new Response(JSON.stringify({ 
-        error: "Server configuration error",
-        details: {
-          TAREFAS_ADMIN_URL: !!TAREFAS_ADMIN_URL,
-          TAREFAS_ADMIN_KEY: !!TAREFAS_ADMIN_KEY
-        }
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     const targetHeaders: HeadersInit = {

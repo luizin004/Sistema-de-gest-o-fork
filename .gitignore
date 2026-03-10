@@ -42,3 +42,6 @@ data/results/
 *.csv
 *.xlsx
 !example.csv
+
+# Local Netlify folder
+.netlify

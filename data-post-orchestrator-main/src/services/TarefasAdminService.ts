@@ -12,6 +12,8 @@ export interface Lead {
   mensagem_template?: string;
   batch_id?: string;
   enviar_audio?: boolean;
+  cliente_id?: string; // Pode ser herdado do nível raiz ou especificado por lead
+  campanha_id?: string; // Pode ser herdado do nível raiz ou especificado por lead
 }
 
 export interface TarefaDetalhe {
@@ -112,17 +114,24 @@ export class TarefasAdminService {
       limit: limit.toString(),
     });
 
+    console.log("[TarefasAdmin] GET campaign status:", { campanhaId, detailed, limit });
+
     const response = await fetch(`${PROXY_URL}?${params}`, {
       method: "GET",
       headers,
     });
 
+    console.log("[TarefasAdmin] GET response status:", response.status);
+
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`Erro ao buscar status: ${err}`);
+      console.error("[TarefasAdmin] GET error response:", err);
+      throw new Error(`Erro ao buscar status (${response.status}): ${err}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log("[TarefasAdmin] GET success:", result);
+    return result;
   }
 
   static async updateStatus(
