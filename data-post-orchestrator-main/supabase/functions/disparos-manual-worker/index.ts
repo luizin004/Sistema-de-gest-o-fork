@@ -151,7 +151,7 @@ serve(async (req) => {
     }
 
     const { token: uazapiToken, api_url: uazapiApiUrl } = instance;
-    const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/message/text`;
+    const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/send/text`;
 
     const startTime = Date.now();
     let processed = campanha.processed || 0;
@@ -281,6 +281,8 @@ serve(async (req) => {
           text: lead.mensagem_final,
         };
 
+        console.log(`[WORKER] Sending to ${lead.telefone} via ${uazapiSendUrl}`);
+
         const response = await fetch(uazapiSendUrl, {
           method: "POST",
           headers: {
@@ -290,15 +292,23 @@ serve(async (req) => {
           body: JSON.stringify(payload),
         });
 
+        const responseText = await response.text();
+
         if (response.ok) {
-          uazapiResponse = await response.json();
+          try {
+            uazapiResponse = JSON.parse(responseText);
+          } catch {
+            uazapiResponse = { raw: responseText };
+          }
           sendSuccess = true;
+          console.log(`[WORKER] ✅ Sent to ${lead.telefone}:`, responseText.slice(0, 200));
         } else {
-          const errorText = await response.text();
-          sendError = `UAZAPI ${response.status}: ${errorText}`;
+          sendError = `HTTP ${response.status} | URL: ${uazapiSendUrl} | Resposta: ${responseText}`;
+          console.error(`[WORKER] ❌ Failed ${lead.telefone}: ${sendError}`);
         }
       } catch (err: any) {
-        sendError = err.message || "Network error";
+        sendError = `Erro de rede: ${err.message} | URL: ${uazapiSendUrl}`;
+        console.error(`[WORKER] ❌ Network error for ${lead.telefone}:`, err.message);
       }
 
       const now = new Date().toISOString();

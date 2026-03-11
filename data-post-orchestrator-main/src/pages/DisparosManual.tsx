@@ -92,6 +92,7 @@ const DisparosManual = () => {
   // Logs
   const [logs, setLogs] = useState<CampaignLead[]>([]);
   const [logFilter, setLogFilter] = useState<"all" | "erro">("all");
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   // History
   const [campaignHistory, setCampaignHistory] = useState<Campaign[]>([]);
@@ -147,7 +148,7 @@ const DisparosManual = () => {
         }
 
         // Fetch logs
-        const logsData = await DisparosManualService.getProcessedLeads(campaignId, 30);
+        const logsData = await DisparosManualService.getProcessedLeads(campaignId, 100);
         setLogs(logsData);
       }, 3000);
     }
@@ -345,7 +346,7 @@ const DisparosManual = () => {
         setIsPaused(false);
       }
 
-      const logsData = await DisparosManualService.getProcessedLeads(id, 30);
+      const logsData = await DisparosManualService.getProcessedLeads(id, 100);
       setLogs(logsData);
     }
   };
@@ -803,13 +804,14 @@ const DisparosManual = () => {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">
-                            {filteredLogs.length} eventos
+                            {filteredLogs.length} de {logs.length}
                           </span>
                           <Select
                             value={logFilter}
-                            onValueChange={(v) =>
-                              setLogFilter(v as "all" | "erro")
-                            }
+                            onValueChange={(v) => {
+                              setLogFilter(v as "all" | "erro");
+                              setExpandedLogId(null);
+                            }}
                           >
                             <SelectTrigger className="h-7 w-24 text-xs">
                               <SelectValue />
@@ -823,55 +825,88 @@ const DisparosManual = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <ScrollArea className="h-[280px]">
-                        <div className="space-y-1">
-                          {filteredLogs.map((log) => (
-                            <div
-                              key={log.id}
-                              className="flex items-center gap-2 text-xs py-1.5 px-2 rounded hover:bg-muted/50"
-                            >
-                              <span className="text-muted-foreground w-16 shrink-0">
-                                {log.sent_at
-                                  ? new Date(log.sent_at).toLocaleTimeString(
-                                      "pt-BR",
-                                      { hour: "2-digit", minute: "2-digit", second: "2-digit" }
-                                    )
-                                  : "--:--:--"}
-                              </span>
-                              <span className="truncate w-28">
-                                {log.nome || "---"}
-                              </span>
-                              <span className="text-muted-foreground font-mono w-24 shrink-0">
-                                {maskPhone(log.telefone)}
-                              </span>
-                              {log.status === "enviado" ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-green-100 text-green-700 text-[10px] px-1.5"
+                      <ScrollArea className="h-[380px]">
+                        <div className="space-y-0.5">
+                          {filteredLogs.map((log) => {
+                            const isExpanded = expandedLogId === log.id;
+                            const isError = log.status === "erro";
+                            return (
+                              <div key={log.id} className="rounded border border-transparent hover:border-border/40 transition-colors">
+                                {/* Row principal */}
+                                <div
+                                  className="flex items-center gap-2 text-xs py-1.5 px-2 cursor-pointer"
+                                  onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                                 >
-                                  Enviado
-                                </Badge>
-                              ) : (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger>
-                                      <Badge
-                                        variant="destructive"
-                                        className="text-[10px] px-1.5"
-                                      >
-                                        Erro
-                                      </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="max-w-xs text-xs">
-                                        {log.error_message || "Erro desconhecido"}
+                                  {/* Hora */}
+                                  <span className="text-muted-foreground w-14 shrink-0 font-mono">
+                                    {log.sent_at
+                                      ? new Date(log.sent_at).toLocaleTimeString("pt-BR", {
+                                          hour: "2-digit", minute: "2-digit", second: "2-digit",
+                                        })
+                                      : "--:--:--"}
+                                  </span>
+                                  {/* Nome */}
+                                  <span className="truncate w-24 font-medium">
+                                    {log.nome || "---"}
+                                  </span>
+                                  {/* Telefone */}
+                                  <span className="text-muted-foreground font-mono w-24 shrink-0">
+                                    {maskPhone(log.telefone)}
+                                  </span>
+                                  {/* Status badge */}
+                                  {isError ? (
+                                    <Badge variant="destructive" className="text-[10px] px-1.5 shrink-0">
+                                      Erro
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px] px-1.5 shrink-0">
+                                      Enviado
+                                    </Badge>
+                                  )}
+                                  {/* Expand indicator */}
+                                  <span className="ml-auto text-muted-foreground/50 text-[10px]">
+                                    {isExpanded ? "▲" : "▼"}
+                                  </span>
+                                </div>
+
+                                {/* Detalhes expandidos */}
+                                {isExpanded && (
+                                  <div className="px-3 pb-2 space-y-1.5 border-t border-border/30 mt-0.5 pt-2">
+                                    {/* Mensagem enviada */}
+                                    <div>
+                                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                                        Mensagem enviada
                                       </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
-                            </div>
-                          ))}
+                                      <p className="text-xs bg-muted/50 rounded p-2 whitespace-pre-wrap break-all">
+                                        {log.mensagem_final || "(sem mensagem)"}
+                                      </p>
+                                    </div>
+                                    {/* Telefone completo */}
+                                    <div className="flex gap-4 text-xs text-muted-foreground">
+                                      <span><span className="font-medium">Tel:</span> {log.telefone}</span>
+                                      {log.sent_at && (
+                                        <span>
+                                          <span className="font-medium">Hora:</span>{" "}
+                                          {new Date(log.sent_at).toLocaleString("pt-BR")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {/* Erro detalhado */}
+                                    {isError && log.error_message && (
+                                      <div>
+                                        <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-0.5">
+                                          Detalhe do erro
+                                        </p>
+                                        <p className="text-xs bg-red-50 border border-red-200 rounded p-2 text-red-700 whitespace-pre-wrap break-all font-mono">
+                                          {log.error_message}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                           {filteredLogs.length === 0 && (
                             <div className="text-center text-sm text-muted-foreground py-8">
                               <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
