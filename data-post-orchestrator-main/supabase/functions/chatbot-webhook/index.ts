@@ -466,7 +466,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     const { data: instance, error: instanceError } = await supabase
       .from("uazapi_instances")
-      .select("id, tenant_id, token, api_url, name")
+      .select("id, tenant_id, token, api_url, name, chatbot_config_id")
       .eq("instance_id", instanceId)
       .single();
 
@@ -476,7 +476,14 @@ serve(async (req) => {
     }
 
     const { tenant_id: tenantId, token: uazapiToken, api_url: uazapiApiUrl } = instance;
+    const chatbotConfigId: string | null = instance.chatbot_config_id || null;
     const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/send/text`;
+
+    // If no bot linked to this instance, ignore
+    if (!chatbotConfigId) {
+      console.log(`[CHATBOT] Instance '${instanceId}' has no bot linked, ignoring.`);
+      return jsonResponse({ ok: true, ignored: true, reason: "no_bot_linked" });
+    }
 
     console.log(`[CHATBOT] Tenant: ${tenantId} | Phone: ${phone} | Type: ${messageType}`);
 
@@ -576,6 +583,7 @@ serve(async (req) => {
           tenant_id: tenantId,
           post_id: leadId,
           phone_number: phone,
+          chatbot_config_id: chatbotConfigId,
           bot_active: true,
           message_count: 0,
           current_funnel_status: "respondeu",
@@ -605,21 +613,19 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 7. Load chatbot_config, last 15 messages, and tratamentos
+    // 7. Load chatbot_config, tenant settings, last N messages, and tratamentos
     // ------------------------------------------------------------------
-    const [configResult, historyResult, tratamentosResult] = await Promise.all([
+    const [configResult, tenantSettingsResult, tratamentosResult] = await Promise.all([
       supabase
         .from("chatbot_config")
         .select("*")
-        .eq("tenant_id", tenantId)
+        .eq("id", chatbotConfigId)
         .maybeSingle(),
       supabase
-        .from("uazapi_chat_messages")
-        .select("direction, sender, content, message_type, created_at")
+        .from("chatbot_tenant_settings")
+        .select("*")
         .eq("tenant_id", tenantId)
-        .eq("phone_number", phone)
-        .order("created_at", { ascending: false })
-        .limit(15),
+        .maybeSingle(),
       supabase
         .from("tratamentos")
         .select("id, nome")
@@ -629,15 +635,33 @@ serve(async (req) => {
     ]);
 
     const chatbotConfig: ChatbotConfig = configResult.data || {};
-    const historyRows = (historyResult.data || []).reverse(); // oldest first
+    const tenantSettings = tenantSettingsResult.data || {};
     const tratamentos: Tratamento[] = tratamentosResult.data || [];
 
-    // Get tenant-specific OpenAI API key
-    const openaiApiKey: string = (chatbotConfig as any).openai_api_key || "";
-    const openaiModel: string = (chatbotConfig as any).openai_model || "gpt-4o";
+    // Check if bot is enabled
+    if ((chatbotConfig as any).bot_enabled === false) {
+      console.log(`[CHATBOT] Bot ${chatbotConfigId} is disabled, ignoring.`);
+      return jsonResponse({ ok: true, ignored: true, reason: "bot_disabled" });
+    }
+
+    // Get global OpenAI settings from tenant settings
+    const openaiApiKey: string = tenantSettings.openai_api_key || "";
+    const openaiModel: string = tenantSettings.openai_model || "gpt-4o";
+    const maxHistoryMessages: number = tenantSettings.max_history_messages ?? 15;
+
+    // Fetch history with tenant-level max
+    const { data: historyData } = await supabase
+      .from("uazapi_chat_messages")
+      .select("direction, sender, content, message_type, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("phone_number", phone)
+      .order("created_at", { ascending: false })
+      .limit(maxHistoryMessages);
+
+    const historyRows = (historyData || []).reverse(); // oldest first
 
     if (!openaiApiKey) {
-      console.error(`[CHATBOT] No OpenAI API key configured for tenant ${tenantId}`);
+      console.error(`[CHATBOT] No OpenAI API key configured for bot ${chatbotConfigId}`);
       const noKeyReply = "Olá! Estamos configurando nosso atendimento. Em breve retornaremos!";
       await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase);
       return jsonResponse({ ok: true, error: "no_openai_api_key" });

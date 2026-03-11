@@ -48,11 +48,11 @@ async function checkCadence(
 
   console.log("[CADENCE-CHECK] Starting cadence check...");
 
-  // Fetch all active chatbot configs so we can look up per-tenant settings.
+  // Fetch all active chatbot configs (enabled + with cadence templates)
   const { data: configs, error: configsError } = await supabase
     .from("chatbot_config")
     .select(
-      "id, tenant_id, cadence_timeout_hours, cadence_max_attempts, cadence_templates"
+      "id, tenant_id, cadence_timeout_hours, cadence_max_attempts, cadence_templates, bot_enabled"
     );
 
   if (configsError) {
@@ -67,6 +67,7 @@ async function checkCadence(
   }
 
   for (const config of configs) {
+    const configId: string = config.id;
     const tenantId: string = config.tenant_id;
     const cadenceTimeoutHours: number = config.cadence_timeout_hours ?? 24;
     const cadenceMaxAttempts: number = config.cadence_max_attempts ?? 3;
@@ -74,9 +75,17 @@ async function checkCadence(
       ? config.cadence_templates
       : [];
 
+    // Skip disabled bots
+    if (config.bot_enabled === false) {
+      console.log(
+        `[CADENCE-CHECK] Bot ${configId}: disabled, skipping.`
+      );
+      continue;
+    }
+
     if (cadenceTemplates.length === 0) {
       console.log(
-        `[CADENCE-CHECK] Tenant ${tenantId}: no cadence_templates configured, skipping.`
+        `[CADENCE-CHECK] Bot ${configId}: no cadence_templates configured, skipping.`
       );
       continue;
     }
@@ -86,7 +95,8 @@ async function checkCadence(
       Date.now() - cadenceTimeoutHours * 60 * 60 * 1000
     ).toISOString();
 
-    const { data: conversations, error: convsError } = await supabase
+    // Query conversations linked to this specific bot config
+    let convsQuery = supabase
       .from("chatbot_conversations")
       .select(
         "id, tenant_id, phone_number, cadence_attempts, last_patient_message_at, post_id"
@@ -95,6 +105,11 @@ async function checkCadence(
       .eq("bot_active", true)
       .lt("last_patient_message_at", cutoffTime)
       .lt("cadence_attempts", cadenceMaxAttempts);
+
+    // Filter by chatbot_config_id if set on conversations
+    convsQuery = convsQuery.eq("chatbot_config_id", configId);
+
+    const { data: conversations, error: convsError } = await convsQuery;
 
     if (convsError) {
       const msg = `Tenant ${tenantId}: failed to query conversations: ${convsError.message}`;
@@ -353,7 +368,7 @@ async function processQueue(
     // -----------------------------------------------------------------------
     const { data: conversation, error: convFetchError } = await supabase
       .from("chatbot_conversations")
-      .select("cadence_attempts")
+      .select("cadence_attempts, chatbot_config_id")
       .eq("id", conversationId)
       .maybeSingle();
 
@@ -365,13 +380,19 @@ async function processQueue(
       const newAttempts = (conversation.cadence_attempts ?? 0) + 1;
 
       // -----------------------------------------------------------------------
-      // e) Fetch cadence_max_attempts from chatbot_config for this tenant
+      // e) Fetch cadence_max_attempts from chatbot_config for this bot
       // -----------------------------------------------------------------------
-      const { data: config } = await supabase
+      let configQuery = supabase
         .from("chatbot_config")
-        .select("cadence_max_attempts")
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
+        .select("cadence_max_attempts");
+
+      if (conversation.chatbot_config_id) {
+        configQuery = configQuery.eq("id", conversation.chatbot_config_id);
+      } else {
+        configQuery = configQuery.eq("tenant_id", tenantId);
+      }
+
+      const { data: config } = await configQuery.maybeSingle();
 
       const configMaxAttempts: number = config?.cadence_max_attempts ?? 3;
       const botShouldDeactivate = newAttempts >= configMaxAttempts;
