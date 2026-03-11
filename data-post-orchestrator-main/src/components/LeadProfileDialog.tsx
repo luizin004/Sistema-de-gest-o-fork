@@ -33,11 +33,11 @@ import { DateTimePicker } from "@/components/DateTimePicker";
 import { EmbeddedWhatsAppChat } from "@/components/EmbeddedWhatsAppChat";
 import { normalizePhoneForAgendamento } from "@/lib/utils";
 import { getTenantId, getCurrentUser } from "@/utils/tenantUtils";
-import { 
-  User, 
-  Phone, 
-  Calendar as CalendarIcon, 
-  Stethoscope, 
+import {
+  User,
+  Phone,
+  Calendar as CalendarIcon,
+  Stethoscope,
   UserCheck,
   Save,
   X,
@@ -47,7 +47,9 @@ import {
   History,
   Loader2,
   BookOpen,
-  Archive
+  Archive,
+  Bot,
+  Power
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -234,6 +236,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<LeadHistoryResponse | null>(null);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isBotToggling, setIsBotToggling] = useState(false);
   const isInterestedInScheduling = formData.status?.toLowerCase() === "interessado em agendar consulta";
   const isSchedulingAppointment = formData.status?.toLowerCase() === "agendou consulta";
   const isScheduledOutside = formData.status?.toLowerCase() === "agendado por fora";
@@ -347,6 +350,48 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
       toast.error("Erro ao arquivar lead. Tente novamente.");
     } finally {
       setIsArchiving(false);
+    }
+  };
+
+  const handleBotToggle = async (pause: boolean) => {
+    if (!lead) return;
+    setIsBotToggling(true);
+    try {
+      const newPauseReason = pause ? "manual" : null;
+
+      const { error: postError } = await (supabaseUntyped as any)
+        .from("posts")
+        .update({
+          bot_paused: pause,
+          bot_pause_reason: newPauseReason,
+        })
+        .eq("id", lead.id)
+        .eq("tenant_id", tenantId);
+
+      if (postError) throw postError;
+
+      if (lead.telefone) {
+        const { error: convError } = await (supabaseUntyped as any)
+          .from("chatbot_conversations")
+          .update({
+            bot_active: !pause,
+            pause_reason: newPauseReason,
+          })
+          .eq("phone", lead.telefone)
+          .eq("tenant_id", tenantId);
+
+        if (convError) {
+          console.warn("[BOT-TOGGLE] Erro ao atualizar chatbot_conversations:", convError);
+        }
+      }
+
+      toast.success(pause ? "Bot pausado com sucesso." : "Automação reativada com sucesso.");
+      onUpdate();
+    } catch (error) {
+      console.error("[BOT-TOGGLE] Erro ao alterar estado do bot:", error);
+      toast.error("Erro ao alterar estado do bot. Tente novamente.");
+    } finally {
+      setIsBotToggling(false);
     }
   };
 
@@ -740,6 +785,52 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
 
             {/* Formulário com scroll */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+              {/* Controle do Bot */}
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/40">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Automação</span>
+                  {lead.bot_paused ? (
+                    <Badge className="bg-yellow-500 text-white border-0 text-xs">Bot Pausado</Badge>
+                  ) : (
+                    <Badge className="bg-green-600 text-white border-0 text-xs">Bot Ativo</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {lead.bot_paused && lead.bot_pause_reason && (
+                    <span className="text-xs text-muted-foreground italic">
+                      Motivo: {lead.bot_pause_reason}
+                    </span>
+                  )}
+                  {lead.bot_paused ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-green-600 text-green-700 hover:bg-green-50"
+                      onClick={() => handleBotToggle(false)}
+                      disabled={isBotToggling}
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                      {isBotToggling ? "Aguarde..." : "Reativar Automação"}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                      onClick={() => handleBotToggle(true)}
+                      disabled={isBotToggling}
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                      {isBotToggling ? "Aguarde..." : "Pausar Bot"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               {/* Nome */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-sm font-medium">

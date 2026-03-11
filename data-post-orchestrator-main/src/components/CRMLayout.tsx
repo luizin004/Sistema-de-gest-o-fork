@@ -15,6 +15,7 @@ import {
 import { extrairTelefoneBase } from "@/lib/utils";
 import { useCRMData, Post } from "@/hooks/useCRMData";
 import { getTenantId } from "@/utils/tenantUtils";
+import { useChatbotNotifications } from "@/hooks/useChatbotNotifications";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 const meshBackground = {
@@ -43,6 +44,7 @@ export const CRMLayout = () => {
   const { fetchPosts } = useCRMData();
   const tenantId = useMemo(() => getTenantId(), []);
   const rawPostsRef = useRef<Post[]>([]);
+  useChatbotNotifications();
 
   const preparePosts = useCallback((data: Post[]): PostWithDerived[] => {
     const postsComTelefoneBase = data.map((post) => ({

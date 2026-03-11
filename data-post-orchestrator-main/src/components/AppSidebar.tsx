@@ -31,6 +31,7 @@ import {
   ClipboardList,
   Share2,
   Users,
+  Bot,
 } from "lucide-react";
 
 interface NavItem {
@@ -56,6 +57,7 @@ const baseOperationsItems: NavItem[] = [
   { label: "Consultórios", href: "/consultorios", icon: ClipboardList, permissionKey: 'allowConsultorios' },
   { label: "Dados", href: "/dentistas", icon: Database },
   { label: "Disparos", href: "/disparos", icon: Share2, permissionKey: 'allowDisparosWhatsapp' },
+  { label: "Chatbot IA", href: "/chatbot-config", icon: Bot, permissionKey: 'allowChatbot' },
   { label: "Configurações", href: "/admin", icon: Settings },
 ];
 

@@ -37,6 +37,7 @@ import DisparosCampanha from "./pages/DisparosCampanha";
 import DisparosCampanhaLeads from "./pages/DisparosCampanhaLeads";
 import DisparosEmulador from "./pages/DisparosEmulador";
 import Monitoramento from "./pages/Monitoramento";
+import ChatbotConfig from "./pages/ChatbotConfig";
 import FormataListas from "./pages/FormataListas";
 import Consultorios from "./pages/ConsultoriosSupabase";
 import Dados from "./pages/Dados";
@@ -62,6 +63,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/dentistas": "Dentistas & Tratamentos",
   "/consultorios": "Consultórios",
   "/monitoramento": "Monitoramento",
+  "/chatbot-config": "Chatbot IA",
   "/minha-conta": "Minha Conta",
   "/admin": "Administração",
 };
@@ -257,6 +259,13 @@ const AppContent = () => {
             <Route path="/dentistas" element={
               <AuthGuard>
                 <Dados />
+              </AuthGuard>
+            } />
+            <Route path="/chatbot-config" element={
+              <AuthGuard>
+                <FeatureGuard feature="chatbot">
+                  <ChatbotConfig />
+                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/monitoramento" element={

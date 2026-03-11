@@ -17,6 +17,7 @@ interface Usuario {
   allow_disparos_aniversario?: boolean;
   allow_disparos_campanha?: boolean;
   allow_disparos_manual?: boolean;
+  allow_chatbot?: boolean;
 }
 
 export interface TenantContextType {
@@ -35,6 +36,7 @@ export interface TenantContextType {
     allowDisparosAniversario: boolean;
     allowDisparosCampanha: boolean;
     allowDisparosManual: boolean;
+    allowChatbot: boolean;
   };
 }
 
@@ -64,6 +66,7 @@ export function TenantProvider({ children }: TenantProviderProps) {
     allow_disparos_aniversario: data.allow_disparos_aniversario,
     allow_disparos_campanha: data.allow_disparos_campanha,
     allow_disparos_manual: data.allow_disparos_manual,
+    allow_chatbot: data.allow_chatbot,
   });
 
   const refreshUsuario = useCallback(async () => {
@@ -117,6 +120,7 @@ export function TenantProvider({ children }: TenantProviderProps) {
     allowDisparosAniversario: usuario?.allow_disparos_aniversario ?? true,
     allowDisparosCampanha: usuario?.allow_disparos_campanha ?? true,
     allowDisparosManual: usuario?.allow_disparos_manual ?? true,
+    allowChatbot: usuario?.allow_chatbot ?? false,
   };
 
   return (

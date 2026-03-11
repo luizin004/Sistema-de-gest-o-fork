@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Clock, Phone, User, Move, ChevronDown, ChevronUp, TrendingUp, Archive, Download, Target, MessageCircle, Clock4, CalendarCheck2, Smile, CheckCircle2, AlertTriangle, Search, Plus } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Phone, User, Move, ChevronDown, ChevronUp, TrendingUp, Archive, Download, Target, MessageCircle, Clock4, CalendarCheck2, Smile, CheckCircle2, AlertTriangle, Search, Plus, Bot } from "lucide-react";
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, rectIntersection, useDroppable, useDraggable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useRef, useCallback, useEffect, useMemo, memo, ComponentType } from "react";
@@ -78,8 +78,16 @@ const statusConfig = [
     description: "Consultas agendadas",
     icon: Smile
   },
-  { 
-    name: "Problemas/Perdidos", 
+  {
+    name: "Em Atenção",
+    headerBgClass: "bg-yellow-600",
+    counterClass: "bg-white/25 text-white",
+    columnBgClass: "bg-yellow-50/70",
+    description: "Leads que precisam de atenção humana",
+    icon: AlertTriangle
+  },
+  {
+    name: "Problemas/Perdidos",
     headerBgClass: "bg-red-600",
     counterClass: "bg-white/25 text-white",
     columnBgClass: "bg-red-50/70",
@@ -328,7 +336,8 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
     
     const engagementStatuses = ['respondeu', 'interagiu', 'engajou', 'impecilho', 'cadencia', 'cadência'];
     const negotiationStatuses = ['interagiu', 'respondeu', 'engajou'];
-    const problemStatuses = ['impecilho', 'não compareceu', 'perdido', 'não qualificado', 'paciente perdido', 'atencao', 'lead perdido'];
+    const problemStatuses = ['impecilho', 'não compareceu', 'perdido', 'não qualificado', 'paciente perdido', 'lead perdido'];
+    const attentionStatuses = ['atencao', 'atenção'];
     const followUpStatuses = ['cadencia', 'cadência', 'follow-up', 'aguardando', 'pendente'];
     const scheduledStatuses = ['agendou consulta', 'agendado por fora', 'reagendando'];
     const completedStatuses = ['compareceu', 'tratamento iniciado', 'tratamento concluído'];
@@ -358,6 +367,11 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
           const postStatus = post.status?.toLowerCase().trim();
           return scheduledStatuses.some(schedStatus => postStatus.includes(schedStatus));
         });
+      } else if (status === "Em Atenção") {
+        acc[status] = filteredPosts.filter(post => {
+          const postStatus = post.status?.toLowerCase().trim();
+          return attentionStatuses.some(attStatus => postStatus.includes(attStatus));
+        });
       } else if (status === "Problemas/Perdidos") {
         // Para "Problemas/Perdidos", incluir leads com problemas
         acc[status] = filteredPosts.filter(post => {
@@ -374,11 +388,12 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
           const hasFollowUpStatus = followUpStatuses.some(followStatus => postStatus.includes(followStatus));
           const hasScheduledStatus = scheduledStatuses.some(schedStatus => postStatus.includes(schedStatus));
           const hasInterestedStatus = interestedStatuses.some(intStatus => postStatus.includes(intStatus));
+          const hasAttentionStatus = attentionStatuses.some(attStatus => postStatus.includes(attStatus));
           const matchesStatus = postStatus === status.toLowerCase();
-          
+
           // Só inclui se o status bate E não é status especial
-          return matchesStatus && !hasNegotiationStatus && !hasProblemStatus && 
-                 !hasFollowUpStatus && !hasScheduledStatus && !hasInterestedStatus;
+          return matchesStatus && !hasNegotiationStatus && !hasProblemStatus &&
+                 !hasFollowUpStatus && !hasScheduledStatus && !hasInterestedStatus && !hasAttentionStatus;
         });
       }
       return acc;
@@ -1093,7 +1108,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
               }
             `}</style>
             
-            <div className="grid grid-cols-5 gap-2 p-4 pt-2 w-full items-start">
+            <div className="grid grid-cols-6 gap-2 p-4 pt-2 w-full items-start">
               {statusConfig.map(({ name: status, headerBgClass, counterClass, columnBgClass, description, icon }) => (
                 <KanbanColumn
                   key={status}
@@ -1572,6 +1587,12 @@ const DraggableCard = memo(({
   const engagementStatuses = ['respondeu', 'interagiu', 'engajou', 'impecilho', 'cadencia', 'cadência'];
   const postStatus = post.status?.toLowerCase().trim();
   const hasEngagementStatus = postStatus && engagementStatuses.includes(postStatus);
+
+  // Verifica se é lead interessado em agendar (para borda especial)
+  const isInterestedInSchedulingForBorder =
+    postStatus === 'interessado_agendar' ||
+    postStatus === 'interessado em agendar' ||
+    post.bot_pause_reason === 'interessado_agendar';
   
   // Verifica se é da coluna "Interessado em agendar consulta"
   const isInterestedInScheduling = postStatus === "interessado em agendar consulta";
@@ -1618,7 +1639,7 @@ const DraggableCard = memo(({
     <div className="relative">
       <div
         ref={setNodeRef}
-        className={`kanban-card bg-white border border-gray-100 shadow-sm cursor-pointer transition-all duration-300 min-h-[90px] lg:min-h-[100px] rounded-2xl ${isDragging ? 'opacity-40 scale-95' : 'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50'}`}
+        className={`kanban-card bg-white shadow-sm cursor-pointer transition-all duration-300 min-h-[90px] lg:min-h-[100px] rounded-2xl ${isInterestedInSchedulingForBorder ? 'border-2 border-rose-300' : 'border border-gray-100'} ${isDragging ? 'opacity-40 scale-95' : 'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50'}`}
         {...attributes}
         {...listeners}
         onClick={(e) => {
@@ -1634,7 +1655,14 @@ const DraggableCard = memo(({
               {getInitials(post.nome)}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm text-gray-900 truncate leading-tight">{post.nome}</h4>
+              <div className="flex items-center gap-1 min-w-0">
+                <h4 className="font-semibold text-sm text-gray-900 truncate leading-tight">{post.nome}</h4>
+                {post.bot_paused === true ? (
+                  <User className="h-3 w-3 flex-shrink-0 text-blue-500 opacity-80" title="Atendimento humano ativo" />
+                ) : (
+                  <Bot className="h-3 w-3 flex-shrink-0 text-emerald-500 opacity-80" title="Bot ativo" />
+                )}
+              </div>
               <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
                 <Phone className="h-3 w-3 flex-shrink-0 opacity-60" />
                 <span className="truncate">{post.telefone || "Sem telefone"}</span>

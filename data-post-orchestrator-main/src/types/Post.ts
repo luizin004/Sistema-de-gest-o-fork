@@ -16,4 +16,6 @@ export interface Post {
   agendamento_id?: string | null; // Relacionamento com agendamento
   marcado_codefy?: boolean; // Controle do Codefy
   ultima_mensagem_at?: string | null; // Timestamp da última mensagem
+  bot_paused?: boolean; // Bot pausado por humano ou automação
+  bot_pause_reason?: string | null; // Motivo da pausa do bot
 }

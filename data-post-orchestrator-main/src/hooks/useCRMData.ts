@@ -23,6 +23,8 @@ export interface Post {
   ultima_mensagem_at: string | null;
   nao_respondeu: boolean | null;
   tenant_id: string | null;
+  bot_paused: boolean | null;
+  bot_pause_reason: string | null;
 }
 
 export interface Arquivado {

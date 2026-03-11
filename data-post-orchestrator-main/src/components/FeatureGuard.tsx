@@ -14,6 +14,7 @@ const permissionFieldMap = {
   disparos_aniversario: "allowDisparosAniversario",
   disparos_campanha: "allowDisparosCampanha",
   disparos_manual: "allowDisparosManual",
+  chatbot: "allowChatbot",
 } as const;
 
 export type FeatureKey = keyof typeof permissionFieldMap;
