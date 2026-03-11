@@ -23,6 +23,7 @@ type PermissionState = {
   allow_disparos_aniversario: boolean;
   allow_disparos_campanha: boolean;
   allow_disparos_manual: boolean;
+  allow_chatbot: boolean;
 };
 
 type PermissionKey = keyof PermissionState;
@@ -37,6 +38,7 @@ const createDefaultPermissions = (): PermissionState => ({
   allow_disparos_aniversario: true,
   allow_disparos_campanha: true,
   allow_disparos_manual: true,
+  allow_chatbot: false,
 });
 
 const permissionOptions: { key: PermissionKey; label: string; description: string }[] = [
@@ -85,6 +87,11 @@ const permissionOptions: { key: PermissionKey; label: string; description: strin
     label: 'Disparos Manuais',
     description: 'Envio manual de mensagens pelo time.',
   },
+  {
+    key: 'allow_chatbot',
+    label: 'Chatbot IA',
+    description: 'Acesso ao agente conversacional WhatsApp e configurações.',
+  },
 ];
 
 interface Usuario {
@@ -106,6 +113,7 @@ interface Usuario {
   allow_disparos_aniversario?: boolean;
   allow_disparos_campanha?: boolean;
   allow_disparos_manual?: boolean;
+  allow_chatbot?: boolean;
 }
 
 export default function Usuarios() {
@@ -280,6 +288,7 @@ export default function Usuarios() {
     allow_disparos_aniversario: usuario?.allow_disparos_aniversario ?? true,
     allow_disparos_campanha: usuario?.allow_disparos_campanha ?? true,
     allow_disparos_manual: usuario?.allow_disparos_manual ?? true,
+    allow_chatbot: usuario?.allow_chatbot ?? false,
   });
 
   const openNewUserDialog = () => {
