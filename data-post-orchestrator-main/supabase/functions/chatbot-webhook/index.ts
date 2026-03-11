@@ -14,7 +14,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -205,7 +204,7 @@ function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
 // OpenAI Whisper transcription
 // ---------------------------------------------------------------------------
 
-async function transcribeAudio(audioUrl: string): Promise<string | null> {
+async function transcribeAudio(audioUrl: string, openaiApiKey: string): Promise<string | null> {
   try {
     console.log(`[CHATBOT] Downloading audio for transcription: ${audioUrl}`);
 
@@ -233,7 +232,7 @@ async function transcribeAudio(audioUrl: string): Promise<string | null> {
     const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${openaiApiKey}`,
       },
       body: formData,
     });
@@ -343,16 +342,16 @@ interface AIResponse {
   should_pause: boolean;
 }
 
-async function callOpenAI(messages: ChatMessage[]): Promise<AIResponse | null> {
+async function callOpenAI(messages: ChatMessage[], openaiApiKey: string, model: string = "gpt-4o"): Promise<AIResponse | null> {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${openaiApiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model,
         messages,
         response_format: { type: "json_object" },
         temperature: 0.4,
@@ -575,7 +574,50 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 7. Handle audio messages
+    // 7. Load chatbot_config, last 15 messages, and tratamentos
+    // ------------------------------------------------------------------
+    const [configResult, historyResult, tratamentosResult] = await Promise.all([
+      supabase
+        .from("chatbot_config")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .maybeSingle(),
+      supabase
+        .from("uazapi_chat_messages")
+        .select("direction, sender, content, message_type, created_at")
+        .eq("tenant_id", tenantId)
+        .eq("phone_number", phone)
+        .order("created_at", { ascending: false })
+        .limit(15),
+      supabase
+        .from("tratamentos")
+        .select("id, nome")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .order("nome", { ascending: true }),
+    ]);
+
+    const chatbotConfig: ChatbotConfig = configResult.data || {};
+    const historyRows = (historyResult.data || []).reverse(); // oldest first
+    const tratamentos: Tratamento[] = tratamentosResult.data || [];
+
+    // Get tenant-specific OpenAI API key
+    const openaiApiKey: string = (chatbotConfig as any).openai_api_key || "";
+    const openaiModel: string = (chatbotConfig as any).openai_model || "gpt-4o";
+
+    if (!openaiApiKey) {
+      console.error(`[CHATBOT] No OpenAI API key configured for tenant ${tenantId}`);
+      const noKeyReply = "Olá! Estamos configurando nosso atendimento. Em breve retornaremos!";
+      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase);
+      return jsonResponse({ ok: true, error: "no_openai_api_key" });
+    }
+
+    console.log(
+      `[CHATBOT] Config loaded | History: ${historyRows.length} msgs | Tratamentos: ${tratamentos.length} | Model: ${openaiModel}`
+    );
+
+    // ------------------------------------------------------------------
+    // 8. Handle audio messages
     // ------------------------------------------------------------------
     if (messageType === "audio") {
       if (!mediaUrl) {
@@ -596,7 +638,7 @@ serve(async (req) => {
       }
 
       // Transcribe audio (≤60s)
-      const transcription = await transcribeAudio(mediaUrl);
+      const transcription = await transcribeAudio(mediaUrl, openaiApiKey);
       if (!transcription) {
         console.warn("[CHATBOT] Transcription failed, sending fallback reply.");
         const transcribeFallback =
@@ -611,7 +653,7 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 8. If status='agendou consulta' and patient wants to reschedule
+    // 9. If status='agendou consulta' and patient wants to reschedule
     //    detect intent and update status to 'reagendando'
     // ------------------------------------------------------------------
     if (currentLeadStatus === "agendou consulta" && messageText) {
@@ -641,38 +683,6 @@ serve(async (req) => {
         console.log(`[CHATBOT] Lead ${leadId} status updated to 'reagendando'`);
       }
     }
-
-    // ------------------------------------------------------------------
-    // 9. Load chatbot_config, last 15 messages, and tratamentos
-    // ------------------------------------------------------------------
-    const [configResult, historyResult, tratamentosResult] = await Promise.all([
-      supabase
-        .from("chatbot_config")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .maybeSingle(),
-      supabase
-        .from("uazapi_chat_messages")
-        .select("direction, sender, content, message_type, created_at")
-        .eq("tenant_id", tenantId)
-        .eq("phone_number", phone)
-        .order("created_at", { ascending: false })
-        .limit(15),
-      supabase
-        .from("tratamentos")
-        .select("id, nome")
-        .eq("tenant_id", tenantId)
-        .eq("ativo", true)
-        .order("nome", { ascending: true }),
-    ]);
-
-    const chatbotConfig: ChatbotConfig = configResult.data || {};
-    const historyRows = (historyResult.data || []).reverse(); // oldest first
-    const tratamentos: Tratamento[] = tratamentosResult.data || [];
-
-    console.log(
-      `[CHATBOT] Config loaded | History: ${historyRows.length} msgs | Tratamentos: ${tratamentos.length}`
-    );
 
     // ------------------------------------------------------------------
     // 10. Build OpenAI messages array
@@ -711,7 +721,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     // 11. Call OpenAI GPT-4o
     // ------------------------------------------------------------------
-    const aiResponse = await callOpenAI(chatMessages);
+    const aiResponse = await callOpenAI(chatMessages, openaiApiKey, openaiModel);
 
     if (!aiResponse) {
       console.error("[CHATBOT] OpenAI returned null response, sending fallback.");

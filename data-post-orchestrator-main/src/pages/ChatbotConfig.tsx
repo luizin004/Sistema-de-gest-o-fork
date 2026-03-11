@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Save, Plus, Trash2 } from "lucide-react";
+import { Bot, Save, Plus, Trash2, Key, Eye, EyeOff } from "lucide-react";
 import { useChatbotConfig, DEFAULT_CHATBOT_CONFIG, ChatbotConfig } from "@/hooks/useChatbotConfig";
 
 const SYSTEM_PROMPT_PLACEHOLDER = `Você é um assistente virtual da {clinic_name}. Seu tom é {clinic_tone}.
@@ -34,6 +34,7 @@ const ChatbotConfigPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newTemplate, setNewTemplate] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -213,6 +214,50 @@ const ChatbotConfigPage = () => {
                   className="border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* OpenAI API Key */}
+        <Card className="shadow-lg border-gray-200">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Key className="h-5 w-5 text-purple-600" />
+              </div>
+              <CardTitle className="text-lg text-gray-900">Chave da OpenAI</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="openai_api_key" className="text-sm font-medium text-gray-700">
+                API Key da OpenAI
+              </Label>
+              <div className="relative">
+                <Input
+                  id="openai_api_key"
+                  type={showApiKey ? "text" : "password"}
+                  value={config.openai_api_key}
+                  onChange={(e) =>
+                    setConfig((prev) => ({ ...prev, openai_api_key: e.target.value }))
+                  }
+                  placeholder="sk-..."
+                  className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 pr-10 font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowApiKey((v) => !v)}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Cada tenant precisa da sua própria chave. Obtenha em{" "}
+                <span className="font-medium">platform.openai.com/api-keys</span>. A chave é armazenada de forma segura no banco de dados.
+              </p>
             </div>
           </CardContent>
         </Card>

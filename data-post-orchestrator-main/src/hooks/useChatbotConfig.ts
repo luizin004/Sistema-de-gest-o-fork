@@ -14,6 +14,7 @@ export interface ChatbotConfig {
   cadence_timeout_hours: number;
   cadence_max_attempts: number;
   cadence_templates: string[];
+  openai_api_key: string;
   confirmation_template: string;
   created_at?: string;
   updated_at?: string;
@@ -29,6 +30,7 @@ export const DEFAULT_CHATBOT_CONFIG: Omit<ChatbotConfig, "id" | "tenant_id" | "c
   cadence_timeout_hours: 3,
   cadence_max_attempts: 2,
   cadence_templates: [],
+  openai_api_key: "",
   confirmation_template: "",
 };
 
