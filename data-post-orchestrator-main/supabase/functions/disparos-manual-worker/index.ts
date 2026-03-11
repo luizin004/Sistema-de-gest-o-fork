@@ -286,7 +286,7 @@ serve(async (req) => {
         const response = await fetch(uazapiSendUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${uazapiToken}`,
+            "token": uazapiToken,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
@@ -333,7 +333,7 @@ serve(async (req) => {
         media_url: null,
         media_type: null,
         status: sendSuccess ? "sent" : "failed",
-        provider_id: uazapiResponse?.id || null,
+        provider_id: uazapiResponse?.messageid || uazapiResponse?.id || null,
         message_type: "text",
         metadata: {
           wasSentByApi: true,
