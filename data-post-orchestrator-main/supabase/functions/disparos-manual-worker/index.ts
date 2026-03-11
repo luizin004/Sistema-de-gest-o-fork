@@ -136,7 +136,7 @@ serve(async (req) => {
     // Fetch UAZAPI instance
     const { data: instance, error: instanceError } = await supabase
       .from("uazapi_instances")
-      .select("instance_id, token")
+      .select("instance_id, token, api_url")
       .eq("id", campanha.uazapi_instance_id)
       .eq("tenant_id", tenantId)
       .single();
@@ -150,7 +150,8 @@ serve(async (req) => {
       return jsonResponse({ error: "UAZAPI instance not found" }, 400);
     }
 
-    const { instance_id: uazapiInstanceId, token: uazapiToken } = instance;
+    const { token: uazapiToken, api_url: uazapiApiUrl } = instance;
+    const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/message/text`;
 
     const startTime = Date.now();
     let processed = campanha.processed || 0;
@@ -276,23 +277,18 @@ serve(async (req) => {
 
       try {
         const payload = {
-          phone_number: lead.telefone,
-          message_type: "text",
-          content: lead.mensagem_final,
-          media_url: null,
+          number: lead.telefone,
+          text: lead.mensagem_final,
         };
 
-        const response = await fetch(
-          `https://api.uazapi.com/v1/${uazapiInstanceId}/send`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${uazapiToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          }
-        );
+        const response = await fetch(uazapiSendUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${uazapiToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
 
         if (response.ok) {
           uazapiResponse = await response.json();
