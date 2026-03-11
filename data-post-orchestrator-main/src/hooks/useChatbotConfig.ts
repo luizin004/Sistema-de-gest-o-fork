@@ -15,6 +15,10 @@ export interface ChatbotConfig {
   cadence_max_attempts: number;
   cadence_templates: string[];
   openai_api_key: string;
+  bot_persona: string;
+  bot_context: string;
+  bot_services_info: string;
+  bot_restrictions: string;
   confirmation_template: string;
   created_at?: string;
   updated_at?: string;
@@ -31,6 +35,10 @@ export const DEFAULT_CHATBOT_CONFIG: Omit<ChatbotConfig, "id" | "tenant_id" | "c
   cadence_max_attempts: 2,
   cadence_templates: [],
   openai_api_key: "",
+  bot_persona: "",
+  bot_context: "",
+  bot_services_info: "",
+  bot_restrictions: "",
   confirmation_template: "",
 };
 

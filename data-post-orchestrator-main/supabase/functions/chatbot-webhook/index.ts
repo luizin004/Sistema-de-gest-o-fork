@@ -261,6 +261,11 @@ interface ChatbotConfig {
   clinic_name?: string;
   clinic_tone?: string;
   custom_instructions?: string;
+  system_prompt?: string;
+  bot_persona?: string;
+  bot_context?: string;
+  bot_services_info?: string;
+  bot_restrictions?: string;
   [key: string]: unknown;
 }
 
@@ -281,19 +286,45 @@ function buildSystemPrompt(
       ? tratamentos.map((t) => `- ${t.nome}`).join("\n")
       : "- (não cadastrados)";
 
-  const customInstructions = config.custom_instructions
-    ? `\n## Instruções adicionais:\n${config.custom_instructions}`
-    : "";
+  // Tenant-configured sections
+  const persona = config.bot_persona?.trim() || "";
+  const context = config.bot_context?.trim() || "";
+  const servicesInfo = config.bot_services_info?.trim() || "";
+  const restrictions = config.bot_restrictions?.trim() || "";
+  const advancedPrompt = config.system_prompt?.trim() || "";
+
+  // Build optional sections
+  let customSections = "";
+
+  if (persona) {
+    customSections += `\n\n## Sua persona e papel:\n${persona}`;
+  }
+
+  if (context) {
+    customSections += `\n\n## Contexto da clínica:\n${context}`;
+  }
+
+  if (servicesInfo) {
+    customSections += `\n\n## Informações sobre produtos e serviços:\n${servicesInfo}`;
+  }
+
+  if (restrictions) {
+    customSections += `\n\n## RESTRIÇÕES (prioridade máxima - NUNCA viole estas regras):\n${restrictions}`;
+  }
+
+  if (advancedPrompt) {
+    customSections += `\n\n## Instruções adicionais:\n${advancedPrompt}`;
+  }
 
   return `Você é a assistente virtual da clínica ${clinicName}.
 Tom: ${clinicTone}
 
-## Regras:
+## Regras do fluxo de atendimento (NÃO ALTERAR):
 1. NUNCA sugira horários - pergunte ao paciente quais horários ele tem disponíveis
 2. Pergunte qual tratamento deseja (lista abaixo)
 3. Quando o paciente informar horários + tratamento → informe que a equipe confirmará em breve
 4. Se não souber responder ou a pergunta estiver fora do escopo → classifique como "atencao"
-5. Não invente preços ou informações não fornecidas
+5. Não invente informações não fornecidas
 6. Respostas curtas, estilo WhatsApp (máximo 3 linhas por mensagem)
 7. Use linguagem natural, sem formalidades excessivas
 8. Nunca revele que é uma IA, apresente-se como assistente da clínica${
@@ -303,7 +334,7 @@ Tom: ${clinicTone}
   }
 
 ## Tratamentos disponíveis:
-${tratamentosList}
+${tratamentosList}${customSections}
 
 ## Classificação de status (retorne no JSON):
 - respondeu: primeiro contato do paciente
@@ -311,7 +342,7 @@ ${tratamentosList}
 - engajou: interesse real demonstrado em tratamento específico
 - interessado_agendar: paciente informou horários disponíveis E tratamento desejado → DEVE pausar bot
 - atencao: não consegue lidar com a pergunta ou situação especial → DEVE pausar bot
-- reagendando: paciente com consulta agendada quer remarcar${customInstructions}
+- reagendando: paciente com consulta agendada quer remarcar
 
 ## FORMATO OBRIGATÓRIO DE RESPOSTA (JSON puro, sem markdown):
 {
