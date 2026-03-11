@@ -100,10 +100,44 @@ const DisparosManual = () => {
   // Polling refs
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load UAZAPI instances on mount
+  // Load UAZAPI instances on mount + restaura campanha ativa após refresh
   useEffect(() => {
     loadInstances();
     loadCampaignHistory();
+
+    // Restaurar campanha em andamento se o usuário recarregou a página
+    const savedId = localStorage.getItem("disparos_manual_campaign_id");
+    if (savedId) {
+      (async () => {
+        const data = await DisparosManualService.getCampaign(savedId);
+        if (data) {
+          setCampaignId(savedId);
+          setCampaign(data);
+          setMessageTemplate(data.message_template);
+          setDelaySeconds(data.delay_seconds);
+          setBatchSize(data.batch_size);
+          setBatchPauseHours(Number(data.batch_pause_hours));
+          setOnlyBusinessHours(data.only_business_hours);
+          setSelectedInstanceId(data.uazapi_instance_id);
+
+          if (data.status === "processando") {
+            setIsRunning(true);
+            setIsPaused(false);
+          } else if (data.status === "pausado") {
+            setIsRunning(false);
+            setIsPaused(true);
+          } else {
+            // Campanha já finalizada — limpar chave salva
+            localStorage.removeItem("disparos_manual_campaign_id");
+          }
+
+          const logsData = await DisparosManualService.getProcessedLeads(savedId, 100);
+          setLogs(logsData);
+        } else {
+          localStorage.removeItem("disparos_manual_campaign_id");
+        }
+      })();
+    }
   }, []);
 
   const loadInstances = async () => {
@@ -138,6 +172,7 @@ const DisparosManual = () => {
           if (data.status === "concluido" || data.status === "cancelado" || data.status === "erro") {
             setIsRunning(false);
             setIsPaused(false);
+            localStorage.removeItem("disparos_manual_campaign_id");
           } else if (data.status === "pausado") {
             setIsRunning(false);
             setIsPaused(true);
@@ -256,6 +291,7 @@ const DisparosManual = () => {
       }
 
       setCampaignId(id);
+      localStorage.setItem("disparos_manual_campaign_id", id);
 
       // Start campaign (calls Edge Function)
       const started = await DisparosManualService.startCampaign(id);
@@ -303,6 +339,7 @@ const DisparosManual = () => {
     if (ok) {
       setIsRunning(false);
       setIsPaused(false);
+      localStorage.removeItem("disparos_manual_campaign_id");
       toast.success("Campanha cancelada.");
       loadCampaignHistory();
     }
@@ -338,12 +375,15 @@ const DisparosManual = () => {
       if (data.status === "processando") {
         setIsRunning(true);
         setIsPaused(false);
+        localStorage.setItem("disparos_manual_campaign_id", id);
       } else if (data.status === "pausado") {
         setIsRunning(false);
         setIsPaused(true);
+        localStorage.setItem("disparos_manual_campaign_id", id);
       } else {
         setIsRunning(false);
         setIsPaused(false);
+        localStorage.removeItem("disparos_manual_campaign_id");
       }
 
       const logsData = await DisparosManualService.getProcessedLeads(id, 100);
