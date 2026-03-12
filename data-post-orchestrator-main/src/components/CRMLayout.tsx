@@ -126,10 +126,35 @@ export const CRMLayout = () => {
     fetchPostsData();
   }, [fetchPostsData]);
 
+  // Realtime: chatbot_conversations changes → sync bot_paused into posts
+  const handleRealtimeConversation = useCallback((payload: any) => {
+    if (!tenantId) return;
+    const record = payload.new as any;
+    if (!record?.phone) return;
+
+    // Find matching post(s) by phone and update bot_paused/bot_pause_reason
+    applyRealtimeUpdate((current) =>
+      current.map((post) => {
+        if (!post.telefone) return post;
+        const postPhone = (post.telefone || "").replace(/\D/g, "");
+        const convPhone = (record.phone || "").replace(/\D/g, "");
+        // Match last 8+ digits to handle format differences
+        const matchLen = Math.min(postPhone.length, convPhone.length, 8);
+        if (matchLen < 8) return post;
+        if (postPhone.slice(-matchLen) !== convPhone.slice(-matchLen)) return post;
+        return {
+          ...post,
+          bot_paused: record.bot_active === false,
+          bot_pause_reason: record.pause_reason || null,
+        };
+      })
+    );
+  }, [tenantId, applyRealtimeUpdate]);
+
   useEffect(() => {
     if (!tenantId) return;
 
-    const channel = (supabase as any)
+    const postsChannel = (supabase as any)
       .channel(`posts-changes-${tenantId}`)
       .on(
         'postgres_changes',
@@ -143,10 +168,25 @@ export const CRMLayout = () => {
       )
       .subscribe();
 
+    const convChannel = (supabase as any)
+      .channel(`conv-changes-${tenantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chatbot_conversations',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        handleRealtimeConversation
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(convChannel);
     };
-  }, [tenantId, handleRealtimePost]);
+  }, [tenantId, handleRealtimePost, handleRealtimeConversation]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

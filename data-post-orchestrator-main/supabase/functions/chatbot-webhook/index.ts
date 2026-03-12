@@ -1301,9 +1301,11 @@ serve(async (req) => {
           } else {
             finalReply = `Pronto! Sua consulta de ${schedulingData?.treatment_name || "tratamento"} está confirmada para ${chosenSlot.dayLabel} às ${chosenSlot.start}. Aguardamos você! 😊`;
             aiResponse.status = "agendou consulta";
+            aiResponse.should_pause = true;
 
             convUpdateExtra = {
               scheduling_state: "confirmed",
+              pause_reason: "agendou consulta",
               scheduling_data: {
                 ...schedulingData,
                 booked_agendamento_id: agendamentoId,

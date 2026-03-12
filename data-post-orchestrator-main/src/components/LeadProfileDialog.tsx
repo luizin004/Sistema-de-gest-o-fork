@@ -237,6 +237,8 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
   const [historyData, setHistoryData] = useState<LeadHistoryResponse | null>(null);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isBotToggling, setIsBotToggling] = useState(false);
+  const [botPaused, setBotPaused] = useState<boolean>(lead?.bot_paused ?? false);
+  const [botPauseReason, setBotPauseReason] = useState<string | null>(lead?.bot_pause_reason ?? null);
   const isInterestedInScheduling = formData.status?.toLowerCase() === "interessado em agendar consulta";
   const isSchedulingAppointment = formData.status?.toLowerCase() === "agendou consulta";
   const isScheduledOutside = formData.status?.toLowerCase() === "agendado por fora";
@@ -356,9 +358,15 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
   const handleBotToggle = async (pause: boolean) => {
     if (!lead) return;
     setIsBotToggling(true);
-    try {
-      const newPauseReason = pause ? "manual" : null;
 
+    // Optimistic update
+    const prevPaused = botPaused;
+    const prevReason = botPauseReason;
+    const newPauseReason = pause ? "manual" : null;
+    setBotPaused(pause);
+    setBotPauseReason(newPauseReason);
+
+    try {
       const { error: postError } = await (supabaseUntyped as any)
         .from("posts")
         .update({
@@ -388,6 +396,9 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
       toast.success(pause ? "Bot pausado com sucesso." : "Automação reativada com sucesso.");
       onUpdate();
     } catch (error) {
+      // Rollback optimistic update
+      setBotPaused(prevPaused);
+      setBotPauseReason(prevReason);
       console.error("[BOT-TOGGLE] Erro ao alterar estado do bot:", error);
       toast.error("Erro ao alterar estado do bot. Tente novamente.");
     } finally {
@@ -406,9 +417,41 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
         tratamento: lead.tratamento || "",
         feedback: lead.feedback || "",
       });
+      setBotPaused(lead.bot_paused ?? false);
+      setBotPauseReason(lead.bot_pause_reason ?? null);
       setMarcadoCodefy(false); // Resetar checkbox ao abrir
     }
   }, [lead]);
+
+  // Realtime: listen to posts changes for this lead (bot_paused, status, etc.)
+  useEffect(() => {
+    if (!isOpen || !lead?.id) return;
+
+    const channel = (supabase as any)
+      .channel(`lead-profile-${lead.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'posts',
+          filter: `id=eq.${lead.id}`,
+        },
+        (payload: any) => {
+          const updated = payload.new as any;
+          if (updated) {
+            if (updated.bot_paused !== undefined) setBotPaused(updated.bot_paused);
+            if (updated.bot_pause_reason !== undefined) setBotPauseReason(updated.bot_pause_reason);
+            if (updated.status) setFormData(prev => ({ ...prev, status: updated.status }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, lead?.id]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -791,19 +834,19 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
                 <div className="flex items-center gap-2">
                   <Bot className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">Automação</span>
-                  {lead.bot_paused ? (
+                  {botPaused ? (
                     <Badge className="bg-yellow-500 text-white border-0 text-xs">Bot Pausado</Badge>
                   ) : (
                     <Badge className="bg-green-600 text-white border-0 text-xs">Bot Ativo</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {lead.bot_paused && lead.bot_pause_reason && (
+                  {botPaused && botPauseReason && (
                     <span className="text-xs text-muted-foreground italic">
-                      Motivo: {lead.bot_pause_reason}
+                      Motivo: {botPauseReason}
                     </span>
                   )}
-                  {lead.bot_paused ? (
+                  {botPaused ? (
                     <Button
                       type="button"
                       size="sm"

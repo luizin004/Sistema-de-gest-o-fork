@@ -535,7 +535,19 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
             .eq('id', post.id);
             
           if (error) throw error;
-          
+
+          // Auto-pause bot when scheduled externally
+          if (normalizedPhone) {
+            await supabase
+              .from('chatbot_conversations')
+              .update({
+                bot_active: false,
+                pause_reason: 'agendado por fora',
+                current_funnel_status: 'agendado por fora'
+              })
+              .eq('phone', normalizedPhone);
+          }
+
           toast.success("Lead atualizado como 'Agendado por Fora'!");
           onRefresh?.();
           setActiveId(null);
@@ -597,6 +609,18 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
                 .eq('id', post.id);
 
               if (postError) throw postError;
+
+              // Auto-pause bot when appointment is scheduled via CRM
+              if (normalizedPhone) {
+                await supabase
+                  .from('chatbot_conversations')
+                  .update({
+                    bot_active: false,
+                    pause_reason: 'agendou consulta',
+                    current_funnel_status: 'agendou consulta'
+                  })
+                  .eq('phone', normalizedPhone);
+              }
 
               toast.success("Status atualizado e datas sincronizadas com agendamento!");
               return;
