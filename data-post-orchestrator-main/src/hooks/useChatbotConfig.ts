@@ -37,6 +37,48 @@ export interface TenantSettings {
   updated_at?: string;
 }
 
+export interface ScheduleDay {
+  day: number; // 0=Domingo, 1=Segunda, ..., 6=Sabado
+  start: string; // "08:00"
+  end: string; // "18:00"
+}
+
+export interface ScheduleConfig {
+  id?: string;
+  chatbot_config_id?: string;
+  tenant_id?: string;
+  weekly_schedule: ScheduleDay[];
+  lookahead_days: number;
+  allow_bot_cancel: boolean;
+  slot_buffer_minutes: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BlockedPeriod {
+  id?: string;
+  chatbot_config_id?: string;
+  tenant_id?: string;
+  blocked_date: string; // "2026-03-15"
+  start_time: string; // "14:00"
+  end_time: string; // "16:00"
+  reason?: string;
+  created_at?: string;
+}
+
+export interface Tratamento {
+  id: string;
+  nome: string;
+  duracao_minutos: number;
+}
+
+export const DEFAULT_SCHEDULE_CONFIG: Omit<ScheduleConfig, "id" | "chatbot_config_id" | "tenant_id" | "created_at" | "updated_at"> = {
+  weekly_schedule: [],
+  lookahead_days: 14,
+  allow_bot_cancel: false,
+  slot_buffer_minutes: 0,
+};
+
 export interface UazapiInstance {
   id: string;
   instance_id: string;
@@ -318,6 +360,188 @@ export const useChatbotConfig = () => {
   );
 
   // ====================================================================
+  // Schedule Config (per-bot, agendamento_fixo)
+  // ====================================================================
+
+  const fetchScheduleConfig = useCallback(
+    async (botId: string): Promise<ScheduleConfig> => {
+      const { data, error } = await (supabaseUntyped as any)
+        .from("chatbot_schedule_config")
+        .select("*")
+        .eq("chatbot_config_id", botId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erro ao buscar schedule config:", error);
+        return { ...DEFAULT_SCHEDULE_CONFIG };
+      }
+      if (!data) return { ...DEFAULT_SCHEDULE_CONFIG };
+
+      return {
+        id: data.id,
+        chatbot_config_id: data.chatbot_config_id,
+        tenant_id: data.tenant_id,
+        weekly_schedule: data.weekly_schedule || [],
+        lookahead_days: data.lookahead_days ?? 14,
+        allow_bot_cancel: data.allow_bot_cancel ?? false,
+        slot_buffer_minutes: data.slot_buffer_minutes ?? 0,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+    },
+    []
+  );
+
+  const saveScheduleConfig = useCallback(
+    async (botId: string, config: Omit<ScheduleConfig, "id" | "chatbot_config_id" | "tenant_id" | "created_at" | "updated_at">): Promise<boolean> => {
+      if (!tenantId) return false;
+
+      const now = new Date().toISOString();
+
+      const { data: existing } = await (supabaseUntyped as any)
+        .from("chatbot_schedule_config")
+        .select("id")
+        .eq("chatbot_config_id", botId)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error } = await (supabaseUntyped as any)
+          .from("chatbot_schedule_config")
+          .update({ ...config, updated_at: now })
+          .eq("id", existing.id);
+
+        if (error) {
+          console.error("Erro ao atualizar schedule config:", error);
+          return false;
+        }
+      } else {
+        const { error } = await (supabaseUntyped as any)
+          .from("chatbot_schedule_config")
+          .insert({
+            ...config,
+            chatbot_config_id: botId,
+            tenant_id: tenantId,
+            created_at: now,
+            updated_at: now,
+          });
+
+        if (error) {
+          console.error("Erro ao criar schedule config:", error);
+          return false;
+        }
+      }
+
+      return true;
+    },
+    [tenantId]
+  );
+
+  // ====================================================================
+  // Blocked Periods (per-bot)
+  // ====================================================================
+
+  const fetchBlockedPeriods = useCallback(
+    async (botId: string): Promise<BlockedPeriod[]> => {
+      const { data, error } = await (supabaseUntyped as any)
+        .from("chatbot_blocked_periods")
+        .select("*")
+        .eq("chatbot_config_id", botId)
+        .order("blocked_date", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao buscar blocked periods:", error);
+        return [];
+      }
+
+      return (data || []) as BlockedPeriod[];
+    },
+    []
+  );
+
+  const addBlockedPeriod = useCallback(
+    async (botId: string, period: Omit<BlockedPeriod, "id" | "chatbot_config_id" | "tenant_id" | "created_at">): Promise<BlockedPeriod | null> => {
+      if (!tenantId) return null;
+
+      const { data, error } = await (supabaseUntyped as any)
+        .from("chatbot_blocked_periods")
+        .insert({
+          ...period,
+          chatbot_config_id: botId,
+          tenant_id: tenantId,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Erro ao criar blocked period:", error);
+        return null;
+      }
+
+      return data as BlockedPeriod;
+    },
+    [tenantId]
+  );
+
+  const deleteBlockedPeriod = useCallback(
+    async (periodId: string): Promise<boolean> => {
+      const { error } = await (supabaseUntyped as any)
+        .from("chatbot_blocked_periods")
+        .delete()
+        .eq("id", periodId);
+
+      if (error) {
+        console.error("Erro ao deletar blocked period:", error);
+        return false;
+      }
+
+      return true;
+    },
+    []
+  );
+
+  // ====================================================================
+  // Tratamentos (duration)
+  // ====================================================================
+
+  const fetchTratamentos = useCallback(async (): Promise<Tratamento[]> => {
+    if (!tenantId) return [];
+
+    const { data, error } = await (supabaseUntyped as any)
+      .from("tratamentos")
+      .select("id, nome, duracao_minutos")
+      .eq("tenant_id", tenantId)
+      .order("nome", { ascending: true });
+
+    if (error) {
+      console.error("Erro ao buscar tratamentos:", error);
+      return [];
+    }
+
+    return (data || []).map((t: any) => ({
+      id: t.id,
+      nome: t.nome,
+      duracao_minutos: t.duracao_minutos ?? 60,
+    }));
+  }, [tenantId]);
+
+  const updateTratamentoDuration = useCallback(
+    async (tratamentoId: string, duracao: number): Promise<boolean> => {
+      const { error } = await (supabaseUntyped as any)
+        .from("tratamentos")
+        .update({ duracao_minutos: duracao })
+        .eq("id", tratamentoId);
+
+      if (error) {
+        console.error("Erro ao atualizar duração:", error);
+        return false;
+      }
+
+      return true;
+    },
+    []
+  );
+
+  // ====================================================================
   // Legacy compat
   // ====================================================================
 
@@ -367,6 +591,15 @@ export const useChatbotConfig = () => {
     // Instances
     fetchInstances,
     linkInstance,
+    // Schedule (agendamento_fixo)
+    fetchScheduleConfig,
+    saveScheduleConfig,
+    fetchBlockedPeriods,
+    addBlockedPeriod,
+    deleteBlockedPeriod,
+    // Tratamentos
+    fetchTratamentos,
+    updateTratamentoDuration,
     // Legacy
     fetchConfig,
     saveConfig,

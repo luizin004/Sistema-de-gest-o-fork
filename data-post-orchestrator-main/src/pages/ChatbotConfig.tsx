@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Bot, Save, Plus, Trash2, Key, Eye, EyeOff, MessageSquare, Settings,
   ShieldAlert, Info, Package, ArrowLeft, Link2, Unlink, Pencil, Copy,
-  Globe,
+  Globe, Calendar, Clock, Ban, Timer,
 } from "lucide-react";
 import {
   useChatbotConfig,
@@ -29,6 +29,11 @@ import {
   ChatbotConfig,
   TenantSettings,
   UazapiInstance,
+  ScheduleConfig,
+  ScheduleDay,
+  BlockedPeriod,
+  Tratamento,
+  DEFAULT_SCHEDULE_CONFIG,
 } from "@/hooks/useChatbotConfig";
 
 // ============================================================================
@@ -370,6 +375,7 @@ const ChatbotConfigPage = () => {
   const {
     fetchBots, createBot, updateBot, deleteBot, fetchInstances, linkInstance,
     fetchTenantSettings, saveTenantSettings, tenantId,
+    fetchScheduleConfig, saveScheduleConfig, fetchBlockedPeriods, addBlockedPeriod, deleteBlockedPeriod, fetchTratamentos, updateTratamentoDuration,
   } = useChatbotConfig();
 
   const [bots, setBots] = useState<ChatbotConfig[]>([]);
@@ -386,6 +392,15 @@ const ChatbotConfigPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newTemplate, setNewTemplate] = useState("");
+
+  // Schedule (agendamento_fixo)
+  const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({ ...DEFAULT_SCHEDULE_CONFIG });
+  const [blockedPeriods, setBlockedPeriods] = useState<BlockedPeriod[]>([]);
+  const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
+  const [newBlockedDate, setNewBlockedDate] = useState("");
+  const [newBlockedStart, setNewBlockedStart] = useState("08:00");
+  const [newBlockedEnd, setNewBlockedEnd] = useState("18:00");
+  const [newBlockedReason, setNewBlockedReason] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -431,6 +446,18 @@ const ChatbotConfigPage = () => {
       cadence_templates: Array.isArray(rest.cadence_templates) ? rest.cadence_templates : [],
     } as any);
     setView("editBot");
+    // Load schedule data if fixo mode
+    if (bot.mode === "agendamento_fixo" && bot.id) {
+      Promise.all([
+        fetchScheduleConfig(bot.id),
+        fetchBlockedPeriods(bot.id),
+        fetchTratamentos(),
+      ]).then(([sched, blocked, trats]) => {
+        setScheduleConfig(sched);
+        setBlockedPeriods(blocked);
+        setTratamentos(trats);
+      });
+    }
   };
 
   const handleDuplicate = async (bot: ChatbotConfig) => {
@@ -486,6 +513,15 @@ const ChatbotConfigPage = () => {
       }
 
       if (saved) {
+        // Save schedule config if agendamento_fixo
+        if (config.mode === "agendamento_fixo" && saved?.id) {
+          await saveScheduleConfig(saved.id, {
+            weekly_schedule: scheduleConfig.weekly_schedule,
+            lookahead_days: scheduleConfig.lookahead_days,
+            allow_bot_cancel: scheduleConfig.allow_bot_cancel,
+            slot_buffer_minutes: scheduleConfig.slot_buffer_minutes,
+          });
+        }
         toast.success(isNew ? "Bot criado com sucesso!" : "Bot atualizado!");
         await loadData();
         setView("list");
@@ -678,6 +714,12 @@ const ChatbotConfigPage = () => {
                   <Bot className="h-4 w-4" />
                   Cadência
                 </TabsTrigger>
+                {config.mode === "agendamento_fixo" && (
+                  <TabsTrigger value="agenda" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Agenda
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* ========== TAB: Personalidade ========== */}
@@ -719,14 +761,23 @@ const ChatbotConfigPage = () => {
                         <Label className="text-sm font-medium text-gray-700">Modo do Bot</Label>
                         <Select
                           value={config.mode}
-                          onValueChange={(value) => setConfig((prev) => ({ ...prev, mode: value }))}
+                          onValueChange={(val) => {
+                            setConfig((p) => ({ ...p, mode: val }));
+                            if (val === "agendamento_fixo") {
+                              fetchTratamentos().then(setTratamentos);
+                              if (editingBot?.id) {
+                                fetchScheduleConfig(editingBot.id).then(setScheduleConfig);
+                                fetchBlockedPeriods(editingBot.id).then(setBlockedPeriods);
+                              }
+                            }
+                          }}
                         >
                           <SelectTrigger className="border-gray-300 focus:ring-purple-500">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="agendamento_flexivel">Agendamento Flexível</SelectItem>
-                            <SelectItem value="agendamento_fixo" disabled>Agendamento Fixo (em breve)</SelectItem>
+                            <SelectItem value="agendamento_fixo">Agendamento Fixo</SelectItem>
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-gray-500">O modo define o fluxo de conversa do bot</p>
@@ -1083,6 +1134,323 @@ const ChatbotConfigPage = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {/* ========== TAB: Agenda (agendamento_fixo only) ========== */}
+              {config.mode === "agendamento_fixo" && (
+                <TabsContent value="agenda" className="space-y-6">
+                  {/* Grade Semanal */}
+                  <Card className="shadow-lg border-gray-200">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-purple-100 p-2 rounded-lg">
+                          <Calendar className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Grade Semanal</CardTitle>
+                          <p className="text-sm text-gray-500">Dias e horários disponíveis para agendamento</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      {[
+                        { day: 1, label: "Segunda-feira" },
+                        { day: 2, label: "Terça-feira" },
+                        { day: 3, label: "Quarta-feira" },
+                        { day: 4, label: "Quinta-feira" },
+                        { day: 5, label: "Sexta-feira" },
+                        { day: 6, label: "Sábado" },
+                        { day: 0, label: "Domingo" },
+                      ].map(({ day, label }) => {
+                        const existing = scheduleConfig.weekly_schedule.find((s) => s.day === day);
+                        return (
+                          <div key={day} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                            <Checkbox
+                              checked={!!existing}
+                              onCheckedChange={(checked) => {
+                                setScheduleConfig((prev) => {
+                                  const filtered = prev.weekly_schedule.filter((s) => s.day !== day);
+                                  if (checked) {
+                                    filtered.push({ day, start: "08:00", end: "18:00" });
+                                    filtered.sort((a, b) => a.day - b.day);
+                                  }
+                                  return { ...prev, weekly_schedule: filtered };
+                                });
+                              }}
+                            />
+                            <span className="w-32 font-medium text-gray-700">{label}</span>
+                            {existing && (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-400" />
+                                  <Input
+                                    type="time"
+                                    value={existing.start}
+                                    onChange={(e) => {
+                                      setScheduleConfig((prev) => ({
+                                        ...prev,
+                                        weekly_schedule: prev.weekly_schedule.map((s) =>
+                                          s.day === day ? { ...s, start: e.target.value } : s
+                                        ),
+                                      }));
+                                    }}
+                                    className="w-32"
+                                  />
+                                  <span className="text-gray-400">até</span>
+                                  <Input
+                                    type="time"
+                                    value={existing.end}
+                                    onChange={(e) => {
+                                      setScheduleConfig((prev) => ({
+                                        ...prev,
+                                        weekly_schedule: prev.weekly_schedule.map((s) =>
+                                          s.day === day ? { ...s, end: e.target.value } : s
+                                        ),
+                                      }));
+                                    }}
+                                    className="w-32"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+
+                  {/* Configurações de Agendamento */}
+                  <Card className="shadow-lg border-gray-200">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-purple-100 p-2 rounded-lg">
+                          <Settings className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Configurações</CardTitle>
+                          <p className="text-sm text-gray-500">Janela de agendamento, buffer e permissões</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label>Janela de agendamento (dias à frente)</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={scheduleConfig.lookahead_days}
+                            onChange={(e) => setScheduleConfig((p) => ({ ...p, lookahead_days: parseInt(e.target.value) || 14 }))}
+                          />
+                          <p className="text-xs text-gray-500">Quantos dias no futuro o bot pode agendar</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Buffer entre consultas (minutos)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={120}
+                            value={scheduleConfig.slot_buffer_minutes}
+                            onChange={(e) => setScheduleConfig((p) => ({ ...p, slot_buffer_minutes: parseInt(e.target.value) || 0 }))}
+                          />
+                          <p className="text-xs text-gray-500">Intervalo mínimo entre consultas consecutivas</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <Label className="text-base">Permitir cancelamento via bot</Label>
+                          <p className="text-sm text-gray-500">O bot pode cancelar/reagendar consultas pelo WhatsApp</p>
+                        </div>
+                        <Switch
+                          checked={scheduleConfig.allow_bot_cancel}
+                          onCheckedChange={(checked) => setScheduleConfig((p) => ({ ...p, allow_bot_cancel: checked }))}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Períodos Bloqueados */}
+                  <Card className="shadow-lg border-gray-200">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-red-100 p-2 rounded-lg">
+                          <Ban className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Períodos Bloqueados</CardTitle>
+                          <p className="text-sm text-gray-500">Datas e horários indisponíveis para agendamento</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      {/* Add new blocked period */}
+                      <div className="flex flex-wrap items-end gap-3 p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data</Label>
+                          <Input
+                            type="date"
+                            value={newBlockedDate}
+                            onChange={(e) => setNewBlockedDate(e.target.value)}
+                            className="w-40"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Início</Label>
+                          <Input
+                            type="time"
+                            value={newBlockedStart}
+                            onChange={(e) => setNewBlockedStart(e.target.value)}
+                            className="w-32"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Fim</Label>
+                          <Input
+                            type="time"
+                            value={newBlockedEnd}
+                            onChange={(e) => setNewBlockedEnd(e.target.value)}
+                            className="w-32"
+                          />
+                        </div>
+                        <div className="space-y-1 flex-1 min-w-[120px]">
+                          <Label className="text-xs">Motivo (opcional)</Label>
+                          <Input
+                            value={newBlockedReason}
+                            onChange={(e) => setNewBlockedReason(e.target.value)}
+                            placeholder="Ex: Feriado"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (!newBlockedDate || !newBlockedStart || !newBlockedEnd) {
+                              toast.error("Preencha data, início e fim");
+                              return;
+                            }
+                            if (newBlockedStart >= newBlockedEnd) {
+                              toast.error("Horário de início deve ser antes do fim");
+                              return;
+                            }
+                            const botId = editingBot?.id;
+                            if (!botId) {
+                              toast.error("Salve o bot antes de adicionar períodos bloqueados");
+                              return;
+                            }
+                            const added = await addBlockedPeriod(botId, {
+                              blocked_date: newBlockedDate,
+                              start_time: newBlockedStart,
+                              end_time: newBlockedEnd,
+                              reason: newBlockedReason || undefined,
+                            });
+                            if (added) {
+                              setBlockedPeriods((prev) => [...prev, added].sort((a, b) => a.blocked_date.localeCompare(b.blocked_date)));
+                              setNewBlockedDate("");
+                              setNewBlockedReason("");
+                              toast.success("Período bloqueado adicionado");
+                            } else {
+                              toast.error("Erro ao adicionar período");
+                            }
+                          }}
+                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Adicionar
+                        </Button>
+                      </div>
+
+                      {/* List blocked periods */}
+                      {blockedPeriods.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">Nenhum período bloqueado</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {blockedPeriods.map((bp) => (
+                            <div key={bp.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                              <div className="flex items-center gap-3">
+                                <Ban className="h-4 w-4 text-red-400" />
+                                <span className="font-medium text-gray-700">
+                                  {new Date(bp.blocked_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                                </span>
+                                <span className="text-gray-500">
+                                  {bp.start_time.slice(0, 5)} - {bp.end_time.slice(0, 5)}
+                                </span>
+                                {bp.reason && (
+                                  <Badge variant="secondary" className="text-xs">{bp.reason}</Badge>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-400 hover:text-red-600 hover:bg-red-100"
+                                onClick={async () => {
+                                  if (bp.id) {
+                                    const success = await deleteBlockedPeriod(bp.id);
+                                    if (success) {
+                                      setBlockedPeriods((prev) => prev.filter((p) => p.id !== bp.id));
+                                      toast.success("Período removido");
+                                    }
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Duração dos Tratamentos */}
+                  <Card className="shadow-lg border-gray-200">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-purple-100 p-2 rounded-lg">
+                          <Timer className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Duração dos Tratamentos</CardTitle>
+                          <p className="text-sm text-gray-500">Tempo de cada consulta por tipo de tratamento</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      {tratamentos.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">
+                          Nenhum tratamento cadastrado. Adicione tratamentos na seção de Tratamentos do sistema.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {tratamentos.map((trat) => (
+                            <div key={trat.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium text-gray-700">{trat.nome}</span>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min={15}
+                                  max={480}
+                                  value={trat.duracao_minutos}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 60;
+                                    setTratamentos((prev) =>
+                                      prev.map((t) => (t.id === trat.id ? { ...t, duracao_minutos: val } : t))
+                                    );
+                                  }}
+                                  onBlur={() => {
+                                    updateTratamentoDuration(trat.id, trat.duracao_minutos);
+                                  }}
+                                  className="w-24"
+                                />
+                                <span className="text-sm text-gray-500">min</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
             </Tabs>
 
             {/* Bottom Save (editor only) */}

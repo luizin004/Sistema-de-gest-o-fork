@@ -272,6 +272,7 @@ interface ChatbotConfig {
 interface Tratamento {
   id: string;
   nome: string;
+  duracao_minutos?: number;
 }
 
 function buildSystemPrompt(
@@ -357,6 +358,216 @@ Regra de should_pause: defina como true APENAS para status "interessado_agendar"
 }
 
 // ---------------------------------------------------------------------------
+// Build system prompt for AGENDAMENTO FIXO mode
+// ---------------------------------------------------------------------------
+
+interface ScheduleDay {
+  day: number;
+  start: string;
+  end: string;
+}
+
+interface ScheduleConfig {
+  weekly_schedule: ScheduleDay[];
+  lookahead_days: number;
+  allow_bot_cancel: boolean;
+  slot_buffer_minutes: number;
+}
+
+interface BlockedPeriod {
+  blocked_date: string;
+  start_time: string;
+  end_time: string;
+}
+
+interface Agendamento {
+  data_marcada: string;
+  horario: string;
+  duracao_minutos?: number;
+}
+
+interface AvailableSlot {
+  date: string;        // "2026-03-15"
+  dayLabel: string;    // "Sábado 15/03"
+  start: string;       // "10:00"
+  end: string;         // "11:00"
+}
+
+function computeAvailableSlots(
+  scheduleConfig: ScheduleConfig,
+  blockedPeriods: BlockedPeriod[],
+  existingAgendamentos: Agendamento[],
+  treatmentDurationMinutes: number,
+  maxSlots: number = 3
+): AvailableSlot[] {
+  const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+  // Use São Paulo timezone
+  const now = new Date();
+  const spFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
+  const todayParts = spFormatter.formatToParts(now);
+  const todayYear = parseInt(todayParts.find(p => p.type === "year")!.value);
+  const todayMonth = parseInt(todayParts.find(p => p.type === "month")!.value) - 1;
+  const todayDay = parseInt(todayParts.find(p => p.type === "day")!.value);
+  const today = new Date(todayYear, todayMonth, todayDay);
+
+  const buffer = scheduleConfig.slot_buffer_minutes || 0;
+  const totalSlotMinutes = treatmentDurationMinutes + buffer;
+
+  const slots: AvailableSlot[] = [];
+  const usedDays = new Set<string>();
+
+  for (let d = 1; d <= scheduleConfig.lookahead_days && slots.length < maxSlots; d++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + d);
+
+    const dayOfWeek = date.getDay();
+    const scheduleDef = scheduleConfig.weekly_schedule.find(s => s.day === dayOfWeek);
+    if (!scheduleDef) continue;
+
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    // Get blocked periods for this date
+    const dayBlocked = blockedPeriods.filter(bp => bp.blocked_date === dateStr);
+
+    // Get existing agendamentos for this date
+    const dayAgendamentos = existingAgendamentos.filter(a => a.data_marcada === dateStr);
+
+    // Generate candidate slots
+    const [startH, startM] = scheduleDef.start.split(":").map(Number);
+    const [endH, endM] = scheduleDef.end.split(":").map(Number);
+    const dayStartMinutes = startH * 60 + startM;
+    const dayEndMinutes = endH * 60 + endM;
+
+    for (let slotStart = dayStartMinutes; slotStart + treatmentDurationMinutes <= dayEndMinutes; slotStart += totalSlotMinutes) {
+      const slotEnd = slotStart + treatmentDurationMinutes;
+      const slotStartStr = `${String(Math.floor(slotStart / 60)).padStart(2, "0")}:${String(slotStart % 60).padStart(2, "0")}`;
+      const slotEndStr = `${String(Math.floor(slotEnd / 60)).padStart(2, "0")}:${String(slotEnd % 60).padStart(2, "0")}`;
+
+      // Check overlap with blocked periods
+      const blockedConflict = dayBlocked.some(bp => {
+        return slotStartStr < bp.end_time && bp.start_time < slotEndStr;
+      });
+      if (blockedConflict) continue;
+
+      // Check overlap with existing agendamentos
+      const agendamentoConflict = dayAgendamentos.some(ag => {
+        const agDur = ag.duracao_minutos || 60;
+        const [agH, agM] = ag.horario.split(":").map(Number);
+        const agStart = agH * 60 + agM;
+        const agEnd = agStart + agDur;
+        return slotStart < agEnd && agStart < slotEnd;
+      });
+      if (agendamentoConflict) continue;
+
+      // Prefer variety: skip if we already have a slot on this day
+      if (usedDays.has(dateStr) && slots.length < maxSlots - 1) continue;
+
+      const dayLabel = `${dayNames[dayOfWeek]} ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+      slots.push({ date: dateStr, dayLabel, start: slotStartStr, end: slotEndStr });
+      usedDays.add(dateStr);
+
+      if (slots.length >= maxSlots) break;
+    }
+  }
+
+  return slots;
+}
+
+function buildSystemPromptFixo(
+  config: ChatbotConfig,
+  tratamentos: Tratamento[],
+  schedulingState: string | null,
+  schedulingData: any,
+  allowBotCancel: boolean
+): string {
+  const clinicName = config.clinic_name || "Clínica";
+  const clinicTone = config.clinic_tone || "profissional e acolhedor";
+  const tratamentosList =
+    tratamentos.length > 0
+      ? tratamentos.map(t => `- ${t.nome} (${t.duracao_minutos || 60}min)`).join("\n")
+      : "- (não cadastrados)";
+
+  const persona = config.bot_persona?.trim() || "";
+  const context = config.bot_context?.trim() || "";
+  const servicesInfo = config.bot_services_info?.trim() || "";
+  const restrictions = config.bot_restrictions?.trim() || "";
+  const advancedPrompt = config.system_prompt?.trim() || "";
+
+  let customSections = "";
+  if (persona) customSections += `\n\n## Sua persona e papel:\n${persona}`;
+  if (context) customSections += `\n\n## Contexto da clínica:\n${context}`;
+  if (servicesInfo) customSections += `\n\n## Informações sobre produtos e serviços:\n${servicesInfo}`;
+  if (restrictions) customSections += `\n\n## RESTRIÇÕES (prioridade máxima):\n${restrictions}`;
+  if (advancedPrompt) customSections += `\n\n## Instruções adicionais:\n${advancedPrompt}`;
+
+  // State context
+  let stateContext = "";
+  if (schedulingState === "awaiting_slot_choice" && schedulingData?.offered_slots) {
+    stateContext = `\n\n## ESTADO ATUAL: Aguardando escolha de horário
+O paciente recebeu as seguintes opções:
+${schedulingData.offered_slots.map((s: any, i: number) => `${i + 1}) ${s.dayLabel} às ${s.start}`).join("\n")}
+Tratamento: ${schedulingData.treatment_name || "não definido"}
+
+Quando o paciente responder com um número (1, 2 ou 3), use action="book_slot" com slot_choice=número.
+Se o paciente pedir outras opções ou outro tratamento, use action="check_slots".`;
+  } else if (schedulingState === "confirmed") {
+    stateContext = `\n\n## ESTADO ATUAL: Consulta já confirmada
+O paciente já tem agendamento confirmado.
+Se quiser cancelar/reagendar → ${allowBotCancel ? 'action="cancel_slot"' : 'action="needs_human"'}`;
+  }
+
+  const cancelRule = allowBotCancel
+    ? `6. Cancelar/reagendar → action="cancel_slot"`
+    : `6. Cancelar/reagendar → action="needs_human" (humano cuida)`;
+
+  return `Você é a assistente virtual da clínica ${clinicName}.
+Tom: ${clinicTone}
+${customSections}
+
+## Seu papel no AGENDAMENTO FIXO:
+Você AGENDA consultas automaticamente. O fluxo:
+1. Cumprimente o paciente, pergunte qual tratamento deseja
+2. Quando disser o tratamento → action="check_slots"
+3. O sistema fornece opções → você apresenta ao paciente
+4. Quando escolher opção (1, 2 ou 3) → action="book_slot" com slot_choice=N
+5. Fora do escopo → action="needs_human"
+${cancelRule}
+${stateContext}
+
+## Tratamentos disponíveis (com duração):
+${tratamentosList}
+
+## REGRAS:
+- NUNCA invente horários — o sistema fornece
+- Respostas curtas, estilo WhatsApp
+- Nunca revele que é IA, apresente-se como assistente da clínica
+- Não invente informações não fornecidas
+
+## Classificação de status:
+- respondeu: primeiro contato
+- interagiu: conversando ativamente (3+ msgs)
+- engajou: interesse real em tratamento
+- agendou consulta: consulta marcada com sucesso
+- atencao: não consegue lidar → DEVE pausar
+- reagendando: quer remarcar consulta existente
+
+## FORMATO JSON OBRIGATÓRIO:
+{
+  "reply": "texto da resposta",
+  "status": "um dos status acima",
+  "action": "none|check_slots|book_slot|cancel_slot|needs_human",
+  "detected_treatment": "nome do tratamento ou null",
+  "slot_choice": 1 ou 2 ou 3 ou null,
+  "should_pause": true ou false
+}
+
+Regra de should_pause: true APENAS para "atencao" ou "needs_human".
+Regra de action: use "none" para conversa normal, "check_slots" quando detectar tratamento, "book_slot" quando paciente escolher slot, "cancel_slot" para cancelamento, "needs_human" quando não souber lidar.`;
+}
+
+// ---------------------------------------------------------------------------
 // OpenAI Chat Completion
 // ---------------------------------------------------------------------------
 
@@ -371,6 +582,9 @@ interface AIResponse {
   detected_treatment: string | null;
   detected_times: string | null;
   should_pause: boolean;
+  // Agendamento fixo fields
+  action?: string;
+  slot_choice?: number | null;
 }
 
 async function callOpenAI(messages: ChatMessage[], openaiApiKey: string, model: string = "gpt-4o"): Promise<AIResponse | null> {
@@ -409,6 +623,8 @@ async function callOpenAI(messages: ChatMessage[], openaiApiKey: string, model: 
       detected_treatment: parsed.detected_treatment || null,
       detected_times: parsed.detected_times || null,
       should_pause: parsed.should_pause === true,
+      action: (parsed as any).action || "none",
+      slot_choice: (parsed as any).slot_choice ?? null,
     };
   } catch (err: any) {
     console.error(`[CHATBOT] callOpenAI error:`, err.message);
@@ -562,7 +778,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     const { data: existingConv } = await supabase
       .from("chatbot_conversations")
-      .select("id, bot_active, message_count, current_funnel_status, pause_reason")
+      .select("id, bot_active, message_count, current_funnel_status, pause_reason, scheduling_state, scheduling_data")
       .eq("tenant_id", tenantId)
       .eq("phone_number", phone)
       .maybeSingle();
@@ -628,7 +844,7 @@ serve(async (req) => {
         .maybeSingle(),
       supabase
         .from("tratamentos")
-        .select("id, nome")
+        .select("id, nome, duracao_minutos")
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
         .order("nome", { ascending: true }),
@@ -740,14 +956,47 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 10. Build OpenAI messages array
+    // 10. Determine bot mode and build system prompt
     // ------------------------------------------------------------------
-    const systemPrompt = buildSystemPrompt(chatbotConfig, tratamentos, currentLeadStatus);
+    const botMode = (chatbotConfig as any).mode || "agendamento_flexivel";
+    const isFixoMode = botMode === "agendamento_fixo";
+    const schedulingState: string | null = existingConv?.scheduling_state || null;
+    const schedulingData: any = existingConv?.scheduling_data || null;
 
+    let systemPrompt: string;
+
+    if (isFixoMode) {
+      // Load schedule config for fixo mode
+      const { data: schedConfigData } = await supabase
+        .from("chatbot_schedule_config")
+        .select("*")
+        .eq("chatbot_config_id", chatbotConfigId)
+        .maybeSingle();
+
+      const schedConfig: ScheduleConfig = schedConfigData || {
+        weekly_schedule: [],
+        lookahead_days: 14,
+        allow_bot_cancel: false,
+        slot_buffer_minutes: 0,
+      };
+
+      systemPrompt = buildSystemPromptFixo(
+        chatbotConfig,
+        tratamentos,
+        schedulingState,
+        schedulingData,
+        schedConfig.allow_bot_cancel
+      );
+    } else {
+      systemPrompt = buildSystemPrompt(chatbotConfig, tratamentos, currentLeadStatus);
+    }
+
+    // ------------------------------------------------------------------
+    // 10b. Build OpenAI messages array (shared for both modes)
+    // ------------------------------------------------------------------
     const chatMessages: ChatMessage[] = [{ role: "system", content: systemPrompt }];
 
     for (const row of historyRows) {
-      // Skip the message we just stored (it's added below as current user turn)
       const isCurrentMessage =
         row.direction === "inbound" &&
         row.content === (messageText || null) &&
@@ -765,16 +1014,14 @@ serve(async (req) => {
       }
     }
 
-    // Add current user message
     if (messageText) {
       chatMessages.push({ role: "user", content: messageText });
     } else if (messageType !== "text") {
-      // Non-transcribable media (image, video, sticker, document)
       chatMessages.push({ role: "user", content: `[${messageType}]` });
     }
 
     // ------------------------------------------------------------------
-    // 11. Call OpenAI GPT-4o
+    // 11. Call OpenAI
     // ------------------------------------------------------------------
     const aiResponse = await callOpenAI(chatMessages, openaiApiKey, openaiModel);
 
@@ -786,7 +1033,152 @@ serve(async (req) => {
       return jsonResponse({ ok: true, action: "ai_fallback" });
     }
 
-    console.log(`[CHATBOT] AI response: status=${aiResponse.status} | pause=${aiResponse.should_pause}`);
+    console.log(`[CHATBOT] AI response: status=${aiResponse.status} | pause=${aiResponse.should_pause} | action=${aiResponse.action}`);
+
+    // ------------------------------------------------------------------
+    // 11b. Handle agendamento_fixo actions BEFORE sending reply
+    // ------------------------------------------------------------------
+    let finalReply = aiResponse.reply;
+    let convUpdateExtra: Record<string, unknown> = {};
+
+    if (isFixoMode && aiResponse.action && aiResponse.action !== "none") {
+      const { data: schedConfigData } = await supabase
+        .from("chatbot_schedule_config")
+        .select("*")
+        .eq("chatbot_config_id", chatbotConfigId)
+        .maybeSingle();
+
+      const schedConfig: ScheduleConfig = schedConfigData || {
+        weekly_schedule: [],
+        lookahead_days: 14,
+        allow_bot_cancel: false,
+        slot_buffer_minutes: 0,
+      };
+
+      if (aiResponse.action === "check_slots") {
+        // Find the treatment and its duration
+        const detectedName = (aiResponse.detected_treatment || "").toLowerCase();
+        const matchedTreatment = tratamentos.find(
+          t => t.nome.toLowerCase().includes(detectedName) || detectedName.includes(t.nome.toLowerCase())
+        );
+        const duration = matchedTreatment?.duracao_minutos || 60;
+
+        // Load blocked periods and existing agendamentos
+        const [blockedResult, agendamentosResult] = await Promise.all([
+          supabase
+            .from("chatbot_blocked_periods")
+            .select("blocked_date, start_time, end_time")
+            .eq("chatbot_config_id", chatbotConfigId),
+          supabase
+            .from("agendamento")
+            .select("data_marcada, horario, duracao_minutos")
+            .eq("tenant_id", tenantId),
+        ]);
+
+        const blockedPeriods: BlockedPeriod[] = blockedResult.data || [];
+        const existingAgendamentos: Agendamento[] = agendamentosResult.data || [];
+
+        const slots = computeAvailableSlots(schedConfig, blockedPeriods, existingAgendamentos, duration, 3);
+
+        if (slots.length === 0) {
+          finalReply = "No momento não temos horários disponíveis. Nossa equipe entrará em contato para encontrar o melhor horário para você!";
+          aiResponse.should_pause = true;
+          aiResponse.status = "atencao";
+          convUpdateExtra = {
+            scheduling_state: null,
+            scheduling_data: null,
+          };
+        } else {
+          // Build slot message
+          const slotLines = slots.map((s, i) => `${i + 1}) ${s.dayLabel} às ${s.start}`).join("\n");
+          finalReply = `${aiResponse.reply}\n\nTenho esses horários disponíveis:\n${slotLines}\n\nQual você prefere? Responda com o número.`;
+
+          convUpdateExtra = {
+            scheduling_state: "awaiting_slot_choice",
+            scheduling_data: {
+              treatment_id: matchedTreatment?.id || null,
+              treatment_name: matchedTreatment?.nome || aiResponse.detected_treatment,
+              duracao_minutos: duration,
+              offered_slots: slots,
+            },
+          };
+        }
+      } else if (aiResponse.action === "book_slot") {
+        const choiceIdx = (aiResponse.slot_choice || 1) - 1;
+        const offeredSlots = schedulingData?.offered_slots || [];
+        const chosenSlot = offeredSlots[choiceIdx];
+
+        if (!chosenSlot) {
+          finalReply = "Desculpe, não consegui identificar qual opção você escolheu. Poderia repetir o número?";
+        } else {
+          // Create agendamento record
+          const agendamentoId = crypto.randomUUID();
+          const { error: agError } = await supabase.from("agendamento").insert({
+            id: agendamentoId,
+            tenant_id: tenantId,
+            post_id: leadId,
+            data_marcada: chosenSlot.date,
+            horario: chosenSlot.start,
+            duracao_minutos: schedulingData?.duracao_minutos || 60,
+            tratamento: schedulingData?.treatment_name || null,
+            tratamento_id: schedulingData?.treatment_id || null,
+            source: "bot_fixo",
+            status: "confirmado",
+            created_at: new Date().toISOString(),
+          });
+
+          if (agError) {
+            // Likely race condition (slot taken) — retry with fresh slots
+            console.error("[CHATBOT] Failed to create agendamento:", agError.message);
+            finalReply = "Infelizmente esse horário acabou de ser preenchido. Vou verificar outras opções para você!";
+            // Trigger a new check_slots on next message
+            convUpdateExtra = {
+              scheduling_state: "awaiting_treatment",
+              scheduling_data: {
+                treatment_id: schedulingData?.treatment_id,
+                treatment_name: schedulingData?.treatment_name,
+                duracao_minutos: schedulingData?.duracao_minutos,
+              },
+            };
+          } else {
+            finalReply = `Pronto! Sua consulta de ${schedulingData?.treatment_name || "tratamento"} está confirmada para ${chosenSlot.dayLabel} às ${chosenSlot.start}. Aguardamos você! 😊`;
+            aiResponse.status = "agendou consulta";
+
+            convUpdateExtra = {
+              scheduling_state: "confirmed",
+              scheduling_data: {
+                ...schedulingData,
+                booked_agendamento_id: agendamentoId,
+                booked_slot: chosenSlot,
+              },
+            };
+          }
+        }
+      } else if (aiResponse.action === "cancel_slot") {
+        if (!schedConfig.allow_bot_cancel) {
+          finalReply = "Entendi que você quer cancelar/reagendar. Vou encaminhar para nossa equipe que entrará em contato em breve!";
+          aiResponse.should_pause = true;
+          aiResponse.status = "atencao";
+        } else {
+          // Cancel existing agendamento
+          const bookedId = schedulingData?.booked_agendamento_id;
+          if (bookedId) {
+            await supabase.from("agendamento").delete().eq("id", bookedId);
+            finalReply = "Sua consulta foi cancelada. Gostaria de agendar um novo horário? Se sim, me diga qual tratamento deseja.";
+            aiResponse.status = "reagendando";
+            convUpdateExtra = {
+              scheduling_state: null,
+              scheduling_data: null,
+            };
+          } else {
+            finalReply = "Não encontrei um agendamento ativo para cancelar. Posso ajudar com algo mais?";
+          }
+        }
+      } else if (aiResponse.action === "needs_human") {
+        aiResponse.should_pause = true;
+        aiResponse.status = "atencao";
+      }
+    }
 
     // ------------------------------------------------------------------
     // 12. Random delay 3-8 seconds (simulates typing)
@@ -802,7 +1194,7 @@ serve(async (req) => {
       uazapiSendUrl,
       uazapiToken,
       phone,
-      aiResponse.reply,
+      finalReply,
       tenantId,
       supabase,
       leadId
@@ -828,6 +1220,7 @@ serve(async (req) => {
         detected_treatment: aiResponse.detected_treatment,
         detected_available_times: aiResponse.detected_times,
         updated_at: now,
+        ...convUpdateExtra,
       })
       .eq("id", convId);
 
@@ -871,7 +1264,6 @@ serve(async (req) => {
         });
         console.log(`[CHATBOT] Realtime broadcast sent to channel: ${channelName}`);
       } catch (rtErr: any) {
-        // Non-fatal – frontend polling can still pick this up
         console.warn(`[CHATBOT] Realtime broadcast failed: ${rtErr.message}`);
       }
     }
@@ -882,6 +1274,7 @@ serve(async (req) => {
       conversation_id: convId,
       ai_status: aiResponse.status,
       should_pause: aiResponse.should_pause,
+      action: aiResponse.action,
     });
   } catch (error: any) {
     console.error("[CHATBOT] Fatal error:", error.message, error.stack);
