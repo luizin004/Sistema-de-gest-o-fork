@@ -135,9 +135,10 @@ function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
     payload.key?.remoteJid?.replace(/@[a-z.]+$/, "") ||
     "";
 
-  // Ignore status broadcasts and groups
+  // Ignore status broadcasts, groups, and our own outbound messages
   if (!phone || phone === "status@broadcast") return null;
   if (isGroup) return null;
+  if (payload.key?.fromMe === true) return null;
 
   phone = normalizePhone(phone);
 
