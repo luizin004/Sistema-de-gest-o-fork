@@ -501,6 +501,19 @@ const ChatbotConfigPage = () => {
       return;
     }
 
+    if (config.mode === "agendamento_fixo") {
+      if (scheduleConfig.weekly_schedule.length === 0) {
+        toast.error("Configure ao menos um dia na grade semanal para o modo Agendamento Fixo");
+        return;
+      }
+      const invalidDay = scheduleConfig.weekly_schedule.find(s => s.start >= s.end);
+      if (invalidDay) {
+        const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+        toast.error(`Horário inválido em ${dayNames[invalidDay.day]}: início deve ser antes do fim`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       let saved: ChatbotConfig | null;

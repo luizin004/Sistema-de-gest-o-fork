@@ -633,6 +633,51 @@ async function callOpenAI(messages: ChatMessage[], openaiApiKey: string, model: 
 }
 
 // ---------------------------------------------------------------------------
+// Treatment name matching
+// ---------------------------------------------------------------------------
+
+function findBestTreatmentMatch(tratamentos: Tratamento[], detectedName: string): Tratamento | undefined {
+  if (!detectedName) return undefined;
+  const needle = detectedName.toLowerCase().trim();
+
+  // 1. Exact match
+  const exact = tratamentos.find(t => t.nome.toLowerCase().trim() === needle);
+  if (exact) return exact;
+
+  // 2. One contains the other (both directions)
+  const containsMatches = tratamentos.filter(t => {
+    const tName = t.nome.toLowerCase().trim();
+    return tName.includes(needle) || needle.includes(tName);
+  });
+  if (containsMatches.length === 1) return containsMatches[0];
+
+  // 3. Word-level matching - count matching words
+  const needleWords = needle.split(/\s+/).filter(w => w.length > 2);
+  if (needleWords.length > 0) {
+    let bestMatch: Tratamento | undefined;
+    let bestScore = 0;
+
+    for (const t of tratamentos) {
+      const tWords = t.nome.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const matchCount = needleWords.filter(nw =>
+        tWords.some(tw => tw.includes(nw) || nw.includes(tw))
+      ).length;
+      const score = matchCount / Math.max(needleWords.length, tWords.length);
+      if (score > bestScore && score >= 0.5) {
+        bestScore = score;
+        bestMatch = t;
+      }
+    }
+    if (bestMatch) return bestMatch;
+  }
+
+  // 4. Fallback: first contains match if multiple
+  if (containsMatches.length > 0) return containsMatches[0];
+
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 
@@ -1057,10 +1102,7 @@ serve(async (req) => {
 
       if (aiResponse.action === "check_slots") {
         // Find the treatment and its duration
-        const detectedName = (aiResponse.detected_treatment || "").toLowerCase();
-        const matchedTreatment = tratamentos.find(
-          t => t.nome.toLowerCase().includes(detectedName) || detectedName.includes(t.nome.toLowerCase())
-        );
+        const matchedTreatment = findBestTreatmentMatch(tratamentos, aiResponse.detected_treatment || "");
         const duration = matchedTreatment?.duracao_minutos || 60;
 
         // Load blocked periods and existing agendamentos
@@ -1129,7 +1171,7 @@ serve(async (req) => {
 
           if (agError) {
             // Likely race condition (slot taken) — retry with fresh slots
-            console.error("[CHATBOT] Failed to create agendamento:", agError.message);
+            console.error("[CHATBOT] Failed to create agendamento (possible double-booking):", agError.message, agError.code);
             finalReply = "Infelizmente esse horário acabou de ser preenchido. Vou verificar outras opções para você!";
             // Trigger a new check_slots on next message
             convUpdateExtra = {

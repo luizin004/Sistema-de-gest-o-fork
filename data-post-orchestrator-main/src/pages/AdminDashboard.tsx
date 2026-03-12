@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Shield, Settings, Database, ArrowRight } from "lucide-react";
+import { Users, Shield, Settings, Database, ArrowRight, Eye } from "lucide-react";
 
 interface UsuarioLocal {
   id: string;
@@ -40,6 +40,14 @@ export default function AdminDashboard() {
         action: () => navigate("/usuarios"),
         accent: "from-blue-500/20 via-blue-500/5 to-transparent",
         buttonLabel: "Gerenciar usuários",
+      },
+      {
+        title: "Monitor de Conversas",
+        description: "Acompanhe em tempo real todas as conversas do bot com os leads",
+        icon: Eye,
+        action: () => navigate("/admin/chat-monitor"),
+        accent: "from-amber-500/20 via-amber-500/5 to-transparent",
+        buttonLabel: "Monitorar conversas",
       },
       {
         title: "Permissões",

@@ -37,6 +37,7 @@ import DisparosCampanha from "./pages/DisparosCampanha";
 import DisparosCampanhaLeads from "./pages/DisparosCampanhaLeads";
 import DisparosEmulador from "./pages/DisparosEmulador";
 import Monitoramento from "./pages/Monitoramento";
+import AdminChatMonitor from "./pages/AdminChatMonitor";
 import ChatbotConfig from "./pages/ChatbotConfig";
 import FormataListas from "./pages/FormataListas";
 import Consultorios from "./pages/ConsultoriosSupabase";
@@ -63,6 +64,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/dentistas": "Dentistas & Tratamentos",
   "/consultorios": "Consultórios",
   "/monitoramento": "Monitoramento",
+  "/admin/chat-monitor": "Monitor de Conversas",
   "/chatbot-config": "Chatbot IA",
   "/minha-conta": "Minha Conta",
   "/admin": "Administração",
@@ -80,7 +82,7 @@ const AppContent = () => {
   const location = useLocation();
   const pageLabel = getPageLabel(location.pathname);
   const isAuthPage = location.pathname === "/login";
-  const standaloneRoutes = ["/admin", "/usuarios"];
+  const standaloneRoutes = ["/admin", "/usuarios", "/admin/chat-monitor"];
   const isStandaloneLayout = standaloneRoutes.includes(location.pathname);
 
   const renderTopBar = (showSidebarTrigger: boolean) => (
@@ -271,6 +273,11 @@ const AppContent = () => {
             <Route path="/monitoramento" element={
               <AuthGuard>
                 <Monitoramento />
+              </AuthGuard>
+            } />
+            <Route path="/admin/chat-monitor" element={
+              <AuthGuard>
+                <AdminChatMonitor />
               </AuthGuard>
             } />
             <Route path="/minha-conta" element={
