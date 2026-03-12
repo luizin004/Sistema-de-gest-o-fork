@@ -401,6 +401,7 @@ const ChatbotConfigPage = () => {
   const [newBlockedStart, setNewBlockedStart] = useState("08:00");
   const [newBlockedEnd, setNewBlockedEnd] = useState("18:00");
   const [newBlockedReason, setNewBlockedReason] = useState("");
+  const [newAllowedDate, setNewAllowedDate] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -433,6 +434,10 @@ const ChatbotConfigPage = () => {
     setEditingBot(null);
     setIsNew(true);
     setConfig({ ...DEFAULT_CHATBOT_CONFIG } as any);
+    setScheduleConfig({ ...DEFAULT_SCHEDULE_CONFIG });
+    setBlockedPeriods([]);
+    setTratamentos([]);
+    setNewAllowedDate("");
     setView("editBot");
   };
 
@@ -533,6 +538,8 @@ const ChatbotConfigPage = () => {
             lookahead_days: scheduleConfig.lookahead_days,
             allow_bot_cancel: scheduleConfig.allow_bot_cancel,
             slot_buffer_minutes: scheduleConfig.slot_buffer_minutes,
+            allowed_dates: scheduleConfig.allowed_dates,
+            allow_double_booking: scheduleConfig.allow_double_booking,
           });
         }
         toast.success(isNew ? "Bot criado com sucesso!" : "Bot atualizado!");
@@ -715,14 +722,6 @@ const ChatbotConfigPage = () => {
                   <MessageSquare className="h-4 w-4" />
                   Personalidade
                 </TabsTrigger>
-                <TabsTrigger value="instancias" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
-                  <Link2 className="h-4 w-4" />
-                  Instâncias
-                </TabsTrigger>
-                <TabsTrigger value="tecnico" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
-                  <Settings className="h-4 w-4" />
-                  Técnico
-                </TabsTrigger>
                 <TabsTrigger value="cadencia" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
                   <Bot className="h-4 w-4" />
                   Cadência
@@ -733,6 +732,14 @@ const ChatbotConfigPage = () => {
                     Agenda
                   </TabsTrigger>
                 )}
+                <TabsTrigger value="instancias" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Instâncias
+                </TabsTrigger>
+                <TabsTrigger value="tecnico" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 gap-2">
+                  <Settings className="h-4 w-4" />
+                  Técnico
+                </TabsTrigger>
               </TabsList>
 
               {/* ========== TAB: Personalidade ========== */}
@@ -1231,6 +1238,99 @@ const ChatbotConfigPage = () => {
                     </CardContent>
                   </Card>
 
+                  {/* Datas Específicas Permitidas */}
+                  <Card className="shadow-lg border-gray-200">
+                    <CardHeader className="bg-gradient-to-r from-green-50 to-slate-50 border-b">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-green-100 p-2 rounded-lg">
+                          <Calendar className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Datas Específicas Permitidas</CardTitle>
+                          <p className="text-sm text-gray-500">
+                            Se preenchido, o bot só agenda nessas datas (ignora a grade semanal).
+                            Se vazio, usa a grade semanal normalmente.
+                          </p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="flex items-end gap-3 p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        <div className="space-y-1 flex-1">
+                          <Label className="text-xs">Selecione uma data</Label>
+                          <Input
+                            type="date"
+                            value={newAllowedDate}
+                            onChange={(e) => setNewAllowedDate(e.target.value)}
+                            className="w-48"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!newAllowedDate}
+                          onClick={() => {
+                            if (!newAllowedDate) return;
+                            if (scheduleConfig.allowed_dates.includes(newAllowedDate)) {
+                              toast.error("Esta data já foi adicionada");
+                              return;
+                            }
+                            setScheduleConfig((prev) => ({
+                              ...prev,
+                              allowed_dates: [...prev.allowed_dates, newAllowedDate].sort(),
+                            }));
+                            setNewAllowedDate("");
+                            toast.success("Data adicionada");
+                          }}
+                          className="border-green-300 text-green-700 hover:bg-green-50"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Adicionar
+                        </Button>
+                      </div>
+
+                      {scheduleConfig.allowed_dates.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-4">
+                          Nenhuma data específica — o bot usará a grade semanal
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {scheduleConfig.allowed_dates.map((date) => (
+                            <Badge
+                              key={date}
+                              variant="secondary"
+                              className="bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 text-sm flex items-center gap-2"
+                            >
+                              {new Date(date + "T12:00:00").toLocaleDateString("pt-BR")}
+                              <button
+                                type="button"
+                                className="text-green-400 hover:text-red-500 transition-colors"
+                                onClick={() => {
+                                  setScheduleConfig((prev) => ({
+                                    ...prev,
+                                    allowed_dates: prev.allowed_dates.filter((d) => d !== date),
+                                  }));
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {scheduleConfig.allowed_dates.length > 0 && (
+                        <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <Info className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-green-700">
+                            Com datas específicas configuradas, o bot <strong>só</strong> oferecerá horários nessas datas,
+                            respeitando os horários da grade semanal para o dia da semana correspondente.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   {/* Configurações de Agendamento */}
                   <Card className="shadow-lg border-gray-200">
                     <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
@@ -1277,6 +1377,16 @@ const ChatbotConfigPage = () => {
                         <Switch
                           checked={scheduleConfig.allow_bot_cancel}
                           onCheckedChange={(checked) => setScheduleConfig((p) => ({ ...p, allow_bot_cancel: checked }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <Label className="text-base">Permitir dois pacientes no mesmo horário</Label>
+                          <p className="text-sm text-gray-500">Se ativado, o bot pode agendar mais de um paciente no mesmo slot</p>
+                        </div>
+                        <Switch
+                          checked={scheduleConfig.allow_double_booking}
+                          onCheckedChange={(checked) => setScheduleConfig((p) => ({ ...p, allow_double_booking: checked }))}
                         />
                       </div>
                     </CardContent>

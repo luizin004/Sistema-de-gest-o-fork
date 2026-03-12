@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,18 +6,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Clock, Calendar, ChevronDown, ChevronRight, User } from "lucide-react";
+import { ArrowLeft, Plus, Clock, Calendar, ChevronDown, ChevronRight, ChevronLeft, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Consultorios = () => {
   const navigate = useNavigate();
   
+  // Week navigation
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const weekRange = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + weekOffset * 7);
+    const saturday = new Date(monday);
+    saturday.setDate(monday.getDate() + 5);
+    return { start: monday, end: saturday };
+  }, [weekOffset]);
+
+  const formatDate = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
   // State for dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newDentist, setNewDentist] = useState({
     name: '',
     specialty: '',
-    color: '#8B5CF6' // Default purple color
+    color: '#8B5CF6'
   });
   
   // Generate hours from 7 AM to 7 PM
@@ -94,10 +109,11 @@ const Consultorios = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-slate-50 p-6">
       {/* Header */}
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => navigate('/home')}
               className="text-slate-600 hover:text-slate-900"
             >
@@ -105,20 +121,20 @@ const Consultorios = () => {
               Voltar
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Consultórios</h1>
-              <p className="text-slate-600">Gestão de cronograma e disponibilidade de consultórios</p>
+              <h1 className="text-2xl font-bold text-slate-900">Consultórios</h1>
+              <p className="text-sm text-slate-600">Cronograma e disponibilidade</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Agendamento
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+              <Plus className="h-4 w-4 mr-1" />
+              Agendamento
             </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-                <User className="h-4 w-4 mr-2" />
-                Adicionar Dentista
+              <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                <User className="h-4 w-4 mr-1" />
+                Dentista
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -191,6 +207,51 @@ const Consultorios = () => {
           </Dialog>
           </div>
         </div>
+
+        {/* Week Navigation */}
+        <Card className="border border-slate-200">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="border-slate-200"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Calendar className="h-4 w-4 text-purple-500" />
+                <span>
+                  {formatDate(weekRange.start)} — {formatDate(weekRange.end)}
+                  {weekOffset === 0 && (
+                    <Badge variant="secondary" className="ml-2 text-xs">Esta semana</Badge>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                {weekOffset !== 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWeekOffset(0)}
+                    className="text-xs text-purple-600 hover:text-purple-800"
+                  >
+                    Hoje
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setWeekOffset((w) => w + 1)}
+                  className="border-slate-200"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Consultórios Tables */}
         <div className="space-y-4">

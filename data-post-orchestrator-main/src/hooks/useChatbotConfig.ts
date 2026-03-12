@@ -51,6 +51,8 @@ export interface ScheduleConfig {
   lookahead_days: number;
   allow_bot_cancel: boolean;
   slot_buffer_minutes: number;
+  allowed_dates: string[]; // ["2026-03-15", "2026-03-20"] - datas específicas permitidas
+  allow_double_booking: boolean; // permite dois pacientes no mesmo horário
   created_at?: string;
   updated_at?: string;
 }
@@ -77,6 +79,8 @@ export const DEFAULT_SCHEDULE_CONFIG: Omit<ScheduleConfig, "id" | "chatbot_confi
   lookahead_days: 14,
   allow_bot_cancel: false,
   slot_buffer_minutes: 0,
+  allowed_dates: [],
+  allow_double_booking: false,
 };
 
 export interface UazapiInstance {
@@ -385,6 +389,8 @@ export const useChatbotConfig = () => {
         lookahead_days: data.lookahead_days ?? 14,
         allow_bot_cancel: data.allow_bot_cancel ?? false,
         slot_buffer_minutes: data.slot_buffer_minutes ?? 0,
+        allowed_dates: data.allowed_dates || [],
+        allow_double_booking: data.allow_double_booking ?? false,
         created_at: data.created_at,
         updated_at: data.updated_at,
       };

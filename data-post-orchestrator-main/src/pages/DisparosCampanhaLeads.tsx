@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Users, Search, Filter, Download, RefreshCw, User, Phone, Building, CheckCircle, XCircle, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
+import { getTenantId } from "@/utils/tenantUtils";
 
 // Interface para grupos com limite
 interface GrupoComLimite extends GrupoCampanha {
@@ -109,7 +111,7 @@ const DisparosCampanhaLeads = () => {
   };
 
   // Função para exportar CSV de uma campanha específica
-  const exportCampanhaToCSV = (grupo: CampanhaGroup) => {
+  const exportCampanhaToCSV = (grupo: GrupoCampanha) => {
     const filteredRegistros = filterCampanhaRegistros(grupo.registros, grupo.id_campanha);
     
     if (filteredRegistros.length === 0) {
@@ -128,7 +130,7 @@ const DisparosCampanhaLeads = () => {
       registro.empresa || '',
       registro.disparo_feito === true ? 'Feito' : registro.disparo_feito === false ? 'Falhou' : 'Pendente',
       registro.respondeu === true ? 'Sim' : 'Não',
-      registro.data_disparo || '',
+      registro.created_at || '',
       grupo.id_campanha
     ]);
 
@@ -165,20 +167,21 @@ const DisparosCampanhaLeads = () => {
           return false;
         }
       }
-      
-      // Filtros de status
-      if (filters.feitoChecked && registro.disparo_feito === true) return true;
-      if (filters.pendenteChecked && registro.disparo_feito === null) return true;
-      if (filters.falhouChecked && registro.disparo_feito === false) return true;
-      
-      return false;
-    }).filter(registro => {
-      const filters = campanhaFilters[campanhaId];
+
+      // Filtros de status de disparo
+      const matchesDisparo =
+        (filters.feitoChecked && registro.disparo_feito === true) ||
+        (filters.pendenteChecked && registro.disparo_feito === null) ||
+        (filters.falhouChecked && registro.disparo_feito === false);
+      if (!matchesDisparo) return false;
+
       // Filtros de resposta
-      if (filters.respondeuChecked && registro.respondeu === true) return true;
-      if (filters.naoRespondeuChecked && registro.respondeu === false) return true;
-      
-      return false;
+      const matchesResposta =
+        (filters.respondeuChecked && registro.respondeu === true) ||
+        (filters.naoRespondeuChecked && registro.respondeu === false);
+      if (!matchesResposta) return false;
+
+      return true;
     });
 
     // Aplicar ordenação
@@ -207,12 +210,14 @@ const DisparosCampanhaLeads = () => {
       console.log(`[${new Date().toISOString()}] [frontend] 🚀 Iniciando busca de métricas...`);
       
       // Usar nova Edge Function com métricas
-      const url = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/campanha-metricas';
+      const tenantId = getTenantId();
+      const url = `${SUPABASE_URL}/functions/v1/campanha-metricas`;
       console.log(`[${new Date().toISOString()}] [frontend] 📡 URL da requisição: ${url}`);
-      
-      const headers = {
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cWhwb3ZqbnRqYmpob2JxdHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTA4NDEsImV4cCI6MjA3ODcyNjg0MX0.KwiuX5W-7my-D8ezsy2Xg181FPhGHf3bIN0JywQz0Ts`,
-        'Content-Type': 'application/json'
+
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': 'application/json',
+        'X-Tenant-Id': tenantId || '',
       };
 
       const response = await fetch(url, {

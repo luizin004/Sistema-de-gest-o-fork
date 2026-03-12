@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChatInterface } from "@/components/ChatInterface";
 import { supabase } from "@/integrations/supabase/client";
+import { getTenantId } from "@/utils/tenantUtils";
 
 interface Lead {
   id: string;
@@ -25,10 +26,17 @@ const CRMChatInterface = () => {
 
   const fetchLeads = useCallback(async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const tenantId = getTenantId();
+      let query = (supabase as any)
         .from('posts')
         .select('id, nome, telefone, status, data, horario, tratamento, dentista, created_at, ultima_mensagem_at, feedback, campanha_id, campanha_nome')
         .order('ultima_mensagem_at', { ascending: false, nullsFirst: false });
+
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setLeads((data || []) as Lead[]);
@@ -45,11 +53,13 @@ const CRMChatInterface = () => {
 
   // Reordenar lista em tempo real quando um post receber nova mensagem
   useEffect(() => {
+    const tenantId = getTenantId();
+    const filter = tenantId ? `tenant_id=eq.${tenantId}` : undefined;
     const channel = supabase
       .channel('chat-vivo-posts-order')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'posts' },
+        { event: 'UPDATE', schema: 'public', table: 'posts', ...(filter ? { filter } : {}) },
         (payload) => {
           const updated = payload.new as Lead;
           if (!updated.ultima_mensagem_at) return;

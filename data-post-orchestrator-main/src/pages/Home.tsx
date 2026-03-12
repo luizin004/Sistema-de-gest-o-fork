@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
+  Bot,
   CalendarCheck,
   CalendarClock,
   CheckCircle2,
@@ -10,8 +11,11 @@ import {
   LineChart,
   Lock,
   LogOut,
+  MessageSquare,
   RefreshCw,
+  Send,
   Sparkles,
+  Target,
   TrendingUp,
   Users,
   Wifi,
@@ -108,6 +112,16 @@ type DashboardMetrics = {
   conversasConduzidas: number;
   capacidadeConsultorios: number;
   ocupacaoConsultorios: number;
+  // Campanhas
+  campanhasAtivas: number;
+  campanhasTotalLeads: number;
+  campanhasTotalEnviados: number;
+  campanhasTotalResponderam: number;
+  campanhasTaxaResposta: number;
+  // Bot
+  botConversasHoje: number;
+  botAgendamentosHoje: number;
+  botTaxaAgendamento: number;
 };
 
 const Home = () => {
@@ -131,6 +145,14 @@ const Home = () => {
     conversasConduzidas: 0,
     capacidadeConsultorios: 0,
     ocupacaoConsultorios: 0,
+    campanhasAtivas: 0,
+    campanhasTotalLeads: 0,
+    campanhasTotalEnviados: 0,
+    campanhasTotalResponderam: 0,
+    campanhasTaxaResposta: 0,
+    botConversasHoje: 0,
+    botAgendamentosHoje: 0,
+    botTaxaAgendamento: 0,
   });
   const [funnelCounts, setFunnelCounts] = useState({
     respondeu: 0,
@@ -175,21 +197,35 @@ const Home = () => {
         .from("escala_semanal")
         .select("consultorio_id,dia_semana,horario_inicio,semana");
 
+      let campanhasQuery = supabaseUntyped
+        .from("campanhas")
+        .select("id,status,total_leads,total_enviados,total_responderam");
+
+      const todayStr = startOfDay.toISOString();
+      let botConversasQuery = supabaseUntyped
+        .from("chatbot_conversations")
+        .select("id,status,updated_at")
+        .gte("updated_at", todayStr);
+
       if (tenantId) {
         agendamentoQuery = agendamentoQuery.eq("tenant_id", tenantId);
         postsQuery = postsQuery.eq("tenant_id", tenantId);
         dentistasQuery = dentistasQuery.eq("tenant_id", tenantId);
         consultoriosQuery = consultoriosQuery.eq("tenant_id", tenantId);
         escalaSemanalQuery = escalaSemanalQuery.eq("tenant_id", tenantId);
+        campanhasQuery = campanhasQuery.eq("tenant_id", tenantId);
+        botConversasQuery = botConversasQuery.eq("tenant_id", tenantId);
       }
 
-      const [agendamentosRes, postsRes, dentistasRes, consultoriosRes, instancesRes, escalaSemanalRes] = await Promise.all([
+      const [agendamentosRes, postsRes, dentistasRes, consultoriosRes, instancesRes, escalaSemanalRes, campanhasRes, botConversasRes] = await Promise.all([
         agendamentoQuery,
         postsQuery,
         dentistasQuery,
         consultoriosQuery,
         getInstances(),
         escalaSemanalQuery,
+        campanhasQuery,
+        botConversasQuery,
       ]);
 
       const agendamentosData = agendamentosRes.data || [];
@@ -222,11 +258,21 @@ const Home = () => {
       const conversasConduzidas = leadsInteressados + leadsAgendados;
       const taxaConversao = totalLeads > 0 ? (leadsAgendados / totalLeads) * 100 : 0;
 
-      const lotacaoCapacidade = Math.max(consultoriosData.length, 1);
-      const ocupacaoSlots = Math.min(dentistasData.length, lotacaoCapacidade);
-      const lotacaoPercent = lotacaoCapacidade > 0
-        ? Math.min(100, (ocupacaoSlots / lotacaoCapacidade) * 100)
-        : 0;
+      // Lotação = slots ocupados na escala / slots totais (todas as 4 semanas, seg-sex)
+      // Cada consultório tem X horários por dia * 5 dias úteis * 4 semanas = total de slots
+      const diasUteis = 5; // seg a sex
+      const horasPorDia = 11; // 07:00-17:00 (padrão, 1h cada)
+      const totalSemanas = 4;
+      const totalSlots = Math.max(consultoriosData.length * diasUteis * horasPorDia * totalSemanas, 1);
+      // Slots ocupados: contar registros únicos na escala (sem sábado/domingo)
+      const slotsOcupados = escalaSemanalData.filter((e: any) => {
+        // dia_semana: 1=seg ... 5=sex, 6=sab, 0 ou 7=dom
+        const dia = e.dia_semana;
+        return dia >= 1 && dia <= 5;
+      }).length;
+      const lotacaoPercent = Math.min(100, (slotsOcupados / totalSlots) * 100);
+      const lotacaoCapacidade = consultoriosData.length;
+      const ocupacaoSlots = slotsOcupados;
 
       const funnelRespondeu = postsData.filter((post: any) => (STATUS_LEVEL[(post?.status || "").toLowerCase()] ?? 1) >= 2).length;
       const funnelInteragiu = postsData.filter((post: any) => (STATUS_LEVEL[(post?.status || "").toLowerCase()] ?? 1) >= 3).length;
@@ -236,6 +282,25 @@ const Home = () => {
 
       const instanciasOnline = instancesData.filter((instance) => instance.connected).length;
       const instanciasOffline = instancesData.length - instanciasOnline;
+
+      // Campanhas
+      const campanhasData = campanhasRes.data || [];
+      const campanhasAtivas = campanhasData.filter((c: any) => c.status === "ativa").length;
+      const campanhasTotalLeads = campanhasData.reduce((sum: number, c: any) => sum + (c.total_leads || 0), 0);
+      const campanhasTotalEnviados = campanhasData.reduce((sum: number, c: any) => sum + (c.total_enviados || 0), 0);
+      const campanhasTotalResponderam = campanhasData.reduce((sum: number, c: any) => sum + (c.total_responderam || 0), 0);
+      const campanhasTaxaResposta = campanhasTotalEnviados > 0
+        ? (campanhasTotalResponderam / campanhasTotalEnviados) * 100 : 0;
+
+      // Bot conversations hoje
+      const botConversasData = botConversasRes.data || [];
+      const botConversasHoje = botConversasData.length;
+      const botAgendamentosHoje = botConversasData.filter((c: any) => {
+        const status = (c.status || "").toLowerCase();
+        return status.includes("agendado") || status.includes("agendou") || status.includes("confirmado");
+      }).length;
+      const botTaxaAgendamento = botConversasHoje > 0
+        ? (botAgendamentosHoje / botConversasHoje) * 100 : 0;
 
       setMetrics({
         agendamentosHoje: agendamentosData.length,
@@ -249,6 +314,14 @@ const Home = () => {
         conversasConduzidas,
         capacidadeConsultorios: Math.max(lotacaoCapacidade, 1),
         ocupacaoConsultorios: ocupacaoSlots,
+        campanhasAtivas,
+        campanhasTotalLeads,
+        campanhasTotalEnviados,
+        campanhasTotalResponderam,
+        campanhasTaxaResposta: Number(campanhasTaxaResposta.toFixed(1)),
+        botConversasHoje,
+        botAgendamentosHoje,
+        botTaxaAgendamento: Number(botTaxaAgendamento.toFixed(1)),
       });
       setFunnelCounts({
         respondeu: funnelRespondeu,
@@ -341,6 +414,26 @@ const Home = () => {
         },
         scheduleRealtimeRefresh
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campanhas',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chatbot_conversations',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        scheduleRealtimeRefresh
+      )
       .subscribe();
 
     return () => {
@@ -381,9 +474,9 @@ const Home = () => {
       icon: CalendarClock,
     },
     {
-      label: "Utilização dos consultórios",
-      value: metrics.consultoriosAtivos,
-      detail: `${metrics.ocupacaoConsultorios ?? 0} de ${metrics.consultoriosAtivos} consultórios em uso (${metrics.lotacaoPercent.toFixed(1)}%)`,
+      label: "Alocação nos consultórios",
+      value: `${metrics.lotacaoPercent.toFixed(0)}%`,
+      detail: `${metrics.ocupacaoConsultorios} slots preenchidos em ${metrics.consultoriosAtivos} consultórios (4 semanas)`,
       accent: "from-indigo-400 to-indigo-600",
       icon: Gauge,
     },
@@ -424,6 +517,54 @@ const Home = () => {
       detail: "Criados com data marcada",
       accent: "from-rose-400 to-rose-600",
       icon: CalendarCheck,
+    },
+  ];
+
+  const campaignCards = [
+    {
+      label: "Campanhas ativas",
+      value: metrics.campanhasAtivas,
+      detail: `${metrics.campanhasTotalLeads} leads no total`,
+      accent: "from-purple-400 to-violet-600",
+      icon: Target,
+    },
+    {
+      label: "Disparos enviados",
+      value: metrics.campanhasTotalEnviados,
+      detail: `${metrics.campanhasTotalLeads - metrics.campanhasTotalEnviados} pendentes`,
+      accent: "from-blue-400 to-blue-600",
+      icon: Send,
+    },
+    {
+      label: "Taxa de resposta",
+      value: `${metrics.campanhasTaxaResposta}%`,
+      detail: `${metrics.campanhasTotalResponderam} responderam de ${metrics.campanhasTotalEnviados} enviados`,
+      accent: "from-green-400 to-emerald-600",
+      icon: MessageSquare,
+    },
+  ];
+
+  const botCards = [
+    {
+      label: "Conversas do bot hoje",
+      value: metrics.botConversasHoje,
+      detail: "Atendimentos automatizados",
+      accent: "from-teal-400 to-teal-600",
+      icon: Bot,
+    },
+    {
+      label: "Agendamentos via bot",
+      value: metrics.botAgendamentosHoje,
+      detail: "Marcados automaticamente hoje",
+      accent: "from-emerald-400 to-green-600",
+      icon: CalendarCheck,
+    },
+    {
+      label: "Taxa de agendamento",
+      value: `${metrics.botTaxaAgendamento}%`,
+      detail: "Conversas que resultaram em agendamento",
+      accent: "from-lime-400 to-lime-600",
+      icon: TrendingUp,
     },
   ];
 
@@ -533,7 +674,7 @@ const Home = () => {
             <div className="space-y-6">
               <Card className="border border-slate-200 shadow-lg shadow-slate-200/70">
                 <CardHeader>
-                  <CardTitle className="text-slate-900">Utilização dos consultórios</CardTitle>
+                  <CardTitle className="text-slate-900">Alocação nos consultórios</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
@@ -559,14 +700,14 @@ const Home = () => {
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-900">
                         <span className="text-2xl font-semibold">{metrics.lotacaoPercent.toFixed(0)}%</span>
-                        <span className="text-[10px] uppercase tracking-wide text-slate-500">ocupação</span>
+                        <span className="text-[10px] uppercase tracking-wide text-slate-500">alocação</span>
                       </div>
                     </div>
                     <div>
-                      <p className="text-2xl font-semibold text-slate-900">{metrics.consultoriosAtivos}</p>
-                      <p className="text-xs text-slate-500">Consultórios disponíveis</p>
+                      <p className="text-2xl font-semibold text-slate-900">{metrics.ocupacaoConsultorios}</p>
+                      <p className="text-xs text-slate-500">Slots preenchidos</p>
                       <p className="mt-3 text-xs text-slate-500">
-                        Capacidade estimada de {metrics.consultoriosAtivos * 8} sessões/dia
+                        {metrics.consultoriosAtivos} consultórios &middot; 4 semanas
                       </p>
                     </div>
                   </div>
@@ -681,6 +822,52 @@ const Home = () => {
               ))}
             </CardContent>
           </Card>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Campanhas</h2>
+            <span className="text-xs text-slate-400">Disparos e marketing</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {campaignCards.map(({ label, value, detail, accent, icon: Icon }) => (
+              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
+                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
+                  <p className="text-xs text-slate-500">{detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Bot / Automação</h2>
+            <span className="text-xs text-slate-400">Atendimento automatizado hoje</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {botCards.map(({ label, value, detail, accent, icon: Icon }) => (
+              <Card key={label} className="border border-slate-200 shadow-lg shadow-slate-200/70">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
+                  <div className={`rounded-xl bg-gradient-to-br ${accent} p-2 text-white`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-semibold text-slate-900">{value}</div>
+                  <p className="text-xs text-slate-500">{detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </section>
 
         <footer className="border-t border-slate-200 pt-4 text-center text-xs text-slate-500">

@@ -85,27 +85,6 @@ const DisparosWhatsapp = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/35 to-white/65 backdrop-blur-[4px]" />
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[32px] border border-white/35 bg-white/22 p-6 shadow-[0_40px_100px_-50px_rgba(7,12,28,0.9)] backdrop-blur-3xl animate-in fade-in duration-700">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate("/home")}
-              className="rounded-2xl border-white/60 bg-white/70 text-slate-700 hover:bg-white"
-            >
-              <Home className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold text-slate-800 md:text-2xl">Disparos WhatsApp</h1>
-              <p className="text-sm text-slate-500">Selecione o fluxo que deseja automatizar</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            Fluxos inteligentes
-            <Sparkles className="h-4 w-4 text-blue-500" />
-          </div>
-        </div>
-
         <section className="grid gap-6 md:grid-cols-2">
           {modules.map(({ title, description, to, icon: Icon, accent, badge, iconBg }, index) => (
             <button

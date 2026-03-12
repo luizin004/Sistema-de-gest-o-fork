@@ -1137,45 +1137,54 @@ export default function ConsultoriosSupabase() {
                 </div>
               </div>
             )}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700 mr-2">Visualizando:</span>
-                {[1, 2, 3, 4].map((week) => {
-                  const weekData = weekConfig[week as keyof typeof weekConfig];
-                  return (
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              {/* Week selector row */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-100">
+                <div className="flex items-center gap-1 flex-1 min-w-0">
+                  <span className="text-xs font-medium text-gray-500 mr-1 hidden sm:inline">Semana:</span>
+                  {[1, 2, 3, 4].map((week) => {
+                    const weekData = weekConfig[week as keyof typeof weekConfig];
+                    const isActive = selectedWeek === week;
+                    return (
+                    <Button
+                      key={week}
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedWeek(week);
+                        setSelectedCells(new Set());
+                      }}
+                      className={`flex-1 min-w-0 max-w-[100px] px-2 text-xs sm:text-sm ${isActive ? `${weekData.bg} ${weekData.hover} text-white` : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      <span className="hidden sm:inline">{weekData.name}</span>
+                      <span className="sm:hidden">S{week}</span>
+                    </Button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <Button
-                    key={week}
-                    variant={selectedWeek === week ? "default" : "outline"}
                     size="sm"
-                    onClick={() => {
-                      setSelectedWeek(week);
-                      setSelectedCells(new Set()); // Limpar seleção ao trocar de semana
-                    }}
-                    className={`w-32 ${selectedWeek === week ? `${weekData.bg} ${weekData.hover}` : ''}`}
+                    variant={showSaturday ? "default" : "ghost"}
+                    onClick={() => setShowSaturday((prev) => !prev)}
+                    className="text-xs px-2"
+                    title={showSaturday ? "Ocultar sábado" : "Incluir sábado"}
                   >
-                    {weekData.name}
+                    <Calendar className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">{showSaturday ? "Sem sáb." : "Com sáb."}</span>
                   </Button>
-                  );
-                })}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setCopyFromWeek(selectedWeek); setShowCopyWeekDialog(true); }}
+                    className="text-xs px-2"
+                    title="Copiar semana"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Copiar</span>
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                variant={showSaturday ? "default" : "outline"}
-                onClick={() => setShowSaturday((prev) => !prev)}
-                className="flex items-center gap-2"
-              >
-                <Calendar className="h-4 w-4" />
-                {showSaturday ? "Ocultar sábado" : "Incluir sábado"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => { setCopyFromWeek(selectedWeek); setShowCopyWeekDialog(true); }}
-                className="flex items-center gap-2"
-              >
-                <ChevronRight className="h-4 w-4" />
-                Copiar semana
-              </Button>
             </div>
             {/* Card de Lotação Geral */}
             <Card className={`border-${weekConfig[selectedWeek as keyof typeof weekConfig].color}-200 bg-gradient-to-r from-${weekConfig[selectedWeek as keyof typeof weekConfig].color}-50 to-indigo-50`}>

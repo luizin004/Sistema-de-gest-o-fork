@@ -372,6 +372,8 @@ interface ScheduleConfig {
   lookahead_days: number;
   allow_bot_cancel: boolean;
   slot_buffer_minutes: number;
+  allowed_dates: string[];       // ["2026-03-15", ...] — se preenchido, só agenda nessas datas
+  allow_double_booking: boolean; // se true, permite >1 paciente no mesmo horário
 }
 
 interface BlockedPeriod {
@@ -417,15 +419,22 @@ function computeAvailableSlots(
   const slots: AvailableSlot[] = [];
   const usedDays = new Set<string>();
 
+  const hasAllowedDates = scheduleConfig.allowed_dates && scheduleConfig.allowed_dates.length > 0;
+  const allowDoubleBooking = scheduleConfig.allow_double_booking || false;
+
   for (let d = 1; d <= scheduleConfig.lookahead_days && slots.length < maxSlots; d++) {
     const date = new Date(today);
     date.setDate(today.getDate() + d);
 
     const dayOfWeek = date.getDay();
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    // Se allowed_dates está configurado, só aceitar datas nessa lista
+    if (hasAllowedDates && !scheduleConfig.allowed_dates.includes(dateStr)) continue;
+
+    // Precisa ter horário definido na grade semanal para esse dia da semana
     const scheduleDef = scheduleConfig.weekly_schedule.find(s => s.day === dayOfWeek);
     if (!scheduleDef) continue;
-
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
     // Get blocked periods for this date
     const dayBlocked = blockedPeriods.filter(bp => bp.blocked_date === dateStr);
@@ -450,15 +459,17 @@ function computeAvailableSlots(
       });
       if (blockedConflict) continue;
 
-      // Check overlap with existing agendamentos
-      const agendamentoConflict = dayAgendamentos.some(ag => {
-        const agDur = ag.duracao_minutos || 60;
-        const [agH, agM] = ag.horario.split(":").map(Number);
-        const agStart = agH * 60 + agM;
-        const agEnd = agStart + agDur;
-        return slotStart < agEnd && agStart < slotEnd;
-      });
-      if (agendamentoConflict) continue;
+      // Check overlap with existing agendamentos (skip if double booking allowed)
+      if (!allowDoubleBooking) {
+        const agendamentoConflict = dayAgendamentos.some(ag => {
+          const agDur = ag.duracao_minutos || 60;
+          const [agH, agM] = ag.horario.split(":").map(Number);
+          const agStart = agH * 60 + agM;
+          const agEnd = agStart + agDur;
+          return slotStart < agEnd && agStart < slotEnd;
+        });
+        if (agendamentoConflict) continue;
+      }
 
       // Prefer variety: skip if we already have a slot on this day
       if (usedDays.has(dateStr) && slots.length < maxSlots - 1) continue;
@@ -1018,11 +1029,13 @@ serve(async (req) => {
         .eq("chatbot_config_id", chatbotConfigId)
         .maybeSingle();
 
-      const schedConfig: ScheduleConfig = schedConfigData || {
-        weekly_schedule: [],
-        lookahead_days: 14,
-        allow_bot_cancel: false,
-        slot_buffer_minutes: 0,
+      const schedConfig: ScheduleConfig = {
+        weekly_schedule: schedConfigData?.weekly_schedule || [],
+        lookahead_days: schedConfigData?.lookahead_days ?? 14,
+        allow_bot_cancel: schedConfigData?.allow_bot_cancel ?? false,
+        slot_buffer_minutes: schedConfigData?.slot_buffer_minutes ?? 0,
+        allowed_dates: schedConfigData?.allowed_dates || [],
+        allow_double_booking: schedConfigData?.allow_double_booking ?? false,
       };
 
       systemPrompt = buildSystemPromptFixo(
@@ -1093,11 +1106,13 @@ serve(async (req) => {
         .eq("chatbot_config_id", chatbotConfigId)
         .maybeSingle();
 
-      const schedConfig: ScheduleConfig = schedConfigData || {
-        weekly_schedule: [],
-        lookahead_days: 14,
-        allow_bot_cancel: false,
-        slot_buffer_minutes: 0,
+      const schedConfig: ScheduleConfig = {
+        weekly_schedule: schedConfigData?.weekly_schedule || [],
+        lookahead_days: schedConfigData?.lookahead_days ?? 14,
+        allow_bot_cancel: schedConfigData?.allow_bot_cancel ?? false,
+        slot_buffer_minutes: schedConfigData?.slot_buffer_minutes ?? 0,
+        allowed_dates: schedConfigData?.allowed_dates || [],
+        allow_double_booking: schedConfigData?.allow_double_booking ?? false,
       };
 
       if (aiResponse.action === "check_slots") {
