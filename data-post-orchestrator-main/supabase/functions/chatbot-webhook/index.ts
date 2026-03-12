@@ -85,6 +85,17 @@ interface UazapiWebhookPayload {
     videoMessage?: { url?: string; caption?: string; mimetype?: string };
     documentMessage?: { url?: string; title?: string; mimetype?: string };
     stickerMessage?: { url?: string };
+    // UAZAPI flat message format
+    text?: string;
+    content?: string;
+    chatid?: string;
+    sender_pn?: string;
+    fromMe?: boolean;
+    isGroup?: boolean;
+    senderName?: string;
+    mediaType?: string;
+    type?: string;
+    messageType?: string;
   };
   messageType?: string;
   pushName?: string;
@@ -99,6 +110,16 @@ interface UazapiWebhookPayload {
   duration?: number;
   // Flat event wrapper
   data?: UazapiWebhookPayload;
+  // UAZAPI v2 flat format
+  chat?: {
+    wa_chatid?: string;
+    wa_name?: string;
+    phone?: string;
+    wa_isGroup?: boolean;
+  };
+  EventType?: string;
+  owner?: string;
+  token?: string;
 }
 
 interface ExtractedMessage {
@@ -115,12 +136,21 @@ interface ExtractedMessage {
 function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
   // UAZAPI sometimes wraps the actual payload in a `data` field
   const payload: UazapiWebhookPayload = raw.data ?? raw;
+  const msgObj = payload.message;
 
   // ---------- isGroup check ----------
   const isGroup =
     payload.isGroup === true ||
     payload.fromGroup === true ||
-    (payload.key?.remoteJid ?? "").includes("@g.us");
+    payload.chat?.wa_isGroup === true ||
+    msgObj?.isGroup === true ||
+    (payload.key?.remoteJid ?? "").includes("@g.us") ||
+    (msgObj?.chatid ?? "").includes("@g.us");
+
+  // ---------- fromMe check ----------
+  const fromMe =
+    payload.key?.fromMe === true ||
+    msgObj?.fromMe === true;
 
   // ---------- instanceId ----------
   const instanceId =
@@ -133,22 +163,30 @@ function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
   let phone =
     payload.phone ||
     payload.key?.remoteJid?.replace(/@[a-z.]+$/, "") ||
+    msgObj?.chatid?.replace(/@[a-z.]+$/, "") ||
+    msgObj?.sender_pn?.replace(/@[a-z.]+$/, "") ||
+    payload.chat?.wa_chatid?.replace(/@[a-z.]+$/, "") ||
     "";
 
   // Ignore status broadcasts, groups, and our own outbound messages
   if (!phone || phone === "status@broadcast") return null;
   if (isGroup) return null;
-  if (payload.key?.fromMe === true) return null;
+  if (fromMe) return null;
 
   phone = normalizePhone(phone);
 
   // ---------- senderName ----------
-  const senderName = payload.pushName || "";
+  const senderName =
+    payload.pushName ||
+    msgObj?.senderName ||
+    payload.chat?.wa_name ||
+    "";
 
   // ---------- messageType ----------
-  const msgObj = payload.message;
   let messageType =
     payload.messageType ||
+    msgObj?.messageType ||
+    msgObj?.type ||
     payload.type ||
     "text";
 
@@ -158,9 +196,12 @@ function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
   else if (msgObj?.videoMessage) messageType = "video";
   else if (msgObj?.documentMessage) messageType = "document";
   else if (msgObj?.stickerMessage) messageType = "sticker";
+  else if (msgObj?.mediaType && msgObj.mediaType !== "") messageType = msgObj.mediaType;
   else if (
     msgObj?.conversation ||
-    msgObj?.extendedTextMessage
+    msgObj?.extendedTextMessage ||
+    msgObj?.text ||
+    msgObj?.content
   ) messageType = "text";
 
   // ---------- messageText ----------
@@ -168,6 +209,8 @@ function extractMessage(raw: UazapiWebhookPayload): ExtractedMessage | null {
     payload.body ||
     msgObj?.conversation ||
     msgObj?.extendedTextMessage?.text ||
+    msgObj?.text ||
+    msgObj?.content ||
     msgObj?.imageMessage?.caption ||
     msgObj?.videoMessage?.caption ||
     msgObj?.documentMessage?.title ||
@@ -338,24 +381,27 @@ Tom: ${clinicTone}
 ## Tratamentos disponíveis:
 ${tratamentosList}${customSections}
 
-## Classificação de status (retorne no JSON):
+## Classificação de status (retorne EXATAMENTE um destes valores no JSON):
 - respondeu: primeiro contato do paciente
 - interagiu: conversando ativamente (3+ mensagens trocadas)
 - engajou: interesse real demonstrado em tratamento específico
-- interessado_agendar: paciente informou horários disponíveis E tratamento desejado → DEVE pausar bot
+- interessado em agendar consulta: paciente informou horários disponíveis E tratamento desejado → DEVE pausar bot
 - atencao: não consegue lidar com a pergunta ou situação especial → DEVE pausar bot
 - reagendando: paciente com consulta agendada quer remarcar
+- impecilho: paciente relatou problema ou obstáculo para comparecer
+
+IMPORTANTE: Use os status EXATAMENTE como escritos acima. Não use variantes como "interagindo", "interessado_agendar", etc.
 
 ## FORMATO OBRIGATÓRIO DE RESPOSTA (JSON puro, sem markdown):
 {
   "reply": "texto da resposta para o paciente",
-  "status": "um dos status acima",
+  "status": "um dos status acima (exatamente como escrito)",
   "detected_treatment": "nome do tratamento mencionado ou null",
   "detected_times": "horários informados pelo paciente ou null",
   "should_pause": true ou false
 }
 
-Regra de should_pause: defina como true APENAS para status "interessado_agendar" ou "atencao".`;
+Regra de should_pause: defina como true APENAS para status "interessado em agendar consulta" ou "atencao".`;
 }
 
 // ---------------------------------------------------------------------------
@@ -557,18 +603,21 @@ ${tratamentosList}
 - Nunca revele que é IA, apresente-se como assistente da clínica
 - Não invente informações não fornecidas
 
-## Classificação de status:
+## Classificação de status (use EXATAMENTE estes valores):
 - respondeu: primeiro contato
 - interagiu: conversando ativamente (3+ msgs)
 - engajou: interesse real em tratamento
 - agendou consulta: consulta marcada com sucesso
 - atencao: não consegue lidar → DEVE pausar
 - reagendando: quer remarcar consulta existente
+- impecilho: paciente relatou problema ou obstáculo
+
+IMPORTANTE: Use os status EXATAMENTE como escritos acima.
 
 ## FORMATO JSON OBRIGATÓRIO:
 {
   "reply": "texto da resposta",
-  "status": "um dos status acima",
+  "status": "um dos status acima (exatamente como escrito)",
   "action": "none|check_slots|book_slot|cancel_slot|needs_human",
   "detected_treatment": "nome do tratamento ou null",
   "slot_choice": 1 ou 2 ou 3 ou null,
@@ -582,6 +631,33 @@ Regra de action: use "none" para conversa normal, "check_slots" quando detectar 
 // ---------------------------------------------------------------------------
 // OpenAI Chat Completion
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Status normalization — maps AI variants to exact kanban column values
+// ---------------------------------------------------------------------------
+const VALID_STATUSES = [
+  "respondeu", "interagiu", "engajou", "interessado em agendar consulta",
+  "atencao", "agendou consulta", "reagendando", "impecilho", "cadencia",
+];
+
+function normalizeStatus(raw: string): string {
+  const s = (raw || "").toLowerCase().trim();
+  // Exact match
+  if (VALID_STATUSES.includes(s)) return s;
+  // Common variants
+  if (s.includes("interessado") && (s.includes("agendar") || s.includes("consulta"))) return "interessado em agendar consulta";
+  if (s === "interessado_agendar") return "interessado em agendar consulta";
+  if (s === "interagindo" || s === "conversando") return "interagiu";
+  if (s === "respondido" || s === "primeiro_contato") return "respondeu";
+  if (s === "engajado") return "engajou";
+  if (s === "atenção" || s === "needs_human" || s === "precisa_humano") return "atencao";
+  if (s === "agendado" || s === "agendou" || s === "consulta_marcada") return "agendou consulta";
+  if (s === "reagendar" || s === "remarcar") return "reagendando";
+  if (s === "impedimento" || s === "obstáculo" || s === "obstaculo") return "impecilho";
+  if (s === "cadência" || s === "follow-up" || s === "followup") return "cadencia";
+  // Fallback
+  return "respondeu";
+}
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -628,10 +704,13 @@ async function callOpenAI(messages: ChatMessage[], openaiApiKey: string, model: 
 
     const parsed = JSON.parse(raw) as AIResponse;
 
+    // Normalize status to match exact kanban column values
+    const normalizedStatus = normalizeStatus(parsed.status || "respondeu");
+
     // Validate required fields with safe fallbacks
     return {
       reply: parsed.reply || "Obrigado pelo contato! Como posso ajudar?",
-      status: parsed.status || "respondeu",
+      status: normalizedStatus,
       detected_treatment: parsed.detected_treatment || null,
       detected_times: parsed.detected_times || null,
       should_pause: parsed.should_pause === true,
@@ -716,14 +795,17 @@ serve(async (req) => {
   try {
     console.log("[CHATBOT] Received webhook:", JSON.stringify(rawBody).slice(0, 500));
 
+    // DEBUG: Save ALL payloads to webhook_debug_log for troubleshooting
+    await supabase.from("webhook_debug_log").insert({ payload: rawBody });
+
     // ------------------------------------------------------------------
     // 1. Extract message fields from UAZAPI payload
     // ------------------------------------------------------------------
     const extracted = extractMessage(rawBody);
 
     if (!extracted) {
-      console.log("[CHATBOT] Ignored: could not extract message or group message.");
-      return jsonResponse({ ok: true, ignored: true });
+      console.log("[CHATBOT] Ignored: could not extract message or group message. Raw keys:", Object.keys(rawBody), "fromMe:", rawBody?.key?.fromMe, "data keys:", rawBody?.data ? Object.keys(rawBody.data) : "no data");
+      return jsonResponse({ ok: true, ignored: true, debug: { keys: Object.keys(rawBody), fromMe: rawBody?.key?.fromMe ?? rawBody?.data?.key?.fromMe, phone: rawBody?.phone || rawBody?.key?.remoteJid || rawBody?.data?.phone || rawBody?.data?.key?.remoteJid || "none" } });
     }
 
     const { phone, instanceId, senderName, mediaUrl, audioDuration } = extracted;
@@ -735,16 +817,34 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 2. Look up tenant via uazapi_instances
+    // 2. Look up tenant via uazapi_instances (try instance_id first, then name)
     // ------------------------------------------------------------------
-    const { data: instance, error: instanceError } = await supabase
+    let instance: any = null;
+    let instanceError: any = null;
+
+    // Try by instance_id first
+    const { data: byId, error: byIdErr } = await supabase
       .from("uazapi_instances")
       .select("id, tenant_id, token, api_url, name, chatbot_config_id")
       .eq("instance_id", instanceId)
       .single();
 
-    if (instanceError || !instance) {
-      console.warn(`[CHATBOT] Instance '${instanceId}' not found:`, instanceError?.message);
+    if (byId) {
+      instance = byId;
+    } else {
+      // Fallback: try by name (UAZAPI sends instanceName which maps to name)
+      const { data: byName, error: byNameErr } = await supabase
+        .from("uazapi_instances")
+        .select("id, tenant_id, token, api_url, name, chatbot_config_id")
+        .eq("name", instanceId)
+        .single();
+
+      instance = byName;
+      instanceError = byNameErr;
+    }
+
+    if (!instance) {
+      console.warn(`[CHATBOT] Instance '${instanceId}' not found by id or name:`, instanceError?.message);
       return jsonResponse({ ok: true, ignored: true, reason: "instance_not_found" });
     }
 
@@ -1300,9 +1400,9 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 16. Realtime broadcast for frontend toast (interessado_agendar | atencao)
+    // 16. Realtime broadcast for frontend toast (interessado em agendar consulta | atencao)
     // ------------------------------------------------------------------
-    if (aiResponse.status === "interessado_agendar" || aiResponse.status === "atencao") {
+    if (aiResponse.status === "interessado em agendar consulta" || aiResponse.status === "atencao") {
       const channelName = `chatbot-notifications-${tenantId}`;
       try {
         const realtimeChannel = supabase.channel(channelName);
