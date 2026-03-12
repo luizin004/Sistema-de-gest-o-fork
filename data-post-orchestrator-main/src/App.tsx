@@ -24,15 +24,6 @@ import Agendar from "./pages/Agendar";
 import Agendamentos from "./pages/Agendamentos";
 import DisparosWhatsapp from "./pages/DisparosWhatsapp";
 import DisparosManual from "./pages/DisparosManual";
-import DisparosAniversario from "./pages/DisparosAniversario";
-import DisparosLimpeza from "./pages/DisparosLimpeza";
-import DisparosClareamento from "./pages/DisparosClareamento";
-import DisparosConfirmacao from "./pages/DisparosConfirmacao";
-import DisparosConfig from "./pages/DisparosConfig";
-import DisparosLimpezaConfig from "./pages/DisparosLimpezaConfig";
-import DisparosAniversarioConfig from "./pages/DisparosAniversarioConfig";
-import DisparosClareamentoConfig from "./pages/DisparosClareamentoConfig";
-import DisparosConfirmacaoConfig from "./pages/DisparosConfirmacaoConfig";
 import DisparosCampanha from "./pages/DisparosCampanha";
 import DisparosCampanhaLeads from "./pages/DisparosCampanhaLeads";
 import DisparosEmulador from "./pages/DisparosEmulador";
@@ -157,66 +148,10 @@ const AppContent = () => {
                 </FeatureGuard>
               </AuthGuard>
             } />
-            <Route path="/disparos/aniversario" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_aniversario">
-                  <DisparosAniversario />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/aniversario/config" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_aniversario">
-                  <DisparosAniversarioConfig />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/limpeza" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_limpeza">
-                  <DisparosLimpeza />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/limpeza/config" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_limpeza">
-                  <DisparosLimpezaConfig />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/clareamento" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_clareamento">
-                  <DisparosClareamento />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/clareamento/config" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_clareamento">
-                  <DisparosClareamentoConfig />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
             <Route path="/disparos/manual" element={
               <AuthGuard>
                 <FeatureGuard feature="disparos_manual">
                   <DisparosManual />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/confirmacao" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_confirmacao">
-                  <DisparosConfirmacao />
-                </FeatureGuard>
-              </AuthGuard>
-            } />
-            <Route path="/disparos/confirmacao/config" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_confirmacao">
-                  <DisparosConfirmacaoConfig />
                 </FeatureGuard>
               </AuthGuard>
             } />
@@ -237,13 +172,6 @@ const AppContent = () => {
             <Route path="/disparos/emulador" element={
               <AuthGuard>
                 <DisparosEmulador />
-              </AuthGuard>
-            } />
-            <Route path="/disparos/config" element={
-              <AuthGuard>
-                <FeatureGuard feature="disparos_whatsapp">
-                  <DisparosConfig />
-                </FeatureGuard>
               </AuthGuard>
             } />
             <Route path="/formata-listas" element={

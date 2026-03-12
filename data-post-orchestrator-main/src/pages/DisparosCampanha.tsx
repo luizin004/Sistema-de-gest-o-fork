@@ -302,13 +302,13 @@ const DisparosCampanha = () => {
     }
   }, [tenantId, instances]);
 
-  // Initial load: fetch instances first, then campaigns
+  // Initial load: fetch instances and campaigns in parallel
   useEffect(() => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    fetchInstances().then(() => fetchCampanhas());
+    Promise.all([fetchInstances(), fetchCampanhas()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
@@ -343,34 +343,15 @@ const DisparosCampanha = () => {
       )
       .subscribe();
 
-    // Subscribe to tabela_campanha changes (leads added, disparo_feito, respondeu)
-    const leadsChannel = supabaseUntyped
-      .channel('leads-realtime')
-      .on(
-        'postgres_changes' as any,
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tabela_campanha',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        () => {
-          console.log('[realtime] tabela_campanha changed');
-          debouncedRefresh();
-        }
-      )
-      .subscribe();
-
-    // Fallback polling every 60s in case realtime misses something
+    // Fallback polling every 90s in case realtime misses something
     const fallbackInterval = setInterval(() => {
       fetchCampanhas();
-    }, 60_000);
+    }, 90_000);
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       clearInterval(fallbackInterval);
       supabaseUntyped.removeChannel(campanhasChannel);
-      supabaseUntyped.removeChannel(leadsChannel);
     };
   }, [tenantId, fetchCampanhas]);
 
@@ -865,15 +846,16 @@ const DisparosCampanha = () => {
   // ---------------------------------------------------------------------------
 
   const fetchAllSupabasePages = async (
-    query: any
+    query: any,
+    maxRecords = 10_000
   ): Promise<any[]> => {
     const pageSize = 1000;
     let offset = 0;
-    let all: any[] = [];
-    while (true) {
+    const all: any[] = [];
+    while (all.length < maxRecords) {
       const { data, error } = await query.range(offset, offset + pageSize - 1);
       if (error || !data || data.length === 0) break;
-      all = all.concat(data);
+      for (let i = 0; i < data.length; i++) all.push(data[i]);
       if (data.length < pageSize) break;
       offset += pageSize;
     }

@@ -1,119 +1,336 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Home, Send, CheckCircle2, Gift, Sparkles, SunMedium, ArrowRight, Target, Smartphone } from "lucide-react";
+import { Send, ArrowRight, Target, Smartphone, Zap, BookOpen, X, CheckCircle2, AlertTriangle, Lightbulb, Crosshair, Clock } from "lucide-react";
+
+type Module = {
+  title: string;
+  description: string;
+  useCases: string[];
+  to: string;
+  icon: typeof Send;
+  gradient: string;
+  glow: string;
+  ring: string;
+  accent: string;
+  accentBg: string;
+  comingSoon?: boolean;
+  manual: {
+    resumo: string;
+    passos: string[];
+    dicas: string[];
+    atencao: string[];
+  };
+};
+
+const modules: Module[] = [
+  {
+    title: "Manual",
+    description: "Envios curtos e objetivos para pequenas listas. Controle total sobre mensagem e delay.",
+    useCases: [
+      "Avisar pacientes sobre mudança de horário ou endereço",
+      "Enviar lembretes pontuais para um grupo pequeno",
+      "Comunicar promoções rápidas ou vagas de última hora",
+      "Recontatar pacientes que não responderam individualmente",
+    ],
+    to: "/disparos/manual",
+    icon: Send,
+    gradient: "from-indigo-500 to-blue-600",
+    glow: "shadow-indigo-500/20",
+    ring: "ring-indigo-500/20",
+    accent: "text-indigo-600",
+    accentBg: "bg-indigo-50",
+    manual: {
+      resumo: "O disparo manual é o modo mais direto: você monta uma lista pequena, escreve a mensagem e dispara. Ideal para comunicações pontuais que não justificam criar uma campanha inteira — avisos rápidos, lembretes e recontatos.",
+      passos: [
+        "Importe contatos via CSV ou adicione manualmente",
+        "Escreva a mensagem usando variáveis como {nome}",
+        "Configure o delay entre envios (recomendado: 15-30s)",
+        "Revise a pré-visualização e inicie o disparo",
+        "Acompanhe o progresso em tempo real na tela",
+      ],
+      dicas: [
+        "Use delays maiores (30s+) para listas acima de 50 contatos",
+        "Personalize com {nome} para aumentar a taxa de resposta",
+        "Teste com 3-5 contatos antes de enviar para toda a lista",
+      ],
+      atencao: [
+        "Não indicado para listas grandes (500+) — use Emulador para isso",
+        "Respeite o horário comercial para não incomodar contatos",
+        "Números inválidos contam como falha e podem afetar a instância",
+      ],
+    },
+  },
+  {
+    title: "Campanha",
+    description: "Campanhas estruturadas e de longa duração com funil de acompanhamento e controle de leads.",
+    useCases: [
+      "Divulgar eventos como Dia do Sorriso, semanas temáticas",
+      "Campanha de recall para pacientes inativos há 6+ meses",
+      "Lançamento de novos tratamentos ou serviços da clínica",
+      "Ações sazonais: Natal, Dia das Mães, Black Friday",
+    ],
+    to: "/disparos/campanha",
+    icon: Target,
+    gradient: "from-violet-500 to-purple-600",
+    glow: "shadow-violet-500/20",
+    ring: "ring-violet-500/20",
+    accent: "text-violet-600",
+    accentBg: "bg-violet-50",
+    manual: {
+      resumo: "O modo Campanha é para ações de marketing planejadas e com duração mais longa. Você cria a campanha, importa os leads e acompanha o funil de respostas. Ideal para eventos, promoções sazonais e estratégias de reativação de pacientes.",
+      passos: [
+        "Crie uma campanha com nome e descrição do objetivo",
+        "Importe os leads (CSV ou integração CRM)",
+        "Configure a mensagem template e a porta de envio",
+        "Inicie — os leads entram na fila automaticamente",
+        "Acompanhe o funil: aguardando → enviado → respondeu",
+      ],
+      dicas: [
+        "Segmente os leads por perfil antes de importar para melhor conversão",
+        "Use o funil para priorizar follow-up nos leads quentes",
+        "Pause e retome a campanha se a taxa de bloqueio subir",
+      ],
+      atencao: [
+        "Ao deletar uma campanha, todos os leads associados são removidos",
+        "Leads duplicados são ignorados automaticamente na importação",
+        "O cliente_id precisa corresponder ao worker configurado",
+      ],
+    },
+  },
+  {
+    title: "Por Emulador",
+    description: "Disparos em massa via múltiplos emuladores ADB. Protege sua instância principal contra quedas e bloqueios.",
+    useCases: [
+      "Envios em massa para listas com 500+ contatos",
+      "Disparos que não podem derrubar a instância principal do WhatsApp",
+      "Distribuir carga entre vários dispositivos para velocidade",
+      "Reprocessamento em lote de envios que falharam",
+    ],
+    to: "/disparos/emulador",
+    icon: Smartphone,
+    gradient: "from-sky-500 to-cyan-600",
+    glow: "shadow-sky-500/20",
+    ring: "ring-sky-500/20",
+    accent: "text-sky-600",
+    accentBg: "bg-sky-50",
+    comingSoon: true,
+    manual: {
+      resumo: "O disparo por emulador usa dispositivos ADB para enviar em grande escala sem arriscar a instância principal. Cada emulador age como um aparelho independente, distribuindo a carga e evitando bloqueios por volume excessivo.",
+      passos: [
+        "Prepare o CSV com colunas: nome, telefone, mensagem",
+        "Faça upload do arquivo na tela de emuladores",
+        "Selecione os emuladores ADB disponíveis",
+        "Configure como os leads serão distribuídos entre eles",
+        "Inicie e monitore cada emulador individualmente",
+      ],
+      dicas: [
+        "Distribua os leads igualmente entre os emuladores",
+        "Monitore o status — reinicie emuladores desconectados",
+        "Use porta_adb_override para redirecionar envios em caso de falha",
+      ],
+      atencao: [
+        "Emuladores desconectados não processam a fila — verifique antes de iniciar",
+        "O CSV deve estar em UTF-8 para evitar problemas com acentos",
+        "Cada emulador tem limite de envios por hora — não sobrecarregue",
+      ],
+    },
+  },
+];
 
 const DisparosWhatsapp = () => {
   const navigate = useNavigate();
-  const modules = [
-    {
-      title: "Manual",
-      description: "Disparos personalizados com controle fino de mensagem e delay.",
-      to: "/disparos/manual",
-      icon: Send,
-      accent: "from-indigo-500/20 via-indigo-500/5 to-transparent",
-      badge: "bg-indigo-500/15 text-indigo-600",
-      iconBg: "from-indigo-500 to-indigo-600",
-    },
-    {
-      title: "Confirmação",
-      description: "Automatize confirmações de consultas e reduza faltas na agenda.",
-      to: "/disparos/confirmacao",
-      icon: CheckCircle2,
-      accent: "from-emerald-500/20 via-emerald-500/5 to-transparent",
-      badge: "bg-emerald-500/15 text-emerald-600",
-      iconBg: "from-emerald-500 to-teal-500",
-    },
-    {
-      title: "Aniversário",
-      description: "Envie mensagens carinhosas e fortaleça o relacionamento.",
-      to: "/disparos/aniversario",
-      icon: Gift,
-      accent: "from-pink-500/25 via-pink-500/10 to-transparent",
-      badge: "bg-pink-500/15 text-pink-600",
-      iconBg: "from-pink-500 to-rose-500",
-    },
-    {
-      title: "Limpeza",
-      description: "Lembretes inteligentes para retornos de profilaxia dos pacientes.",
-      to: "/disparos/limpeza",
-      icon: Sparkles,
-      accent: "from-cyan-500/20 via-cyan-500/5 to-transparent",
-      badge: "bg-cyan-500/15 text-cyan-600",
-      iconBg: "from-cyan-500 to-sky-500",
-    },
-    {
-      title: "Clareamento",
-      description: "Campanhas segmentadas para tratamentos estéticos e upsell.",
-      to: "/disparos/clareamento",
-      icon: SunMedium,
-      accent: "from-amber-500/25 via-amber-500/10 to-transparent",
-      badge: "bg-amber-500/15 text-amber-600",
-      iconBg: "from-amber-500 to-orange-500",
-    },
-    {
-      title: "Campanha",
-      description: "Gerencie campanhas de marketing e leads automatizados.",
-      to: "/disparos/campanha",
-      icon: Target,
-      accent: "from-purple-500/20 via-purple-500/5 to-transparent",
-      badge: "bg-purple-500/15 text-purple-600",
-      iconBg: "from-purple-500 to-violet-600",
-    },
-    {
-      title: "Por Emulador",
-      description: "Suba listas CSV e dispare via emuladores ADB configurados por tenant.",
-      to: "/disparos/emulador",
-      icon: Smartphone,
-      accent: "from-blue-500/20 via-blue-500/5 to-transparent",
-      badge: "bg-blue-500/15 text-blue-600",
-      iconBg: "from-blue-600 to-cyan-500",
-    },
-  ];
+  const [manualAberto, setManualAberto] = useState<string | null>(null);
 
-  const meshBackground = {
-    backgroundImage: `
-      radial-gradient(circle at 15% 20%, rgba(56,189,248,0.35), transparent 45%),
-      radial-gradient(circle at 80% 0%, rgba(59,130,246,0.3), transparent 50%),
-      radial-gradient(circle at 50% 90%, rgba(14,165,233,0.25), transparent 55%),
-      linear-gradient(120deg, #f5f9ff, #eef3ff, #f7fbff)
-    `,
-  };
+  const moduleAberto = modules.find((m) => m.title === manualAberto);
 
   return (
-    <div className="font-['Myriad_Pro','Plus_Jakarta_Sans','Inter',sans-serif] relative min-h-screen overflow-hidden bg-[#06122b] text-slate-900">
-      <div className="absolute inset-0" style={meshBackground} />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/70 via-white/35 to-white/65 backdrop-blur-[4px]" />
+    <div className="relative min-h-[calc(100vh-80px)] overflow-hidden">
+      {/* Mesh background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: [
+            "radial-gradient(circle at 20% 20%, rgba(99,102,241,0.12), transparent 45%)",
+            "radial-gradient(circle at 80% 10%, rgba(139,92,246,0.10), transparent 50%)",
+            "radial-gradient(circle at 50% 85%, rgba(14,165,233,0.10), transparent 55%)",
+            "linear-gradient(135deg, #f8fafc, #eef2ff, #f0f9ff, #f8fafc)",
+          ].join(","),
+        }}
+      />
 
-      <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-10 px-4 py-12">
-        <section className="grid gap-6 md:grid-cols-2">
-          {modules.map(({ title, description, to, icon: Icon, accent, badge, iconBg }, index) => (
-            <button
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 py-14">
+        {/* Header */}
+        <div className="mb-12 flex flex-col items-center text-center">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 text-white shadow-xl shadow-indigo-500/25">
+            <Zap className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Disparos WhatsApp
+          </h1>
+          <p className="mt-2 max-w-lg text-base text-slate-500">
+            Escolha o modo de envio mais adequado para sua necessidade. Cada modo oferece recursos diferentes para otimizar seus resultados.
+          </p>
+        </div>
+
+        {/* Cards */}
+        <div className="flex w-full flex-col gap-5">
+          {modules.map(({ title, description, useCases, to, icon: Icon, gradient, glow, ring, accent, accentBg, comingSoon }) => (
+            <div
               key={title}
-              onClick={() => navigate(to)}
-              className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-[28px] border border-white/30 bg-white/20 p-6 text-left text-slate-700 shadow-[0_35px_80px_-50px_rgba(15,23,42,0.9)] backdrop-blur-[26px] transition-all duration-300 hover:-translate-y-2 hover:border-white/80 hover:shadow-[0_55px_110px_-55px_rgba(15,23,42,1)] animate-in fade-in slide-in-from-bottom-2"
-              style={{ animationDelay: `${index * 0.08 + 0.2}s` }}
+              className={`group relative overflow-hidden rounded-2xl border border-white/80 shadow-sm ring-1 ${ring} backdrop-blur-sm transition-all duration-300 ${comingSoon ? "bg-slate-50/70 opacity-75" : "bg-white/70 hover:bg-white hover:shadow-lg"}`}
             >
-              <div className={`absolute inset-px rounded-[24px] bg-gradient-to-br ${accent} opacity-0 transition-opacity duration-500 group-hover:opacity-100`} />
-              <div className="relative flex items-start justify-between">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${iconBg} text-white shadow-lg shadow-black/20`}>
+              {/* Coming soon overlay badge */}
+              {comingSoon && (
+                <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                  <Clock className="h-3 w-3" />
+                  Em breve
+                </div>
+              )}
+
+              {/* Main area */}
+              <button
+                onClick={() => !comingSoon && navigate(to)}
+                disabled={comingSoon}
+                className={`flex w-full items-start gap-5 px-6 pt-6 pb-4 text-left ${comingSoon ? "cursor-default" : ""}`}
+              >
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg ${glow} ${comingSoon ? "grayscale opacity-50" : ""}`}>
                   <Icon className="h-6 w-6" />
                 </div>
-                <span className={`rounded-full border border-white/60 bg-white/50 px-3 py-1 text-xs font-semibold text-slate-700 ${badge}`}>
-                  {title}
+
+                <div className={`flex-1 min-w-0 ${comingSoon ? "opacity-60" : ""}`}>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+                    <span className={`rounded-full ${accentBg} px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${accent}`}>
+                      Disparo
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
+
+                  {/* Sugestões de uso */}
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Quando usar</p>
+                    <ul className="space-y-1">
+                      {useCases.map((useCase) => (
+                        <li key={useCase} className="flex items-start gap-2 text-xs text-slate-500">
+                          <Crosshair className={`mt-0.5 h-3 w-3 shrink-0 ${accent} opacity-60`} />
+                          <span>{useCase}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {!comingSoon && (
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 ${accent} transition-all duration-300 group-hover:scale-110`}>
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </div>
+                )}
+              </button>
+
+              {/* Footer with manual button */}
+              <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+                <span className="text-xs text-slate-400">
+                  {comingSoon ? "Este módulo está em desenvolvimento" : "Clique no card para acessar"}
                 </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setManualAberto(title);
+                  }}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${accent} ${accentBg} transition-colors hover:opacity-80`}
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Manual de uso
+                </button>
               </div>
-              <div className="relative space-y-3">
-                <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
-                <p className="text-sm text-slate-500">{description}</p>
-              </div>
-              <div className="relative mt-auto flex items-center gap-2 text-sm font-semibold text-sky-600">
-                Iniciar fluxo
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </div>
-            </button>
+            </div>
           ))}
-        </section>
+        </div>
       </div>
+
+      {/* Manual modal */}
+      {moduleAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setManualAberto(null)}>
+          <div
+            className="relative w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className={`sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 rounded-t-2xl`}>
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${moduleAberto.gradient} text-white`}>
+                  <moduleAberto.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Manual — {moduleAberto.title}</h3>
+                  <p className="text-xs text-slate-400">Guia de utilização</p>
+                </div>
+              </div>
+              <button onClick={() => setManualAberto(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="space-y-6 px-6 py-5">
+              {/* Resumo */}
+              <div>
+                <p className="text-sm leading-relaxed text-slate-600">{moduleAberto.manual.resumo}</p>
+              </div>
+
+              {/* Passo a passo */}
+              <div>
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  Passo a passo
+                </h4>
+                <ol className="space-y-2.5">
+                  {moduleAberto.manual.passos.map((passo, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-slate-600">
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${moduleAberto.gradient} text-[11px] font-bold text-white`}>
+                        {i + 1}
+                      </span>
+                      <span className="pt-0.5">{passo}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              {/* Dicas */}
+              <div className="rounded-xl bg-amber-50 border border-amber-100 p-4">
+                <h4 className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-amber-800">
+                  <Lightbulb className="h-4 w-4" />
+                  Dicas
+                </h4>
+                <ul className="space-y-2">
+                  {moduleAberto.manual.dicas.map((dica, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-amber-700">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                      <span>{dica}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Atenção */}
+              <div className="rounded-xl bg-red-50 border border-red-100 p-4">
+                <h4 className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-red-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  Atenção
+                </h4>
+                <ul className="space-y-2">
+                  {moduleAberto.manual.atencao.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-red-700">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
