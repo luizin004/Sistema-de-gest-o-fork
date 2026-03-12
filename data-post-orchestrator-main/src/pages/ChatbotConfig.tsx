@@ -21,6 +21,7 @@ import {
   ShieldAlert, Info, Package, ArrowLeft, Link2, Unlink, Pencil, Copy,
   Globe, Calendar, Clock, Ban, Timer,
 } from "lucide-react";
+import { SUPABASE_URL } from "@/integrations/supabase/client";
 import {
   useChatbotConfig,
   DEFAULT_CHATBOT_CONFIG,
@@ -1028,6 +1029,40 @@ const ChatbotConfigPage = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Webhook URL */}
+                <Card className="shadow-lg border-gray-200">
+                  <CardHeader className="bg-gradient-to-r from-purple-50 to-slate-50 border-b">
+                    <CardTitle className="text-lg text-gray-900 flex items-center gap-2">
+                      <Link2 className="h-5 w-5" />
+                      URL do Webhook
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-3">
+                    <p className="text-sm text-gray-500">
+                      Configure esta URL no seu provedor de WhatsApp (UAZAPI) para receber mensagens:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-4 py-3 text-sm font-mono text-gray-800 break-all select-all">
+                        {`${SUPABASE_URL}/functions/v1/chatbot-webhook`}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="flex-shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${SUPABASE_URL}/functions/v1/chatbot-webhook`);
+                          toast.success("URL copiada!");
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Método: <strong>POST</strong> — O bot processará automaticamente as mensagens recebidas neste endpoint.
+                    </p>
+                  </CardContent>
+                </Card>
 
                 {/* Advanced Prompt */}
                 <Card className="shadow-lg border-gray-200">
