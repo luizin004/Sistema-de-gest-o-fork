@@ -27,6 +27,14 @@ import {
 // Types
 // ============================================================================
 
+interface BotChannel {
+  id: string;           // chatbot_config_id or "unassigned"
+  name: string;         // chatbot_config.name or "Sem bot vinculado"
+  mode: string | null;  // chatbot_config.mode
+  instances: { id: string; nome: string; status: string }[];
+  conversationCount: number;
+}
+
 interface Conversation {
   id: string;
   tenant_id: string;
@@ -105,9 +113,10 @@ const AdminChatMonitor = () => {
   const navigate = useNavigate();
   const { tenantId } = useTenant();
 
-  // State: users list (admin sees all users of the tenant)
-  const [users, setUsers] = useState<UserInfo[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // State: channels (bots) list
+  const [channels, setChannels] = useState<BotChannel[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [loadingChannels, setLoadingChannels] = useState(false);
 
   // State: conversations list
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -124,35 +133,93 @@ const AdminChatMonitor = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ========================================================================
-  // Fetch users (all from same tenant)
+  // Fetch channels (bots with their instances and conversation counts)
   // ========================================================================
-  const fetchUsers = useCallback(async () => {
+  const fetchChannels = useCallback(async () => {
     if (!tenantId) return;
-    const { data } = await (supabaseUntyped as any)
-      .from("usuarios")
-      .select("id, nome, email, tenant_id, empresa")
-      .eq("tenant_id", tenantId)
-      .order("nome", { ascending: true });
-    setUsers((data || []) as UserInfo[]);
+    setLoadingChannels(true);
+
+    // Fetch chatbot configs
+    const { data: configs } = await (supabaseUntyped as any)
+      .from("chatbot_config")
+      .select("id, name, mode")
+      .eq("tenant_id", tenantId);
+
+    // Fetch instances
+    const { data: instances } = await (supabaseUntyped as any)
+      .from("uazapi_instances")
+      .select("id, nome, status, chatbot_config_id")
+      .eq("tenant_id", tenantId);
+
+    // Count conversations per bot
+    const { data: convCounts } = await (supabaseUntyped as any)
+      .from("chatbot_conversations")
+      .select("chatbot_config_id")
+      .eq("tenant_id", tenantId);
+
+    const countMap = new Map<string, number>();
+    (convCounts || []).forEach((c: any) => {
+      const key = c.chatbot_config_id || "unassigned";
+      countMap.set(key, (countMap.get(key) || 0) + 1);
+    });
+
+    const channelList: BotChannel[] = (configs || []).map((cfg: any) => ({
+      id: cfg.id,
+      name: cfg.name || "Bot sem nome",
+      mode: cfg.mode,
+      instances: (instances || [])
+        .filter((inst: any) => inst.chatbot_config_id === cfg.id)
+        .map((inst: any) => ({
+          id: inst.id,
+          nome: inst.nome || inst.id,
+          status: inst.status || "unknown",
+        })),
+      conversationCount: countMap.get(cfg.id) || 0,
+    }));
+
+    // Add unassigned channel if there are conversations without bot
+    const unassignedCount = countMap.get("unassigned") || 0;
+    if (unassignedCount > 0) {
+      channelList.push({
+        id: "unassigned",
+        name: "Sem bot vinculado",
+        mode: null,
+        instances: [],
+        conversationCount: unassignedCount,
+      });
+    }
+
+    setChannels(channelList);
+    setLoadingChannels(false);
   }, [tenantId]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchChannels();
+  }, [fetchChannels]);
 
   // ========================================================================
-  // Fetch conversations (all or filtered by user)
+  // Fetch conversations (filtered by bot config id)
   // ========================================================================
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (botConfigId?: string) => {
     if (!tenantId) return;
     setLoadingConversations(true);
 
-    const { data, error } = await (supabase as any)
+    let query = (supabase as any)
       .from("chatbot_conversations")
       .select("*")
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false })
       .limit(500);
+
+    if (botConfigId) {
+      if (botConfigId === "unassigned") {
+        query = query.is("chatbot_config_id", null);
+      } else {
+        query = query.eq("chatbot_config_id", botConfigId);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Erro ao buscar conversas:", error);
@@ -178,10 +245,6 @@ const AdminChatMonitor = () => {
 
     setLoadingConversations(false);
   }, [tenantId]);
-
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
 
   // ========================================================================
   // Fetch messages for a conversation
@@ -292,6 +355,99 @@ const AdminChatMonitor = () => {
     return Array.from(statuses).sort();
   }, [conversations]);
 
+  // Selected channel name for breadcrumb display
+  const selectedChannelName = useMemo(() => {
+    if (!selectedChannelId) return "";
+    return channels.find((c) => c.id === selectedChannelId)?.name || "";
+  }, [selectedChannelId, channels]);
+
+  // ========================================================================
+  // Render: Channel List (Bots)
+  // ========================================================================
+  const renderChannelList = () => (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-purple-50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-slate-800">Bots / Instancias</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={fetchChannels} className="text-slate-500">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="px-4 py-2 bg-slate-50 border-b text-xs text-slate-500">
+        <span className="flex items-center gap-1">
+          <Bot className="h-3 w-3" />
+          {channels.length} bot(s) configurado(s)
+        </span>
+      </div>
+
+      <ScrollArea className="flex-1">
+        {loadingChannels ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : channels.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Nenhum bot configurado</p>
+          </div>
+        ) : (
+          <div className="p-3 space-y-3">
+            {channels.map((channel) => (
+              <button
+                key={channel.id}
+                onClick={() => {
+                  setSelectedChannelId(channel.id);
+                  fetchConversations(channel.id);
+                }}
+                className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Bot className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                      <span className="font-medium text-sm text-slate-800 truncate">
+                        {channel.name}
+                      </span>
+                    </div>
+                    {channel.mode && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-purple-100 text-purple-700 mb-2">
+                        {channel.mode}
+                      </Badge>
+                    )}
+                    {channel.instances.length > 0 && (
+                      <div className="space-y-1 mt-2">
+                        {channel.instances.map((inst) => (
+                          <div key={inst.id} className="flex items-center gap-1.5 text-xs text-slate-500">
+                            <Phone className="h-3 w-3" />
+                            <span className="truncate">{inst.nome}</span>
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                              inst.status === "connected" ? "bg-green-500" : "bg-red-400"
+                            }`} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+                    <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-600">
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      {channel.conversationCount}
+                    </Badge>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+
   // ========================================================================
   // Render: Conversations List
   // ========================================================================
@@ -301,13 +457,23 @@ const AdminChatMonitor = () => {
       <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-purple-50">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => { setSelectedChannelId(null); setSelectedConv(null); }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <Eye className="h-5 w-5 text-purple-600" />
-            <h2 className="text-lg font-semibold text-slate-800">Monitor de Conversas</h2>
+            <h2 className="text-lg font-semibold text-slate-800 truncate">
+              {selectedChannelName || "Conversas"}
+            </h2>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchConversations}
+            onClick={() => fetchConversations(selectedChannelId || undefined)}
             className="text-slate-500"
           >
             <RefreshCw className="h-4 w-4" />
@@ -630,20 +796,20 @@ const AdminChatMonitor = () => {
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-      {/* Left panel: conversations list */}
-      <div
-        className={`border-r border-slate-200 bg-white flex flex-col ${
-          selectedConv ? "hidden md:flex" : "flex"
-        }`}
-        style={{ width: 380, minWidth: 380 }}
-      >
-        {renderConversationsList()}
-      </div>
+        {/* Left panel: channel list or conversations list */}
+        <div
+          className={`border-r border-slate-200 bg-white flex flex-col ${
+            selectedConv ? "hidden md:flex" : "flex"
+          }`}
+          style={{ width: 380, minWidth: 380 }}
+        >
+          {!selectedChannelId ? renderChannelList() : renderConversationsList()}
+        </div>
 
-      {/* Right panel: chat detail */}
-      <div className={`flex-1 flex flex-col ${!selectedConv ? "hidden md:flex" : "flex"}`}>
-        {renderChatDetail()}
-      </div>
+        {/* Right panel: chat detail */}
+        <div className={`flex-1 flex flex-col ${!selectedConv ? "hidden md:flex" : "flex"}`}>
+          {renderChatDetail()}
+        </div>
       </div>
     </div>
   );

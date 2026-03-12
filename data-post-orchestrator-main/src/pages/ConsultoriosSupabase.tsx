@@ -18,6 +18,7 @@ interface Dentista {
   especialidade: string;
   ativo: boolean;
   created_at: string;
+  cor_hex?: string;
 }
 
 interface Consultorio {
@@ -25,6 +26,20 @@ interface Consultorio {
   nome: string;
   numero?: number;
   ativo: boolean;
+  created_at: string;
+  horario_abertura?: string;
+  horario_fechamento?: string;
+  intervalo_minutos?: number;
+}
+
+interface Bloqueio {
+  id: string;
+  consultorio_id: string;
+  tenant_id: string;
+  dia_semana: number;
+  horario_inicio: string;
+  horario_fim: string;
+  motivo: string;
   created_at: string;
 }
 
@@ -49,6 +64,29 @@ const diaParaNumero: { [key: string]: number } = {
   'Domingo': 7
 };
 const horas = ['08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30'];
+
+function generateTimeSlots(abertura: string, fechamento: string, intervaloMin: number): string[] {
+  const slots: string[] = [];
+  const [aH, aM] = abertura.split(':').map(Number);
+  const [fH, fM] = fechamento.split(':').map(Number);
+  let current = aH * 60 + aM;
+  const end = fH * 60 + fM;
+  while (current < end) {
+    const h = Math.floor(current / 60).toString().padStart(2, '0');
+    const m = (current % 60).toString().padStart(2, '0');
+    slots.push(`${h}:${m}`);
+    current += intervaloMin;
+  }
+  return slots;
+}
+
+function getTimeSlotsForConsultorio(c: Consultorio): string[] {
+  return generateTimeSlots(
+    c.horario_abertura || '08:00',
+    c.horario_fechamento || '19:00',
+    c.intervalo_minutos || 60
+  );
+}
 
 const weekTransitionStyles = `
   @keyframes weekFadeSlide {
@@ -112,7 +150,18 @@ export default function ConsultoriosSupabase() {
   // Diálogos de Consultórios
   const [showConsultorioDialog, setShowConsultorioDialog] = useState(false);
   const [editingConsultorio, setEditingConsultorio] = useState<Consultorio | null>(null);
-  const [newConsultorio, setNewConsultorio] = useState({ nome: '', numero: undefined });
+  const [newConsultorio, setNewConsultorio] = useState({ nome: '', numero: undefined as number | undefined, horario_abertura: '08:00', horario_fechamento: '19:00', intervalo_minutos: 60 });
+
+  // Bloqueios
+  const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
+  const [showBloqueioDialog, setShowBloqueioDialog] = useState(false);
+  const [bloqueioConsultorioId, setBloqueioConsultorioId] = useState<string>('');
+  const [newBloqueio, setNewBloqueio] = useState({ dia_semana: 1, horario_inicio: '12:00', horario_fim: '13:00', motivo: 'Intervalo' });
+
+  // Copiar semana
+  const [showCopyWeekDialog, setShowCopyWeekDialog] = useState(false);
+  const [copyFromWeek, setCopyFromWeek] = useState(1);
+  const [copyToWeek, setCopyToWeek] = useState(2);
 
   // Carregar dados
   useEffect(() => {
@@ -183,6 +232,9 @@ export default function ConsultoriosSupabase() {
       setDentistas(dentistasRes.data || []);
       setConsultorios(consultoriosRes.data || []);
       setEscalaSemanal(escalaRes.data || []);
+
+      const bloqueiosRes = await supabaseUntyped.from('consultorio_bloqueios').select('*').eq('tenant_id', tenantId);
+      setBloqueios(bloqueiosRes.data || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
@@ -315,7 +367,7 @@ export default function ConsultoriosSupabase() {
       
       setShowConsultorioDialog(false);
       setEditingConsultorio(null);
-      setNewConsultorio({ nome: '', numero: undefined });
+      setNewConsultorio({ nome: '', numero: undefined, horario_abertura: '08:00', horario_fechamento: '19:00', intervalo_minutos: 60 });
       carregarDados();
     } catch (error) {
       console.error('Erro ao salvar consultório:', error);
@@ -368,7 +420,10 @@ export default function ConsultoriosSupabase() {
     setEditingConsultorio(consultorio);
     setNewConsultorio({
       nome: consultorio.nome,
-      numero: consultorio.numero
+      numero: consultorio.numero,
+      horario_abertura: consultorio.horario_abertura || '08:00',
+      horario_fechamento: consultorio.horario_fechamento || '19:00',
+      intervalo_minutos: consultorio.intervalo_minutos || 60,
     });
     setShowConsultorioDialog(true);
   };
@@ -384,24 +439,28 @@ export default function ConsultoriosSupabase() {
   const handleMouseEnter = (dia: string, hora: string, consultorioId: string) => {
     if (isSelecting && selectionStart && selectionStart.consultorioId === consultorioId) {
       const newSelection = new Set<string>();
-      
+      const consultorio = consultorios.find(c => c.id === consultorioId);
+      const horasConsultorio = consultorio ? getTimeSlotsForConsultorio(consultorio) : horas;
+
       const dias = [...visibleDias];
       const startDiaIndex = dias.indexOf(selectionStart.dia);
       const endDiaIndex = dias.indexOf(dia);
-      const startHoraIndex = horas.indexOf(selectionStart.hora);
-      const endHoraIndex = horas.indexOf(hora);
-      
+      const startHoraIndex = horasConsultorio.indexOf(selectionStart.hora);
+      const endHoraIndex = horasConsultorio.indexOf(hora);
+
       const minDiaIndex = Math.min(startDiaIndex, endDiaIndex);
       const maxDiaIndex = Math.max(startDiaIndex, endDiaIndex);
       const minHoraIndex = Math.min(startHoraIndex, endHoraIndex);
       const maxHoraIndex = Math.max(startHoraIndex, endHoraIndex);
-      
+
       for (let d = minDiaIndex; d <= maxDiaIndex; d++) {
         for (let h = minHoraIndex; h <= maxHoraIndex; h++) {
-          newSelection.add(`${consultorioId}|${dias[d]}|${horas[h]}`);
+          if (!isCellBlocked(consultorioId, dias[d], horasConsultorio[h])) {
+            newSelection.add(`${consultorioId}|${dias[d]}|${horasConsultorio[h]}`);
+          }
         }
       }
-      
+
       setSelectedCells(newSelection);
     }
   };
@@ -571,12 +630,11 @@ export default function ConsultoriosSupabase() {
   };
 
   // Função utilitária para agrupar horários consecutivos
-  const agruparHorarios = (alocacoes: {consultorio: number, horario: string}[]) => {
+  const agruparHorarios = (alocacoes: {consultorio: number, horario: string}[], intervaloMin: number = 60) => {
     if (!alocacoes.length) return [];
-    
-    // Ordenar por horário
+
     const alocacoesOrdenadas = [...alocacoes].sort((a, b) => a.horario.localeCompare(b.horario));
-    
+
     const grupos = [];
     let grupoAtual = {
       consultorio: alocacoesOrdenadas[0].consultorio,
@@ -584,23 +642,20 @@ export default function ConsultoriosSupabase() {
       horarioFim: alocacoesOrdenadas[0].horario,
       horarios: [alocacoesOrdenadas[0].horario]
     };
-    
+
     for (let i = 1; i < alocacoesOrdenadas.length; i++) {
       const atual = alocacoesOrdenadas[i];
       const anterior = alocacoesOrdenadas[i - 1];
-      
-      // Verificar se é consecutivo (diferença de 1 hora)
-      const horaAtual = parseInt(atual.horario.split(':')[0]);
-      const horaAnterior = parseInt(anterior.horario.split(':')[0]);
-      const ehConsecutivo = horaAtual === horaAnterior + 1;
-      
-      // Verificar se é mesmo consultório e consecutivo
+
+      const [aH, aM] = atual.horario.split(':').map(Number);
+      const [pH, pM] = anterior.horario.split(':').map(Number);
+      const diffMin = (aH * 60 + aM) - (pH * 60 + pM);
+      const ehConsecutivo = diffMin === intervaloMin;
+
       if (atual.consultorio === grupoAtual.consultorio && ehConsecutivo) {
-        // Adicionar ao grupo atual
         grupoAtual.horarioFim = atual.horario;
         grupoAtual.horarios.push(atual.horario);
       } else {
-        // Fechar grupo atual e iniciar novo
         grupos.push({...grupoAtual});
         grupoAtual = {
           consultorio: atual.consultorio,
@@ -610,20 +665,19 @@ export default function ConsultoriosSupabase() {
         };
       }
     }
-    
-    // Adicionar último grupo
+
     grupos.push(grupoAtual);
-    
-    // Calcular horário final correto (último horário + 1 hora)
+
     return grupos.map(grupo => {
-      const ultimaHora = parseInt(grupo.horarioFim.split(':')[0]);
-      const horaFinal = (ultimaHora + 1).toString().padStart(2, '0') + ':30';
-      
+      const [lastH, lastM] = grupo.horarioFim.split(':').map(Number);
+      const finalMin = lastH * 60 + lastM + intervaloMin;
+      const horaFinal = Math.floor(finalMin / 60).toString().padStart(2, '0') + ':' + (finalMin % 60).toString().padStart(2, '0');
+
       return {
         ...grupo,
         horarioFimCalculado: horaFinal,
-        horarioFormatado: grupo.horarios.length === 1 
-          ? grupo.horarioInicio 
+        horarioFormatado: grupo.horarios.length === 1
+          ? grupo.horarioInicio
           : `${grupo.horarioInicio} às ${horaFinal}`
       };
     });
@@ -679,31 +733,31 @@ export default function ConsultoriosSupabase() {
 
   // Calcular estatísticas gerais
   const calcularEstatisticasGerais = useMemo(() => {
-    // Considerar apenas dias úteis (excluir sábado)
     const diasUteis = diasSemana.filter(dia => dia !== 'Sábado');
-    const totalSlots = consultorios.length * diasUteis.length * horas.length;
-    
-    // Filtrar slots válidos (remover duplicatas e inválidos)
+    let totalSlots = 0;
+    consultorios.forEach(c => {
+      totalSlots += diasUteis.length * getTimeSlotsForConsultorio(c).length;
+    });
+
     const validSlots = escalaSemanal.filter(slot => {
-      // Filtrar pela semana selecionada
       const slotSemana = slot.semana || 1;
       if (slotSemana !== selectedWeek) return false;
 
-      // Excluir sábados dos cálculos
       const diaNome = Object.keys(diaParaNumero).find(key => diaParaNumero[key] === slot.dia_semana);
       if (diaNome === 'Sábado') return false;
 
       const consultorioExists = consultorios.some(c => c.id === slot.consultorio_id);
       const dentistaExists = dentistas.some(d => d.id === slot.dentista_id);
       const validDia = Object.values(diaParaNumero).includes(slot.dia_semana);
-      const validHora = horas.some(h => slot.horario_inicio.startsWith(h));
-      
+      const consultorio = consultorios.find(c => c.id === slot.consultorio_id);
+      const horasConsultorio = consultorio ? getTimeSlotsForConsultorio(consultorio) : horas;
+      const validHora = horasConsultorio.some(h => slot.horario_inicio.startsWith(h));
       return consultorioExists && dentistaExists && validDia && validHora;
     });
-    
+
     const occupiedSlots = validSlots.length;
     const lotacaoGeral = totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0;
-    
+
     return {
       totalSlots,
       occupiedSlots,
@@ -713,62 +767,151 @@ export default function ConsultoriosSupabase() {
 
   // Calcular estatísticas de uso dos consultórios
   const calcularEstatisticasConsultorios = useMemo(() => {
-    // Considerar apenas dias úteis (excluir sábado)
     const diasUteis = diasSemana.filter(dia => dia !== 'Sábado');
-    const totalSlots = consultorios.length * diasUteis.length * horas.length;
-    
-    // Filtrar slots válidos (remover duplicatas e inválidos)
+    let totalSlots = 0;
+    consultorios.forEach(c => {
+      totalSlots += diasUteis.length * getTimeSlotsForConsultorio(c).length;
+    });
+
     const validSlots = escalaSemanal.filter(slot => {
-      // Filtrar pela semana selecionada (considerando null/undefined como semana 1)
       const slotSemana = slot.semana || 1;
       if (slotSemana !== selectedWeek) return false;
 
-      // Excluir sábados dos cálculos
       const diaNome = Object.keys(diaParaNumero).find(key => diaParaNumero[key] === slot.dia_semana);
       if (diaNome === 'Sábado') return false;
 
       const consultorioExists = consultorios.some(c => c.id === slot.consultorio_id);
       const dentistaExists = dentistas.some(d => d.id === slot.dentista_id);
       const validDia = Object.values(diaParaNumero).includes(slot.dia_semana);
-      const validHora = horas.some(h => slot.horario_inicio.startsWith(h));
-      
+      const consultorio = consultorios.find(c => c.id === slot.consultorio_id);
+      const horasConsultorio = consultorio ? getTimeSlotsForConsultorio(consultorio) : horas;
+      const validHora = horasConsultorio.some(h => slot.horario_inicio.startsWith(h));
+
       return consultorioExists && dentistaExists && validDia && validHora;
     });
-    
+
     const occupiedSlots = validSlots.length;
-    
+
     const estatisticasPorConsultorio = consultorios.map(consultorio => {
-      // Filtrar slots válidos apenas para este consultório
       const consultorioSlots = validSlots.filter(e => e.consultorio_id === consultorio.id);
-      
-      // Remover duplicatas (mesmo dia, hora e consultório)
-      const uniqueSlots = consultorioSlots.filter((slot, index, self) => 
-        index === self.findIndex((s) => 
-          s.dia_semana === slot.dia_semana && 
+
+      const uniqueSlots = consultorioSlots.filter((slot, index, self) =>
+        index === self.findIndex((s) =>
+          s.dia_semana === slot.dia_semana &&
           s.horario_inicio === slot.horario_inicio &&
           s.consultorio_id === slot.consultorio_id
         )
       );
-      
-      const totalConsultorioSlots = diasUteis.length * horas.length;
+
+      const totalConsultorioSlots = diasUteis.length * getTimeSlotsForConsultorio(consultorio).length;
       const porcentagemUso = totalConsultorioSlots > 0 ? (uniqueSlots.length / totalConsultorioSlots) * 100 : 0;
-      
+
       return {
         consultorioId: consultorio.id,
         consultorioNumero: consultorio.numero,
         slotsOcupados: uniqueSlots.length,
         slotsTotais: totalConsultorioSlots,
-        porcentagemUso: Math.min(Math.round(porcentagemUso * 10) / 10, 100) // Limitar a 100%
+        porcentagemUso: Math.min(Math.round(porcentagemUso * 10) / 10, 100)
       };
     });
-    
+
     const lotacaoGeral = totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0;
-    
+
     return {
-      lotacaoGeral: Math.min(Math.round(lotacaoGeral * 10) / 10, 100), // Limitar a 100%
+      lotacaoGeral: Math.min(Math.round(lotacaoGeral * 10) / 10, 100),
       estatisticasPorConsultorio
     };
   }, [consultorios, escalaSemanal, dentistas, selectedWeek]);
+
+  const isCellBlocked = (consultorioId: string, dia: string, hora: string): Bloqueio | null => {
+    const diaNum = diaParaNumero[dia];
+    return bloqueios.find(b =>
+      b.consultorio_id === consultorioId &&
+      b.dia_semana === diaNum &&
+      hora >= b.horario_inicio &&
+      hora < b.horario_fim
+    ) || null;
+  };
+
+  const salvarBloqueio = async () => {
+    try {
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+      if (!tenantId || !bloqueioConsultorioId) return;
+
+      const { error } = await supabaseUntyped
+        .from('consultorio_bloqueios')
+        .insert([{ ...newBloqueio, consultorio_id: bloqueioConsultorioId, tenant_id: tenantId }]);
+
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: 'Bloqueio adicionado' });
+      setShowBloqueioDialog(false);
+      setNewBloqueio({ dia_semana: 1, horario_inicio: '12:00', horario_fim: '13:00', motivo: 'Intervalo' });
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao salvar bloqueio:', error);
+      toast({ title: 'Erro', description: 'Não foi possível salvar o bloqueio', variant: 'destructive' });
+    }
+  };
+
+  const excluirBloqueio = async (id: string) => {
+    try {
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+      if (!tenantId) return;
+
+      const { error } = await supabaseUntyped
+        .from('consultorio_bloqueios')
+        .delete()
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
+
+      if (error) throw error;
+      toast({ title: 'Sucesso', description: 'Bloqueio removido' });
+      carregarDados();
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Não foi possível remover o bloqueio', variant: 'destructive' });
+    }
+  };
+
+  const copiarSemana = async () => {
+    try {
+      const usuarioStr = localStorage.getItem('usuario');
+      const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
+      const tenantId = usuario?.tenant_id;
+      if (!tenantId) return;
+
+      const escalaOrigem = escalaSemanal.filter(e => (e.semana || 1) === copyFromWeek);
+      if (escalaOrigem.length === 0) {
+        toast({ title: 'Atenção', description: 'Semana de origem não possui horários', variant: 'destructive' });
+        return;
+      }
+
+      await supabaseUntyped
+        .from('escala_semanal')
+        .delete()
+        .eq('tenant_id', tenantId)
+        .eq('semana', copyToWeek);
+
+      const novosRegistros = escalaOrigem.map(({ id, created_at, ...rest }) => ({
+        ...rest,
+        semana: copyToWeek,
+        tenant_id: tenantId,
+      }));
+
+      const { error } = await supabaseUntyped.from('escala_semanal').insert(novosRegistros);
+      if (error) throw error;
+
+      toast({ title: 'Sucesso', description: `Semana ${copyFromWeek} copiada para Semana ${copyToWeek}` });
+      setShowCopyWeekDialog(false);
+      carregarDados();
+    } catch (error) {
+      console.error('Erro ao copiar semana:', error);
+      toast({ title: 'Erro', description: 'Não foi possível copiar a semana', variant: 'destructive' });
+    }
+  };
 
   if (initialLoading) {
     return (
@@ -1024,6 +1167,15 @@ export default function ConsultoriosSupabase() {
                 <Calendar className="h-4 w-4" />
                 {showSaturday ? "Ocultar sábado" : "Incluir sábado"}
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { setCopyFromWeek(selectedWeek); setShowCopyWeekDialog(true); }}
+                className="flex items-center gap-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+                Copiar semana
+              </Button>
             </div>
             {/* Card de Lotação Geral */}
             <Card className={`border-${weekConfig[selectedWeek as keyof typeof weekConfig].color}-200 bg-gradient-to-r from-${weekConfig[selectedWeek as keyof typeof weekConfig].color}-50 to-indigo-50`}>
@@ -1085,18 +1237,16 @@ export default function ConsultoriosSupabase() {
                       <div 
                         className="h-3 rounded-full transition-all duration-500 bg-purple-500"
                         style={{ width: `${Math.min((escalaFiltradaPorEspecialidade.filter(slot => {
-                          // Excluir sábados dos cálculos
                           const diaNome = Object.keys(diaParaNumero).find(key => diaParaNumero[key] === slot.dia_semana);
                           return diaNome !== 'Sábado';
-                        }).length / (consultorios.length * (diasSemana.length - 1) * horas.length)) * 100, 100)}%` }}
+                        }).length / Math.max(consultorios.reduce((sum, c) => sum + (diasSemana.length - 1) * getTimeSlotsForConsultorio(c).length, 0), 1)) * 100, 100)}%` }}
                       />
                     </div>
                     <div className="mt-2 text-xs text-gray-600">
                       {escalaFiltradaPorEspecialidade.filter(slot => {
-                        // Excluir sábados dos cálculos
                         const diaNome = Object.keys(diaParaNumero).find(key => diaParaNumero[key] === slot.dia_semana);
                         return diaNome !== 'Sábado';
-                      }).length} de {consultorios.length * (diasSemana.length - 1) * horas.length} horários totais
+                      }).length} de {consultorios.reduce((sum, c) => sum + (diasSemana.length - 1) * getTimeSlotsForConsultorio(c).length, 0)} horários totais
                     </div>
                   </div>
                 </CardContent>
@@ -1132,6 +1282,15 @@ export default function ConsultoriosSupabase() {
                             )}
                           </CardTitle>
                           <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setBloqueioConsultorioId(consultorio.id); setShowBloqueioDialog(true); }}
+                              className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                              title="Gerenciar bloqueios"
+                            >
+                              <Clock className="h-3 w-3" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -1209,6 +1368,15 @@ export default function ConsultoriosSupabase() {
                           <Button
                             size="sm"
                             variant="outline"
+                            onClick={() => { setBloqueioConsultorioId(consultorio.id); setShowBloqueioDialog(true); }}
+                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700"
+                            title="Gerenciar bloqueios"
+                          >
+                            <Clock className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => openEditConsultorioDialog(consultorio)}
                             className="h-8 w-8 p-0"
                           >
@@ -1271,7 +1439,7 @@ export default function ConsultoriosSupabase() {
                             </tr>
                           </thead>
                           <tbody>
-                            {horas.map((hora) => (
+                            {getTimeSlotsForConsultorio(consultorio).map((hora) => (
                               <tr key={hora}>
                                 <td className="p-1 text-center text-sm font-medium text-gray-600 bg-gray-50 border w-[95px]">
                                   {hora}
@@ -1283,7 +1451,8 @@ export default function ConsultoriosSupabase() {
                                   const dentista = escala ? getDentistaById(escala.dentista_id) : null;
                                   const dentistaOriginal = escalaOriginal ? getDentistaById(escalaOriginal.dentista_id) : null;
                                   const isDisabled = shouldDisableCell(dia, hora, consultorio.id);
-                                  
+                                  const blocked = !escala ? isCellBlocked(consultorio.id, dia, hora) : null;
+
                                   return (
                                     <td
                                       key={`${consultorio.id}|${dia}|${hora}`}
@@ -1292,17 +1461,20 @@ export default function ConsultoriosSupabase() {
                                           ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-400 shadow-lg transform scale-105'
                                           : isDisabled
                                           ? 'bg-gray-100 border-gray-300 opacity-60 cursor-not-allowed'
+                                          : blocked
+                                          ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
                                           : escala
                                           ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300 hover:shadow-md hover:transform hover:scale-102 cursor-pointer'
                                           : 'bg-gradient-to-br from-white to-blue-50 border-blue-200 hover:border-blue-300 hover:shadow-md hover:transform hover:scale-102 cursor-pointer'
                                       }`}
-                                      onMouseDown={() => !isDisabled && handleMouseDown(dia, hora, consultorio.id)}
-                                      onMouseEnter={() => !isDisabled && handleMouseEnter(dia, hora, consultorio.id)}
+                                      onMouseDown={() => !isDisabled && !blocked && handleMouseDown(dia, hora, consultorio.id)}
+                                      onMouseEnter={() => !isDisabled && !blocked && handleMouseEnter(dia, hora, consultorio.id)}
                                       onMouseUp={handleMouseUp}
                                       style={{ userSelect: 'none' }}
                                     >
                                       {escala && dentista ? (
-                                        <div className="h-full flex flex-col items-center justify-center p-2">
+                                        <div className="h-full flex flex-col items-center justify-center p-2 rounded-lg"
+                                             style={dentista.cor_hex ? { backgroundColor: dentista.cor_hex + '20', borderLeft: `3px solid ${dentista.cor_hex}` } : {}}>
                                           <div className="text-center">
                                             <div className="text-sm font-bold text-gray-800 leading-tight">
                                               {dentista.nome.split(' ')[0]}
@@ -1310,6 +1482,13 @@ export default function ConsultoriosSupabase() {
                                             <div className="text-xs text-gray-500 leading-tight mt-1">
                                               {dentista.especialidade.substring(0, 15)}
                                             </div>
+                                          </div>
+                                        </div>
+                                      ) : blocked ? (
+                                        <div className="h-full flex flex-col items-center justify-center p-2 opacity-50">
+                                          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-200 rounded-lg border-2 border-dashed border-gray-400">
+                                            <XCircle className="h-4 w-4 text-gray-500 mb-1" />
+                                            <span className="text-[10px] text-gray-500">{blocked.motivo}</span>
                                           </div>
                                         </div>
                                       ) : isDisabled && dentistaOriginal ? (
@@ -1563,6 +1742,46 @@ export default function ConsultoriosSupabase() {
               />
               <p className="text-xs text-gray-500">Opcional: Use um número para identificação interna</p>
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="horario-abertura">Horário de Abertura</Label>
+              <Input
+                id="horario-abertura"
+                type="time"
+                value={newConsultorio.horario_abertura || '08:00'}
+                onChange={(e) => setNewConsultorio({ ...newConsultorio, horario_abertura: e.target.value })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="horario-fechamento">Horário de Fechamento</Label>
+              <Input
+                id="horario-fechamento"
+                type="time"
+                value={newConsultorio.horario_fechamento || '19:00'}
+                onChange={(e) => setNewConsultorio({ ...newConsultorio, horario_fechamento: e.target.value })}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="intervalo-minutos">Intervalo (minutos)</Label>
+              <Select
+                value={String(newConsultorio.intervalo_minutos || 60)}
+                onValueChange={(v) => setNewConsultorio({ ...newConsultorio, intervalo_minutos: parseInt(v) })}
+              >
+                <SelectTrigger id="intervalo-minutos">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 minutos</SelectItem>
+                  <SelectItem value="30">30 minutos</SelectItem>
+                  <SelectItem value="45">45 minutos</SelectItem>
+                  <SelectItem value="60">60 minutos</SelectItem>
+                  <SelectItem value="90">90 minutos</SelectItem>
+                  <SelectItem value="120">120 minutos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1571,7 +1790,7 @@ export default function ConsultoriosSupabase() {
               onClick={() => {
                 setShowConsultorioDialog(false);
                 setEditingConsultorio(null);
-                setNewConsultorio({ nome: '', numero: undefined });
+                setNewConsultorio({ nome: '', numero: undefined, horario_abertura: '08:00', horario_fechamento: '19:00', intervalo_minutos: 60 });
               }}
             >
               Cancelar
@@ -1579,6 +1798,106 @@ export default function ConsultoriosSupabase() {
             <Button onClick={salvarConsultorio}>
               {editingConsultorio ? 'Atualizar' : 'Cadastrar'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bloqueio Dialog */}
+      <Dialog open={showBloqueioDialog} onOpenChange={setShowBloqueioDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Bloqueios</DialogTitle>
+            <DialogDescription>
+              Configure intervalos e bloqueios para {consultorios.find(c => c.id === bloqueioConsultorioId)?.nome}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {bloqueios.filter(b => b.consultorio_id === bloqueioConsultorioId).map(b => (
+              <div key={b.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                <div className="text-sm">
+                  <span className="font-medium">{diasSemana[b.dia_semana - 1] || `Dia ${b.dia_semana}`}</span>
+                  {' '}{b.horario_inicio} - {b.horario_fim}
+                  <span className="text-gray-500 ml-2">({b.motivo})</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => excluirBloqueio(b.id)} className="h-6 w-6 p-0 text-red-500">
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            {bloqueios.filter(b => b.consultorio_id === bloqueioConsultorioId).length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-2">Nenhum bloqueio configurado</p>
+            )}
+          </div>
+
+          <div className="border-t pt-4 space-y-3">
+            <Label>Novo Bloqueio</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Dia da Semana</Label>
+                <Select value={String(newBloqueio.dia_semana)} onValueChange={(v) => setNewBloqueio({...newBloqueio, dia_semana: parseInt(v)})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {diasSemana.map((d, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Motivo</Label>
+                <Input value={newBloqueio.motivo} onChange={(e) => setNewBloqueio({...newBloqueio, motivo: e.target.value})} placeholder="Ex: Almoço" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Início</Label>
+                <Input type="time" value={newBloqueio.horario_inicio} onChange={(e) => setNewBloqueio({...newBloqueio, horario_inicio: e.target.value})} />
+              </div>
+              <div>
+                <Label className="text-xs">Fim</Label>
+                <Input type="time" value={newBloqueio.horario_fim} onChange={(e) => setNewBloqueio({...newBloqueio, horario_fim: e.target.value})} />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBloqueioDialog(false)}>Fechar</Button>
+            <Button onClick={salvarBloqueio}>Adicionar Bloqueio</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Copy Week Dialog */}
+      <Dialog open={showCopyWeekDialog} onOpenChange={setShowCopyWeekDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copiar Semana</DialogTitle>
+            <DialogDescription>Copiar todos os horários de uma semana para outra</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>De:</Label>
+              <Select value={String(copyFromWeek)} onValueChange={(v) => setCopyFromWeek(parseInt(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4].map(w => <SelectItem key={w} value={String(w)}>Semana {w}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Para:</Label>
+              <Select value={String(copyToWeek)} onValueChange={(v) => setCopyToWeek(parseInt(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4].filter(w => w !== copyFromWeek).map(w => <SelectItem key={w} value={String(w)}>Semana {w}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCopyWeekDialog(false)}>Cancelar</Button>
+            <Button onClick={copiarSemana}>Copiar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
