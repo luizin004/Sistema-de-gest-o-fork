@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
     host: "0.0.0.0",
     port: process.env.PORT ? parseInt(process.env.PORT) : 8080,
     strictPort: false,
-    allowedHosts: ["front-end-brumadinho-production.up.railway.app", ".railway.app"],
+    allowedHosts: ["odontomanager-production.up.railway.app", ".railway.app"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
