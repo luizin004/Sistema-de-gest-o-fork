@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Send, MessageSquare, Download, Loader2, AlertCircle, RotateCcw, CheckCheck } from "lucide-react";
+import { Send, MessageSquare, Download, Loader2, AlertCircle, RotateCcw, CheckCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +80,8 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingLocal, setIsSendingLocal] = useState(false);
+  const [isDeletingHistory, setIsDeletingHistory] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage } = useMessageSender({
@@ -152,6 +154,42 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
 
   // Chave estável para usar como dependência de useEffect
   const phoneKey = useMemo(() => [...phoneVariants].sort().join(','), [phoneVariants]);
+
+  const handleDeleteHistory = useCallback(async () => {
+    if (phoneVariants.length === 0) return;
+    setIsDeletingHistory(true);
+    try {
+      let query = supabase
+        .from('uazapi_chat_messages' as any)
+        .delete()
+        .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','));
+      if (instanceId) {
+        query = (query as any).eq('instance_id', instanceId);
+      } else {
+        query = (query as any).is('instance_id', null);
+      }
+      const { error } = await query;
+      if (error) throw error;
+
+      // Also reset the conversation for this instance
+      if (instanceId) {
+        await supabase
+          .from('chatbot_conversations' as any)
+          .delete()
+          .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
+          .eq('instance_id', instanceId);
+      }
+
+      setMessages([]);
+      toast.success("Histórico de mensagens apagado!");
+    } catch (error) {
+      console.error("Error deleting history:", error);
+      toast.error("Erro ao apagar histórico");
+    } finally {
+      setIsDeletingHistory(false);
+      setShowDeleteConfirm(false);
+    }
+  }, [phoneVariants, instanceId]);
 
   useEffect(() => {
     if (phoneVariants.length === 0) {
@@ -398,10 +436,43 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-[#075e54] text-white px-4 py-3 rounded-t-lg">
-        <h3 className="font-semibold text-sm">{contactName}</h3>
-        <p className="text-xs text-white/70">{contactPhone}</p>
+      <div className="bg-[#075e54] text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">{contactName}</h3>
+          <p className="text-xs text-white/70">{contactPhone}</p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 rounded-md hover:bg-white/20 transition-colors"
+            title="Apagar histórico de mensagens"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-center justify-between">
+          <p className="text-xs text-red-700">Apagar todo o histórico desta conversa?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteHistory}
+              disabled={isDeletingHistory}
+              className="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+            >
+              {isDeletingHistory ? "Apagando..." : "Confirmar"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Chat area */}
       <div 

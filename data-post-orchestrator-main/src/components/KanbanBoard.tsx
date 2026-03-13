@@ -447,33 +447,34 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
       toast.error("Status inválido");
       return;
     }
-    
+
+    // Map column names to actual lead statuses
+    const columnToDefaultStatus: Record<string, string> = {
+      "Em Negociação": "engajou",
+      "Em Cadência": "cadencia",
+      "Interessados em agendar": "interessado em agendar consulta",
+      "Agendados": "agendou consulta",
+      "Em Atenção": "atencao",
+      "Problemas/Perdidos": "impecilho",
+    };
+    const resolvedStatus = columnToDefaultStatus[newStatus] || newStatus;
+
     try {
       const post = localPosts.find(p => p.id === postId);
       const currentStatus = post?.status;
-      
-      // Verifica se o lead tem status de engajamento
-      const engagementStatuses = ['respondeu', 'interagiu', 'engajou', 'impecilho', 'cadencia', 'cadência'];
       const postStatus = currentStatus?.toLowerCase().trim();
-      const hasEngagementStatus = postStatus && engagementStatuses.includes(postStatus);
-      
-      // Se tem status de engajamento, não pode ser movido
-      if (hasEngagementStatus && newStatus !== "interagiu") {
-        toast.error("Este lead está em processo de engajamento e deve permanecer na coluna 'interagiu'");
-        return;
-      }
-      
+
       // Impede mover de "Agendou consulta" ou "Agendado por fora" para colunas anteriores
-      if ((postStatus === "agendou consulta" || postStatus === "agendado por fora") && (newStatus === "interagiu" || newStatus === "interessado em agendar consulta")) {
+      if ((postStatus === "agendou consulta" || postStatus === "agendado por fora") && (newStatus === "Em Negociação" || newStatus === "Interessados em agendar")) {
         toast.error("Não é possível mover um paciente já agendado para colunas anteriores.");
         return;
       }
-      
+
       // Normaliza o telefone para o formato padrão (DDD + 8 dígitos)
       const normalizedPhone = post?.telefone ? normalizePhoneForAgendamento(post.telefone) : null;
-      
-      // Atualiza o status e normaliza o telefone se necessário
-      const updateData: Record<string, unknown> = { status: newStatus };
+
+      // Atualiza o status usando o status real, não o nome da coluna
+      const updateData: Record<string, unknown> = { status: resolvedStatus };
       
       // Se o telefone atual é diferente do normalizado, também atualiza
       if (post?.telefone && normalizedPhone && post.telefone !== normalizedPhone) {

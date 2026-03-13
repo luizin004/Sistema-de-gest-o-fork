@@ -1443,6 +1443,7 @@ serve(async (req) => {
     const botName: string = (chatbotConfig as any).name || "Bot";
     const postUpdate: Record<string, unknown> = {
       updated_at: now,
+      ultima_mensagem_at: now,
       bot_name: botName,
       instance_name: instanceName,
       instance_id: instanceDbId,

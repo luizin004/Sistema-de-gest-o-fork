@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, X, Calendar, ChevronDown, ChevronUp, Sparkles, UserCheck, Stethoscope } from "lucide-react";
+import { Search, Filter, X, Calendar, ChevronDown, ChevronUp, Sparkles, UserCheck, Stethoscope, Wifi, Bot } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,8 @@ interface Post {
   data_marcada: string | null;
   created_at: string;
   feedback: string | null;
+  instance_name?: string | null;
+  bot_name?: string | null;
 }
 
 export interface FilterState {
@@ -38,6 +40,8 @@ export interface FilterState {
   statusFilter: string;
   dentistaFilter: string;
   tratamentoFilter: string;
+  instanceFilter: string;
+  botFilter: string;
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
 }
@@ -55,20 +59,24 @@ export const useLeadFilters = (posts: Post[]) => {
     statusFilter: "all",
     dentistaFilter: "all",
     tratamentoFilter: "all",
+    instanceFilter: "all",
+    botFilter: "all",
     dateFrom: undefined,
     dateTo: undefined,
   });
 
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = 
+    const matchesSearch =
       post.nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       post.telefone?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       post.tratamento?.toLowerCase().includes(filters.searchTerm.toLowerCase());
-    
-    const matchesStatus = filters.statusFilter === "all" || 
+
+    const matchesStatus = filters.statusFilter === "all" ||
       post.status.toLowerCase() === filters.statusFilter.toLowerCase();
     const matchesDentista = filters.dentistaFilter === "all" || post.dentista === filters.dentistaFilter;
     const matchesTratamento = filters.tratamentoFilter === "all" || post.tratamento === filters.tratamentoFilter;
+    const matchesInstance = filters.instanceFilter === "all" || (post as any).instance_name === filters.instanceFilter;
+    const matchesBot = filters.botFilter === "all" || (post as any).bot_name === filters.botFilter;
 
     let matchesDate = true;
     if (filters.dateFrom || filters.dateTo) {
@@ -85,7 +93,7 @@ export const useLeadFilters = (posts: Post[]) => {
       }
     }
 
-    return matchesSearch && matchesStatus && matchesDentista && matchesTratamento && matchesDate;
+    return matchesSearch && matchesStatus && matchesDentista && matchesTratamento && matchesInstance && matchesBot && matchesDate;
   });
 
   return { filters, setFilters, filteredPosts };
@@ -98,6 +106,8 @@ export const LeadFilters = ({ posts, filters, onFiltersChange, compact = false }
   const uniqueStatuses = Array.from(new Set(posts.map(p => p.status)));
   const uniqueDentistas = Array.from(new Set(posts.map(p => p.dentista).filter(Boolean))) as string[];
   const uniqueTratamentos = Array.from(new Set(posts.map(p => p.tratamento).filter(Boolean))) as string[];
+  const uniqueInstances = Array.from(new Set(posts.map(p => (p as any).instance_name).filter(Boolean))) as string[];
+  const uniqueBots = Array.from(new Set(posts.map(p => (p as any).bot_name).filter(Boolean))) as string[];
 
   const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -109,16 +119,20 @@ export const LeadFilters = ({ posts, filters, onFiltersChange, compact = false }
       statusFilter: "all",
       dentistaFilter: "all",
       tratamentoFilter: "all",
+      instanceFilter: "all",
+      botFilter: "all",
       dateFrom: undefined,
       dateTo: undefined,
     });
   };
 
-  const hasActiveFilters = 
-    filters.searchTerm || 
-    filters.statusFilter !== "all" || 
+  const hasActiveFilters =
+    filters.searchTerm ||
+    filters.statusFilter !== "all" ||
     filters.dentistaFilter !== "all" ||
     filters.tratamentoFilter !== "all" ||
+    filters.instanceFilter !== "all" ||
+    filters.botFilter !== "all" ||
     filters.dateFrom ||
     filters.dateTo;
 
@@ -127,6 +141,8 @@ export const LeadFilters = ({ posts, filters, onFiltersChange, compact = false }
     filters.statusFilter !== "all",
     filters.dentistaFilter !== "all",
     filters.tratamentoFilter !== "all",
+    filters.instanceFilter !== "all",
+    filters.botFilter !== "all",
     filters.dateFrom || filters.dateTo,
   ].filter(Boolean).length;
 
@@ -177,7 +193,7 @@ export const LeadFilters = ({ posts, filters, onFiltersChange, compact = false }
       {/* Filters Grid */}
       {isExpanded && (
         <div className="px-4 pb-4 border-t border-border/40 bg-muted/10">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 pt-4">
             {/* Search */}
             <div className="relative col-span-2 md:col-span-1 lg:col-span-2 group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -246,6 +262,44 @@ export const LeadFilters = ({ posts, filters, onFiltersChange, compact = false }
                   <SelectItem key={tratamento} value={tratamento}>
                     {tratamento}
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Instance Filter */}
+            <Select
+              value={filters.instanceFilter}
+              onValueChange={(v) => updateFilter("instanceFilter", v)}
+            >
+              <SelectTrigger className="h-10 filter-input rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Wifi className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Instância" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas instâncias</SelectItem>
+                {uniqueInstances.map(inst => (
+                  <SelectItem key={inst} value={inst}>{inst}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Bot Filter */}
+            <Select
+              value={filters.botFilter}
+              onValueChange={(v) => updateFilter("botFilter", v)}
+            >
+              <SelectTrigger className="h-10 filter-input rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Bot" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os bots</SelectItem>
+                {uniqueBots.map(bot => (
+                  <SelectItem key={bot} value={bot}>{bot}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
