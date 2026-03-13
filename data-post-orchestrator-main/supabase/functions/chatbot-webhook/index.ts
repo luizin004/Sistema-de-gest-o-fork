@@ -1319,12 +1319,16 @@ serve(async (req) => {
             if (leadData?.nome) leadNome = leadData.nome;
           }
 
+          // Store data_marcada with correct São Paulo timezone to avoid UTC shift
+          // chosenSlot.date = "2026-04-10", chosenSlot.start = "08:00"
+          const dataMarcadaWithTz = `${chosenSlot.date}T${chosenSlot.start}:00-03:00`;
+
           const { error: agError } = await supabase.from("agendamento").insert({
             id: agendamentoId,
             tenant_id: tenantId,
             nome: leadNome,
             telefone: phone,
-            data_marcada: chosenSlot.date,
+            data_marcada: dataMarcadaWithTz,
             horario: chosenSlot.start,
             tratamento: schedulingData?.treatment_name || null,
             source: "bot_fixo",
@@ -1351,11 +1355,12 @@ serve(async (req) => {
           } else {
             finalReply = `Pronto! Sua consulta de ${schedulingData?.treatment_name || "tratamento"} está confirmada para ${chosenSlot.dayLabel} às ${chosenSlot.start}. Aguardamos você! 😊`;
             aiResponse.status = "agendou consulta";
-            aiResponse.should_pause = true;
+            // In agendamento_fixo mode, do NOT pause the bot — it keeps attending
+            // Only pause in flexible mode (when status = "interessado em agendar consulta")
+            aiResponse.should_pause = false;
 
             convUpdateExtra = {
               scheduling_state: "confirmed",
-              pause_reason: "agendou consulta",
               scheduling_data: {
                 ...schedulingData,
                 booked_agendamento_id: agendamentoId,

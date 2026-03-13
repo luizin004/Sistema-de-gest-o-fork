@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Send, MessageSquare, Download, Loader2, AlertCircle, RotateCcw, CheckCheck, Trash2 } from "lucide-react";
+import { Send, MessageSquare, Download, Loader2, AlertCircle, RotateCcw, CheckCheck, Trash2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +82,7 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
   const [isSendingLocal, setIsSendingLocal] = useState(false);
   const [isDeletingHistory, setIsDeletingHistory] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSendingAiResponse, setIsSendingAiResponse] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage } = useMessageSender({
@@ -190,6 +191,80 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
       setShowDeleteConfirm(false);
     }
   }, [phoneVariants, instanceId]);
+
+  // Trigger a single AI response to the latest unanswered messages
+  const handleSendAiResponse = useCallback(async () => {
+    if (!contactPhone) return;
+    setIsSendingAiResponse(true);
+    try {
+      // Find the lead for this phone+instance
+      let leadQuery = supabase.from('posts').select('id').eq('telefone', contactPhone);
+      if (instanceId) leadQuery = leadQuery.eq('instance_id', instanceId);
+      const { data: leadData } = await leadQuery.maybeSingle();
+
+      if (!leadData?.id) {
+        toast.error("Lead não encontrado");
+        setIsSendingAiResponse(false);
+        return;
+      }
+
+      // Reactivate bot for one response: set bot_active=true, then send a synthetic webhook
+      // We do this by calling the chatbot-webhook function with the last inbound message
+      const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound');
+      if (!lastInbound) {
+        toast.error("Nenhuma mensagem do cliente para responder");
+        setIsSendingAiResponse(false);
+        return;
+      }
+
+      // Temporarily reactivate bot
+      if (instanceId) {
+        await supabase
+          .from('chatbot_conversations' as any)
+          .update({ bot_active: true, pause_reason: null })
+          .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
+          .eq('instance_id', instanceId);
+      }
+
+      // Look up the UAZAPI instance_id string from the DB uuid
+      let uazapiInstanceId = instanceId;
+      if (instanceId) {
+        const { data: instData } = await supabase
+          .from('uazapi_instances' as any)
+          .select('instance_id, name')
+          .eq('id', instanceId)
+          .maybeSingle();
+        if (instData) {
+          uazapiInstanceId = (instData as any).instance_id || (instData as any).name || instanceId;
+        }
+      }
+
+      // Call chatbot-webhook to generate AI response
+      const res = await fetch(`${SUPABASE_FN_URL}/chatbot-webhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: contactPhone,
+          body: lastInbound.content || '',
+          type: 'text',
+          instanceId: uazapiInstanceId || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Resposta de IA enviada!");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("AI response error:", errData);
+        toast.error("Erro ao enviar resposta de IA");
+      }
+    } catch (error) {
+      console.error("Error sending AI response:", error);
+      toast.error("Erro ao enviar resposta de IA");
+    } finally {
+      setIsSendingAiResponse(false);
+    }
+  }, [contactPhone, instanceId, messages, phoneVariants]);
 
   useEffect(() => {
     if (phoneVariants.length === 0) {
@@ -554,6 +629,16 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
 
       {/* Input area */}
       <div className="bg-[#f0f0f0] px-2 py-2 flex items-center gap-2 rounded-b-lg">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 rounded-full hover:bg-purple-100"
+          onClick={handleSendAiResponse}
+          disabled={isSendingAiResponse || messages.length === 0}
+          title="Enviar resposta de IA"
+        >
+          {isSendingAiResponse ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5 text-purple-600" />}
+        </Button>
         <Input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}

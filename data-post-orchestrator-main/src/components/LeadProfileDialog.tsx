@@ -379,14 +379,26 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
       if (postError) throw postError;
 
       if (lead.telefone) {
-        const { error: convError } = await (supabaseUntyped as any)
+        // Normalize phone to match chatbot_conversations format
+        const digits = lead.telefone.replace(/\D/g, '').replace(/^0+/, '');
+        const normalizedPhone = digits.startsWith('55') ? digits : `55${digits}`;
+
+        let convQuery = (supabaseUntyped as any)
           .from("chatbot_conversations")
           .update({
             bot_active: !pause,
             pause_reason: newPauseReason,
           })
-          .eq("phone_number", lead.telefone)
           .eq("tenant_id", tenantId);
+
+        // Filter by instance if available
+        if (lead.instance_id) {
+          convQuery = convQuery.eq("instance_id", lead.instance_id);
+        }
+
+        // Try with normalized phone, fallback to original
+        const { error: convError } = await convQuery
+          .or(`phone_number.eq.${normalizedPhone},phone_number.eq.${digits}`);
 
         if (convError) {
           console.warn("[BOT-TOGGLE] Erro ao atualizar chatbot_conversations:", convError);
