@@ -475,6 +475,9 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
 
       // Atualiza o status usando o status real, não o nome da coluna
       const updateData: Record<string, unknown> = { status: resolvedStatus };
+
+      // Optimistic update — move card immediately without waiting for realtime
+      setLocalPosts(prev => prev.map(p => p.id === postId ? { ...p, status: resolvedStatus } : p));
       
       // Se o telefone atual é diferente do normalizado, também atualiza
       if (post?.telefone && normalizedPhone && post.telefone !== normalizedPhone) {
@@ -641,30 +644,12 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
         }
       }
       
-      setLocalPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                status: newStatus,
-                telefone:
-                  updateData.telefone && typeof updateData.telefone === "string"
-                    ? (updateData.telefone as string)
-                    : p.telefone,
-              }
-            : p
-        )
-      );
-
       toast.success("Status atualizado com sucesso!");
-      if (onRefresh) {
-        onRefresh();
-      } else {
-        window.location.reload();
-      }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar status");
+      // Rollback optimistic update
+      setLocalPosts(prev => prev.map(p => p.id === postId ? { ...p, status: currentStatus || '' } : p));
     }
   }, [posts]);
 
