@@ -80,9 +80,6 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingLocal, setIsSendingLocal] = useState(false);
-  // uazapiInstanceStringId: the UAZAPI string instance_id resolved from uazapi_instances
-  // undefined = pending resolution, null = no filter (legacy), string = filter by this value
-  const [uazapiInstanceStringId, setUazapiInstanceStringId] = useState<string | null | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage } = useMessageSender({
@@ -156,42 +153,7 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
   // Chave estável para usar como dependência de useEffect
   const phoneKey = useMemo(() => [...phoneVariants].sort().join(','), [phoneVariants]);
 
-  // Resolve UAZAPI string instance_id from the DB uuid when instanceId prop is provided
   useEffect(() => {
-    if (!instanceId) {
-      // No instance_id on lead — legacy behavior, show all messages
-      setUazapiInstanceStringId(null);
-      return;
-    }
-    let cancelled = false;
-    const resolve = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('uazapi_instances' as any)
-          .select('instance_id')
-          .eq('id', instanceId)
-          .maybeSingle();
-        if (cancelled) return;
-        if (error || !data) {
-          console.warn('[EmbeddedWhatsAppChat] Could not resolve UAZAPI instance string id:', error?.message);
-          setUazapiInstanceStringId(null);
-          return;
-        }
-        setUazapiInstanceStringId((data as any).instance_id as string);
-      } catch (err) {
-        if (!cancelled) {
-          console.warn('[EmbeddedWhatsAppChat] Error resolving UAZAPI instance string id:', err);
-          setUazapiInstanceStringId(null);
-        }
-      }
-    };
-    resolve();
-    return () => { cancelled = true; };
-  }, [instanceId]);
-
-  useEffect(() => {
-    // Wait until instance resolution is complete
-    if (uazapiInstanceStringId === undefined) return;
     if (phoneVariants.length === 0) {
       setMessages([]);
       return;
@@ -210,9 +172,9 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
           .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
           .order('created_at', { ascending: true });
 
-        // Filter by instance when available
-        if (uazapiInstanceStringId) {
-          query = (query as any).eq('metadata->>instance_id', uazapiInstanceStringId);
+        // Filter by instance when available (direct column)
+        if (instanceId) {
+          query = (query as any).eq('instance_id', instanceId);
         }
 
         const { data, error } = await query;
@@ -230,11 +192,9 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
 
     fetchMessages();
     return () => { cancelled = true; };
-  }, [phoneKey, uazapiInstanceStringId]);
+  }, [phoneKey, instanceId]);
 
   useEffect(() => {
-    // Wait until instance resolution is complete
-    if (uazapiInstanceStringId === undefined) return;
     if (phoneVariants.length === 0) return;
 
     const phoneSet = new Set(phoneVariants);
@@ -254,9 +214,9 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
           const newMsg = payload.new as Message;
           if (!phoneSet.has(newMsg.phone_number)) return;
           // Instance filter for realtime
-          if (uazapiInstanceStringId) {
-            const msgInstanceId = newMsg.metadata?.instance_id;
-            if (msgInstanceId && msgInstanceId !== uazapiInstanceStringId) return;
+          if (instanceId) {
+            const msgInstanceId = (newMsg as any).instance_id;
+            if (msgInstanceId && msgInstanceId !== instanceId) return;
           }
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
@@ -291,7 +251,7 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [phoneKey, uazapiInstanceStringId]);
+  }, [phoneKey, instanceId]);
 
   useEffect(() => {
     if (scrollRef.current) {

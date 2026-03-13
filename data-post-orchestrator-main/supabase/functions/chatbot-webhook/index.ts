@@ -867,6 +867,7 @@ serve(async (req) => {
     const inboundInsert = await supabase.from("uazapi_chat_messages").insert({
       tenant_id: tenantId,
       phone_number: phone,
+      instance_id: instanceDbId,
       direction: "inbound",
       sender: "patient",
       content: messageText || null,
@@ -945,6 +946,7 @@ serve(async (req) => {
       .select("id, bot_active, message_count, current_funnel_status, pause_reason, scheduling_state, scheduling_data, chatbot_config_id")
       .eq("tenant_id", tenantId)
       .eq("phone_number", phone)
+      .eq("instance_id", instanceDbId)
       .maybeSingle();
 
     let convId: string;
@@ -980,6 +982,7 @@ serve(async (req) => {
           tenant_id: tenantId,
           post_id: leadId,
           phone_number: phone,
+          instance_id: instanceDbId,
           chatbot_config_id: chatbotConfigId,
           bot_active: true,
           message_count: 0,
@@ -1046,12 +1049,13 @@ serve(async (req) => {
     const openaiModel: string = tenantSettings.openai_model || "gpt-4o";
     const maxHistoryMessages: number = tenantSettings.max_history_messages ?? 15;
 
-    // Fetch history with tenant-level max
+    // Fetch history with tenant-level max (filtered by instance)
     const { data: historyData } = await supabase
       .from("uazapi_chat_messages")
       .select("direction, sender, content, message_type, created_at")
       .eq("tenant_id", tenantId)
       .eq("phone_number", phone)
+      .eq("instance_id", instanceDbId)
       .order("created_at", { ascending: false })
       .limit(maxHistoryMessages);
 
@@ -1060,7 +1064,7 @@ serve(async (req) => {
     if (!openaiApiKey) {
       console.error(`[CHATBOT] No OpenAI API key configured for bot ${chatbotConfigId}`);
       const noKeyReply = "Olá! Estamos configurando nosso atendimento. Em breve retornaremos!";
-      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase, undefined, instanceId);
+      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase, undefined, instanceId, instanceDbId);
       return jsonResponse({ ok: true, error: "no_openai_api_key" });
     }
 
@@ -1084,7 +1088,7 @@ serve(async (req) => {
         const longAudioReply =
           "Olá! Recebi seu áudio, mas ele está um pouquinho longo. Poderia resumir em texto? Fico feliz em ajudar! 😊";
 
-        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, longAudioReply, tenantId, supabase, undefined, instanceId);
+        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, longAudioReply, tenantId, supabase, undefined, instanceId, instanceDbId);
 
         return jsonResponse({ ok: true, action: "audio_too_long" });
       }
@@ -1095,7 +1099,7 @@ serve(async (req) => {
         console.warn("[CHATBOT] Transcription failed, sending fallback reply.");
         const transcribeFallback =
           "Não consegui ouvir seu áudio. Poderia enviar sua mensagem em texto? 😊";
-        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, transcribeFallback, tenantId, supabase, undefined, instanceId);
+        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, transcribeFallback, tenantId, supabase, undefined, instanceId, instanceDbId);
         return jsonResponse({ ok: true, action: "transcription_failed" });
       }
 
@@ -1212,7 +1216,7 @@ serve(async (req) => {
       console.error("[CHATBOT] OpenAI returned null response, sending fallback.");
       const fallbackReply =
         "Olá! No momento estou com dificuldades técnicas. Nossa equipe entrará em contato em breve!";
-      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, fallbackReply, tenantId, supabase, undefined, instanceId);
+      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, fallbackReply, tenantId, supabase, undefined, instanceId, instanceDbId);
       return jsonResponse({ ok: true, action: "ai_fallback" });
     }
 
@@ -1382,7 +1386,8 @@ serve(async (req) => {
       tenantId,
       supabase,
       leadId,
-      instanceId
+      instanceId,
+      instanceDbId
     );
 
     console.log(`[CHATBOT] Message sent: ${sendResult.success}`);
@@ -1486,7 +1491,8 @@ async function sendWhatsApp(
   tenantId: string,
   supabase: ReturnType<typeof createClient>,
   leadId?: string,
-  instanceId?: string
+  instanceId?: string,
+  instanceDbId?: string
 ): Promise<{ success: boolean; messageId: string | null }> {
   let success = false;
   let messageId: string | null = null;
@@ -1531,6 +1537,7 @@ async function sendWhatsApp(
     tenant_id: tenantId,
     lead_id: leadId || null,
     phone_number: phone,
+    instance_id: instanceDbId || null,
     direction: "outbound",
     sender: "bot",
     content: text,
