@@ -1298,17 +1298,23 @@ serve(async (req) => {
         } else {
           // Create agendamento record
           const agendamentoId = crypto.randomUUID();
+          // Fetch lead name and phone for agendamento record
+          let leadNome = senderName || phone;
+          if (leadId) {
+            const { data: leadData } = await supabase.from("posts").select("nome, telefone").eq("id", leadId).maybeSingle();
+            if (leadData?.nome) leadNome = leadData.nome;
+          }
+
           const { error: agError } = await supabase.from("agendamento").insert({
             id: agendamentoId,
             tenant_id: tenantId,
-            post_id: leadId,
+            nome: leadNome,
+            telefone: phone,
             data_marcada: chosenSlot.date,
             horario: chosenSlot.start,
-            duracao_minutos: schedulingData?.duracao_minutos || 60,
             tratamento: schedulingData?.treatment_name || null,
-            tratamento_id: schedulingData?.treatment_id || null,
             source: "bot_fixo",
-            status: "confirmado",
+            confirmado: true,
             created_at: new Date().toISOString(),
           });
 
