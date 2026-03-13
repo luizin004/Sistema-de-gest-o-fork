@@ -35,6 +35,7 @@ import Consultorios from "./pages/ConsultoriosSupabase";
 import Dados from "./pages/Dados";
 import NotFound from "./pages/NotFound";
 import MinhaConta from "./pages/MinhaConta";
+import Configuracoes from "./pages/Configuracoes";
 import logoLamor from "@/assets/lamoria.png";
 import { TenantProvider } from "@/hooks/useTenant";
 
@@ -58,7 +59,8 @@ const ROUTE_LABELS: Record<string, string> = {
   "/admin/chat-monitor": "Monitor de Conversas",
   "/chatbot-config": "Chatbot IA",
   "/minha-conta": "Minha Conta",
-  "/admin": "Configurações",
+  "/configuracoes": "Configurações",
+  "/admin": "Administração",
 };
 
 const getPageLabel = (pathname: string) => {
@@ -211,6 +213,11 @@ const AppContent = () => {
             <Route path="/minha-conta" element={
               <AuthGuard>
                 <MinhaConta />
+              </AuthGuard>
+            } />
+            <Route path="/configuracoes" element={
+              <AuthGuard>
+                <Configuracoes />
               </AuthGuard>
             } />
             <Route path="/usuarios" element={

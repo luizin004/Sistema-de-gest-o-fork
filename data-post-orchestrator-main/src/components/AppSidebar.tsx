@@ -58,7 +58,7 @@ const baseOperationsItems: NavItem[] = [
   { label: "Dados", href: "/dentistas", icon: Database },
   { label: "Disparos", href: "/disparos", icon: Share2, permissionKey: 'allowDisparosWhatsapp' },
   { label: "Chatbot IA", href: "/chatbot-config", icon: Bot, permissionKey: 'allowChatbot' },
-  { label: "Configurações", href: "/admin", icon: Settings },
+  { label: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
 const isActivePath = (pathname: string, href: string) => {
