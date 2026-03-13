@@ -50,9 +50,10 @@ interface BotListProps {
   onDelete: (botId: string) => void;
   onDuplicate: (bot: ChatbotConfig) => void;
   onEditGlobal: () => void;
+  onToggle: (bot: ChatbotConfig) => void;
 }
 
-function BotList({ bots, instances, tenantSettings, onEdit, onNew, onDelete, onDuplicate, onEditGlobal }: BotListProps) {
+function BotList({ bots, instances, tenantSettings, onEdit, onNew, onDelete, onDuplicate, onEditGlobal, onToggle }: BotListProps) {
   const getLinkedInstances = (botId: string) =>
     instances.filter((inst) => inst.chatbot_config_id === botId);
 
@@ -157,6 +158,11 @@ function BotList({ bots, instances, tenantSettings, onEdit, onNew, onDelete, onD
                         </div>
                       </div>
                     </div>
+                    <Switch
+                      checked={bot.bot_enabled}
+                      onCheckedChange={() => onToggle(bot)}
+                      className="data-[state=checked]:bg-green-500"
+                    />
                   </div>
 
                   {bot.clinic_name && (
@@ -496,6 +502,18 @@ const ChatbotConfigPage = () => {
     }
   };
 
+  const handleToggle = async (bot: ChatbotConfig) => {
+    const newEnabled = !bot.bot_enabled;
+    setBots(prev => prev.map(b => b.id === bot.id ? { ...b, bot_enabled: newEnabled } : b));
+    const result = await updateBot(bot.id!, { bot_enabled: newEnabled });
+    if (result) {
+      toast.success(newEnabled ? "Bot ativado" : "Bot desativado");
+    } else {
+      setBots(prev => prev.map(b => b.id === bot.id ? { ...b, bot_enabled: bot.bot_enabled } : b));
+      toast.error("Erro ao alterar status do bot");
+    }
+  };
+
   const handleSave = async () => {
     if (!tenantId) {
       toast.error("Tenant não identificado.");
@@ -698,6 +716,7 @@ const ChatbotConfigPage = () => {
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
             onEditGlobal={() => setView("editGlobal")}
+            onToggle={handleToggle}
           />
         )}
 
