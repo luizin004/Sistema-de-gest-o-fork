@@ -239,7 +239,7 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
         }
       }
 
-      // Call chatbot-webhook to generate AI response
+      // Call chatbot-webhook with _replay flag to skip storing the inbound message
       const res = await fetch(`${SUPABASE_FN_URL}/chatbot-webhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,6 +248,7 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
           body: lastInbound.content || '',
           type: 'text',
           instanceId: uazapiInstanceId || undefined,
+          _replay: true,
         }),
       });
 

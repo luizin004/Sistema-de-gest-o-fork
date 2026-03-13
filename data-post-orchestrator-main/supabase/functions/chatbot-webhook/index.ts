@@ -120,6 +120,8 @@ interface UazapiWebhookPayload {
   EventType?: string;
   owner?: string;
   token?: string;
+  // Internal: skip storing inbound message (used by "Send AI Response" button)
+  _replay?: boolean;
 }
 
 interface ExtractedMessage {
@@ -875,7 +877,11 @@ serve(async (req) => {
 
     // ------------------------------------------------------------------
     // 3. Store incoming message in uazapi_chat_messages
+    //    (skip if _replay=true — message already exists, just need AI response)
     // ------------------------------------------------------------------
+    const isReplay = rawBody._replay === true || (rawBody.data as any)?._replay === true;
+
+    if (!isReplay) {
     const inboundInsert = await supabase.from("uazapi_chat_messages").insert({
       tenant_id: tenantId,
       phone_number: phone,
@@ -897,6 +903,9 @@ serve(async (req) => {
 
     if (inboundInsert.error) {
       console.warn("[CHATBOT] Failed to store inbound message:", inboundInsert.error.message);
+    }
+    } else {
+      console.log("[CHATBOT] Replay mode — skipping inbound message storage");
     }
 
     // ------------------------------------------------------------------
@@ -1017,7 +1026,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     // 6. If bot_active=false → human is handling, skip AI
     // ------------------------------------------------------------------
-    if (!botActive) {
+    if (!botActive && !isReplay) {
       console.log(`[CHATBOT] Bot paused for conv ${convId}, human handling.`);
       return jsonResponse({ ok: true, ignored: true, reason: "bot_paused" });
     }
