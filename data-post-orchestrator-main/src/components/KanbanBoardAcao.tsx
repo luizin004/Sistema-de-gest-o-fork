@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Clock, Phone, User, Target, MessageCircle, Clock4, AlertTriangle, CalendarCheck2, Repeat, Search, Plus } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Phone, User, Target, MessageCircle, Clock4, AlertTriangle, CalendarCheck2, Repeat, Search, Plus, Bot, Wifi } from "lucide-react";
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, rectIntersection, useDroppable, useDraggable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { supabase, supabaseUntyped } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,6 +31,8 @@ interface Post {
   campanha_nome?: string | null;
   nao_respondeu: boolean;
   ultima_mensagem_at: string | null;
+  bot_name?: string | null;
+  instance_name?: string | null;
 }
 
 interface KanbanBoardAcaoProps {
@@ -314,6 +316,24 @@ const DraggableCard = ({ post, onClick }: { post: Post; onClick: () => void }) =
                 <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 border border-blue-200"
                   title="Lead em processo de engajamento - não pode ser movido">
                   {engagementStatusLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Linha 4: Bot e Instância */}
+          {(post.bot_name || post.instance_name) && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5 border-t border-gray-100">
+              {post.bot_name && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-cyan-50 text-cyan-700 border border-cyan-200" title="Bot atendendo">
+                  <Bot className="h-3 w-3" />
+                  {post.bot_name}
+                </span>
+              )}
+              {post.instance_name && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-teal-50 text-teal-700 border border-teal-200" title="Instância conectada">
+                  <Wifi className="h-3 w-3" />
+                  {post.instance_name}
                 </span>
               )}
             </div>

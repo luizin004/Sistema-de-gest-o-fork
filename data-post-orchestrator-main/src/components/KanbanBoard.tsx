@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Clock, Phone, User, Move, ChevronDown, ChevronUp, TrendingUp, Archive, Download, Target, MessageCircle, Clock4, CalendarCheck2, Smile, CheckCircle2, AlertTriangle, Search, Plus, Bot } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Phone, User, Move, ChevronDown, ChevronUp, TrendingUp, Archive, Download, Target, MessageCircle, Clock4, CalendarCheck2, Smile, CheckCircle2, AlertTriangle, Search, Plus, Bot, Wifi } from "lucide-react";
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, rectIntersection, useDroppable, useDraggable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useRef, useCallback, useEffect, useMemo, memo, ComponentType } from "react";
@@ -1761,6 +1761,24 @@ const DraggableCard = memo(({
               {hasEngagementStatus && engagementStatusLabel && (
                 <span className="inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-medium bg-blue-50 text-blue-600 border border-blue-200">
                   {engagementStatusLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Linha 5: Bot e Instância */}
+          {(post.bot_name || post.instance_name) && (
+            <div className="flex flex-wrap gap-1 pt-0.5 border-t border-gray-100">
+              {post.bot_name && (
+                <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full font-medium bg-cyan-50 text-cyan-700 border border-cyan-200" title="Bot atendendo">
+                  <Bot className="h-2.5 w-2.5 flex-shrink-0" />
+                  <span className="truncate">{post.bot_name}</span>
+                </span>
+              )}
+              {post.instance_name && (
+                <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full font-medium bg-teal-50 text-teal-700 border border-teal-200" title="Instância conectada">
+                  <Wifi className="h-2.5 w-2.5 flex-shrink-0" />
+                  <span className="truncate">{post.instance_name}</span>
                 </span>
               )}
             </div>

@@ -18,4 +18,6 @@ export interface Post {
   ultima_mensagem_at?: string | null; // Timestamp da última mensagem
   bot_paused?: boolean; // Bot pausado por humano ou automação
   bot_pause_reason?: string | null; // Motivo da pausa do bot
+  bot_name?: string | null; // Nome do bot que está atendendo
+  instance_name?: string | null; // Nome da instância UAZAPI conectada
 }

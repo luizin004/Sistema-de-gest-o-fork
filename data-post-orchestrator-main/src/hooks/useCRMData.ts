@@ -25,6 +25,8 @@ export interface Post {
   tenant_id: string | null;
   bot_paused: boolean | null;
   bot_pause_reason: string | null;
+  bot_name: string | null;
+  instance_name: string | null;
 }
 
 export interface Arquivado {

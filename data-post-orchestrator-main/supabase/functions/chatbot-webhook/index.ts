@@ -849,6 +849,7 @@ serve(async (req) => {
     }
 
     const { tenant_id: tenantId, token: uazapiToken, api_url: uazapiApiUrl } = instance;
+    const instanceName: string = instance.name || instanceId;
     const chatbotConfigId: string | null = instance.chatbot_config_id || null;
     const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/send/text`;
 
@@ -916,6 +917,7 @@ serve(async (req) => {
         telefone: phone,
         nome: senderName || phone,
         status: "respondeu",
+        instance_name: instanceName,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -935,7 +937,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     const { data: existingConv } = await supabase
       .from("chatbot_conversations")
-      .select("id, bot_active, message_count, current_funnel_status, pause_reason, scheduling_state, scheduling_data")
+      .select("id, bot_active, message_count, current_funnel_status, pause_reason, scheduling_state, scheduling_data, chatbot_config_id")
       .eq("tenant_id", tenantId)
       .eq("phone_number", phone)
       .maybeSingle();
@@ -946,8 +948,25 @@ serve(async (req) => {
 
     if (existingConv) {
       convId = existingConv.id;
-      botActive = existingConv.bot_active !== false; // default true
       messageCount = existingConv.message_count || 0;
+
+      // Se o bot da instância mudou, migra a conversa para o novo bot e reativa
+      if (chatbotConfigId && existingConv.chatbot_config_id !== chatbotConfigId) {
+        console.log(`[CHATBOT] Bot changed for conv ${convId}: ${existingConv.chatbot_config_id} → ${chatbotConfigId}. Migrating and reactivating.`);
+        await supabase
+          .from("chatbot_conversations")
+          .update({
+            chatbot_config_id: chatbotConfigId,
+            bot_active: true,
+            pause_reason: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", convId);
+        botActive = true;
+      } else {
+        botActive = existingConv.bot_active !== false;
+      }
+
       console.log(`[CHATBOT] Found conversation: ${convId} | bot_active: ${botActive}`);
     } else {
       const { data: newConv, error: convInsertError } = await supabase
@@ -1388,7 +1407,12 @@ serve(async (req) => {
     // 15. Update posts.status
     // ------------------------------------------------------------------
     const newLeadStatus = aiResponse.status || currentLeadStatus;
-    const postUpdate: Record<string, unknown> = { updated_at: now };
+    const botName: string = (chatbotConfig as any).name || "Bot";
+    const postUpdate: Record<string, unknown> = {
+      updated_at: now,
+      bot_name: botName,
+      instance_name: instanceName,
+    };
     if (newLeadStatus !== currentLeadStatus) {
       postUpdate.status = newLeadStatus;
     }
@@ -1396,7 +1420,8 @@ serve(async (req) => {
       postUpdate.bot_paused = true;
       postUpdate.bot_pause_reason = aiResponse.status;
     }
-    if (Object.keys(postUpdate).length > 1) {
+    // Always update (bot_name/instance_name may change)
+    {
       await supabase.from("posts").update(postUpdate).eq("id", leadId);
       console.log(`[CHATBOT] Lead ${leadId} status: ${currentLeadStatus} → ${newLeadStatus} | paused: ${aiResponse.should_pause}`);
     }
