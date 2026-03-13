@@ -80,6 +80,7 @@ interface Agendamento {
   dentista: string | null;
   tratamento: string | null;
   tenant_id: string | null;
+  instance_id: string | null;
 }
 
 interface UazapiInstance {
@@ -117,7 +118,7 @@ serve(async (req) => {
     const { data: pendingConfirmations, error: confError } = await supabase
       .from("agendamento")
       .select(
-        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id"
+        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id, instance_id"
       )
       .eq("confirmation_sent", false)
       .not("telefone", "is", null)
@@ -141,7 +142,7 @@ serve(async (req) => {
     const { data: pending24h, error: err24h } = await supabase
       .from("agendamento")
       .select(
-        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id"
+        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id, instance_id"
       )
       .eq("reminder_24h_sent", false)
       .eq("confirmation_sent", true)
@@ -166,7 +167,7 @@ serve(async (req) => {
     const { data: pending1h, error: err1h } = await supabase
       .from("agendamento")
       .select(
-        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id"
+        "id, nome, telefone, data_marcada, horario, dentista, tratamento, tenant_id, instance_id"
       )
       .eq("reminder_1h_sent", false)
       .eq("reminder_24h_sent", true)
@@ -181,30 +182,33 @@ serve(async (req) => {
     // -----------------------------------------------------------------------
     // Helper: resolve the UAZAPI instance for a given tenant.
     // -----------------------------------------------------------------------
-    async function getInstanceForTenant(
-      tenantId: string
+    async function getInstanceForAgendamento(
+      tenantId: string,
+      instanceId?: string | null
     ): Promise<{ token: string; apiUrl: string } | null> {
+      // If agendamento has a specific instance, use it
+      if (instanceId) {
+        const { data, error } = await supabase
+          .from("uazapi_instances")
+          .select("token, api_url, name")
+          .eq("id", instanceId)
+          .single<UazapiInstance>();
+        if (data && !error) {
+          return { token: data.token, apiUrl: data.api_url || "https://oralaligner.uazapi.com" };
+        }
+      }
+      // Fallback: first instance for tenant
       const { data, error } = await supabase
         .from("uazapi_instances")
         .select("token, api_url, name")
         .eq("tenant_id", tenantId)
         .limit(1)
         .single<UazapiInstance>();
-
       if (error || !data) {
-        if (error) {
-          console.error(
-            `[REMINDER] Could not fetch instance for tenant ${tenantId}:`,
-            error.message
-          );
-        }
+        if (error) console.error(`[REMINDER] Could not fetch instance for tenant ${tenantId}:`, error.message);
         return null;
       }
-
-      return {
-        token: data.token,
-        apiUrl: data.api_url || "https://oralaligner.uazapi.com",
-      };
+      return { token: data.token, apiUrl: data.api_url || "https://oralaligner.uazapi.com" };
     }
 
     // -----------------------------------------------------------------------
@@ -212,7 +216,7 @@ serve(async (req) => {
     // -----------------------------------------------------------------------
     for (const ag of (pendingConfirmations as Agendamento[]) || []) {
       const tenantId = ag.tenant_id || "oralaligner";
-      const instance = await getInstanceForTenant(tenantId);
+      const instance = await getInstanceForAgendamento(tenantId, ag.instance_id);
 
       if (!instance) {
         results.errors++;
@@ -264,7 +268,7 @@ serve(async (req) => {
     // -----------------------------------------------------------------------
     for (const ag of (pending24h as Agendamento[]) || []) {
       const tenantId = ag.tenant_id || "oralaligner";
-      const instance = await getInstanceForTenant(tenantId);
+      const instance = await getInstanceForAgendamento(tenantId, ag.instance_id);
 
       if (!instance) {
         results.errors++;
@@ -311,7 +315,7 @@ serve(async (req) => {
     // -----------------------------------------------------------------------
     for (const ag of (pending1h as Agendamento[]) || []) {
       const tenantId = ag.tenant_id || "oralaligner";
-      const instance = await getInstanceForTenant(tenantId);
+      const instance = await getInstanceForAgendamento(tenantId, ag.instance_id);
 
       if (!instance) {
         results.errors++;

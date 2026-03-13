@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { X, MessageSquare, Search, Filter, Users, Phone, Clock, Check, CheckCheck, AlertCircle, Target, Download, Loader2, Bot } from "lucide-react";
+import { X, MessageSquare, Search, Filter, Users, Phone, Clock, Check, CheckCheck, AlertCircle, Target, Download, Loader2, Bot, PauseCircle, PlayCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { useMessageSender } from "@/hooks/useMessageSender";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { useMessageDeduplication } from "@/hooks/useMessageDeduplication";
@@ -45,6 +46,8 @@ interface Lead {
   campanha_id?: number | null;
   campanha_nome?: string | null;
   instance_id?: string | null;
+  instance_name?: string | null;
+  bot_name?: string | null;
 }
 
 interface Chat {
@@ -239,6 +242,9 @@ const ChatColumn = ({
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingAiResponse, setIsSendingAiResponse] = useState(false);
+  const [isBotActive, setIsBotActive] = useState<boolean | null>(null);
+  const [isTogglingBot, setIsTogglingBot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
 
@@ -246,6 +252,133 @@ const ChatColumn = ({
   const phoneVariants = useMemo(() => getPhoneVariants(chat.leadPhone), [chat.leadPhone]);
   // Chave estável para usar como dependência de useEffect
   const phoneKey = useMemo(() => phoneVariants.sort().join(','), [phoneVariants]);
+
+  // Fetch bot_active status on mount / when lead changes
+  useEffect(() => {
+    if (!chat.leadId) {
+      setIsBotActive(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchBotStatus = async () => {
+      try {
+        // Query by post_id (lead ID) — most reliable, no phone format issues
+        const { data } = await (supabase
+          .from('chatbot_conversations' as any)
+          .select('bot_active')
+          .eq('post_id', chat.leadId)
+          .maybeSingle() as any);
+        if (!cancelled) {
+          setIsBotActive(data ? (data as any).bot_active ?? true : null);
+        }
+      } catch {
+        if (!cancelled) setIsBotActive(null);
+      }
+    };
+    fetchBotStatus();
+    return () => { cancelled = true; };
+  }, [chat.leadId]);
+
+  // Toggle bot_active for this conversation
+  const handleToggleBot = useCallback(async () => {
+    if (!chat.leadId || isTogglingBot) return;
+    setIsTogglingBot(true);
+    const newValue = !isBotActive;
+    try {
+      // Update chatbot_conversations by post_id (lead ID) — reliable, no phone format issues
+      const { error } = await (supabase
+        .from('chatbot_conversations' as any)
+        .update({
+          bot_active: newValue,
+          ...(newValue ? { pause_reason: null } : { pause_reason: 'manual' }),
+        })
+        .eq('post_id', chat.leadId) as any);
+      if (error) throw error;
+
+      // Also update posts.bot_paused flag to keep in sync
+      await supabase
+        .from('posts')
+        .update({
+          bot_paused: !newValue,
+          bot_pause_reason: newValue ? null : 'manual',
+        } as any)
+        .eq('id', chat.leadId);
+
+      setIsBotActive(newValue);
+      toast.success(newValue ? 'Bot reativado' : 'Bot pausado');
+    } catch (err) {
+      console.error('Error toggling bot:', err);
+      toast.error('Erro ao alterar status do bot');
+    } finally {
+      setIsTogglingBot(false);
+    }
+  }, [chat.leadId, isBotActive, isTogglingBot]);
+
+  // Trigger a single AI response to the last inbound message
+  const handleSendAiResponse = useCallback(async () => {
+    if (!chat.leadPhone) return;
+    setIsSendingAiResponse(true);
+    try {
+      let leadQuery = supabase.from('posts').select('id').eq('telefone', chat.leadPhone);
+      if (chat.instanceId) leadQuery = leadQuery.eq('instance_id', chat.instanceId);
+      const { data: leadData } = await leadQuery.maybeSingle();
+      if (!leadData?.id) {
+        toast.error('Lead não encontrado');
+        setIsSendingAiResponse(false);
+        return;
+      }
+
+      const lastInbound = [...messages].reverse().find(m => m.direction === 'inbound');
+      if (!lastInbound) {
+        toast.error('Nenhuma mensagem do cliente para responder');
+        setIsSendingAiResponse(false);
+        return;
+      }
+
+      // Temporarily reactivate bot using post_id (reliable)
+      await (supabase
+        .from('chatbot_conversations' as any)
+        .update({ bot_active: true, pause_reason: null })
+        .eq('post_id', leadData.id) as any);
+
+      // Look up UAZAPI instance_id string from the DB uuid
+      let uazapiInstanceId: string | null | undefined = chat.instanceId;
+      if (chat.instanceId) {
+        const { data: instData } = await (supabase
+          .from('uazapi_instances' as any)
+          .select('instance_id, name')
+          .eq('id', chat.instanceId)
+          .maybeSingle() as any);
+        if (instData) {
+          uazapiInstanceId = (instData as any).instance_id || (instData as any).name || chat.instanceId;
+        }
+      }
+
+      const res = await fetch('https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/chatbot-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: chat.leadPhone,
+          body: lastInbound.content || '',
+          type: 'text',
+          instanceId: uazapiInstanceId || undefined,
+          _replay: true,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success('Resposta de IA enviada!');
+      } else {
+        console.error('AI response error:', await res.json().catch(() => ({})));
+        toast.error('Erro ao enviar resposta de IA');
+      }
+    } catch (error) {
+      console.error('Error sending AI response:', error);
+      toast.error('Erro ao enviar resposta de IA');
+    } finally {
+      setIsSendingAiResponse(false);
+    }
+  }, [chat.leadPhone, chat.instanceId, messages, phoneVariants]);
 
   // Fetch message history - filtered by instance_id column when available
   useEffect(() => {
@@ -330,6 +463,17 @@ const ChatColumn = ({
           }
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
+            // Replace optimistic message if this is the server confirmation
+            const optimisticIdx = prev.findIndex(m =>
+              (m.metadata as any)?._optimistic &&
+              m.content === newMsg.content &&
+              m.direction === 'outbound'
+            );
+            if (optimisticIdx >= 0) {
+              const updated = [...prev];
+              updated[optimisticIdx] = newMsg;
+              return updated;
+            }
             return [...prev, newMsg];
           });
         }
@@ -358,17 +502,41 @@ const ChatColumn = ({
 
   const handleSend = useCallback(async () => {
     if (!message.trim() || isSending) return;
-    
+
+    const messageText = message.trim();
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setMessage('');
     setIsSending(true);
+
+    // Optimistic: show message immediately
+    const optimisticMsg: Message = {
+      id: tempId,
+      lead_id: null,
+      phone_number: chat.leadPhone,
+      direction: 'outbound',
+      content: messageText,
+      media_url: null,
+      media_type: null,
+      status: 'sending',
+      provider_id: null,
+      message_type: 'text',
+      metadata: { _tempId: tempId, _optimistic: true },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+
     try {
-      await onSendMessage(message);
-      setMessage('');
+      await onSendMessage(messageText);
+      // Mark as sent
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sent' } : m));
     } catch (error) {
       console.error('Error sending message:', error);
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
     } finally {
       setIsSending(false);
     }
-  }, [message, isSending, onSendMessage]);
+  }, [message, isSending, onSendMessage, chat.leadPhone]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -399,6 +567,24 @@ const ChatColumn = ({
         </div>
         
         <div className="flex items-center gap-2">
+          {isBotActive !== null && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleToggleBot}
+              disabled={isTogglingBot}
+              className="h-8 w-8 p-0"
+              title={isBotActive ? 'Bot ativo — clique para pausar' : 'Bot pausado — clique para reativar'}
+            >
+              {isTogglingBot ? (
+                <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+              ) : isBotActive ? (
+                <PlayCircle className="w-4 h-4 text-green-500" />
+              ) : (
+                <PauseCircle className="w-4 h-4 text-red-500" />
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -439,6 +625,20 @@ const ChatColumn = ({
       {/* Campo de Input */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSendAiResponse}
+            disabled={isSendingAiResponse || messages.length === 0}
+            className="h-10 w-10 p-0 hover:bg-purple-100 flex-shrink-0"
+            title="Enviar resposta de IA"
+          >
+            {isSendingAiResponse ? (
+              <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+            ) : (
+              <Bot className="w-4 h-4 text-purple-600" />
+            )}
+          </Button>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -769,6 +969,11 @@ export const ChatInterface = ({ leads }: ChatInterfaceProps) => {
                       <Badge className="bg-purple-100 text-purple-700 text-[10px] h-5 font-semibold px-2 rounded-full border-0 flex items-center gap-1">
                         <Target className="h-3 w-3" />
                         {lead.campanha_nome}
+                      </Badge>
+                    )}
+                    {(lead as any).instance_name && (
+                      <Badge className="bg-teal-100 text-teal-700 text-[10px] h-5 font-semibold px-2 rounded-full border-0">
+                        {(lead as any).instance_name}
                       </Badge>
                     )}
                   </div>

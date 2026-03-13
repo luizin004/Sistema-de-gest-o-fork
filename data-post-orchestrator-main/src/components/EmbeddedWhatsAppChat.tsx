@@ -217,14 +217,11 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone, instanceId }: 
         return;
       }
 
-      // Temporarily reactivate bot
-      if (instanceId) {
-        await supabase
-          .from('chatbot_conversations' as any)
-          .update({ bot_active: true, pause_reason: null })
-          .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
-          .eq('instance_id', instanceId);
-      }
+      // Temporarily reactivate bot using post_id (reliable, no phone format issues)
+      await supabase
+        .from('chatbot_conversations' as any)
+        .update({ bot_active: true, pause_reason: null })
+        .eq('post_id', leadData.id);
 
       // Look up the UAZAPI instance_id string from the DB uuid
       let uazapiInstanceId = instanceId;

@@ -89,10 +89,10 @@ serve(async (req) => {
       return jsonResponse({ error: "leadId and message are required" }, 400);
     }
 
-    // Get lead phone from posts table
+    // Get lead phone and instance_id from posts table
     const { data: lead, error: leadError } = await supabase
       .from("posts")
-      .select("id, telefone, nome")
+      .select("id, telefone, nome, instance_id")
       .eq("id", leadId)
       .single();
 
@@ -104,13 +104,20 @@ serve(async (req) => {
       return jsonResponse({ error: "Lead has no phone number" }, 400);
     }
 
-    // Get UAZAPI instance for this tenant
-    const { data: instance, error: instanceError } = await supabase
+    // Get UAZAPI instance — prefer lead's instance_id, fallback to first tenant instance
+    let instanceQuery = supabase
       .from("uazapi_instances")
-      .select("instance_id, token, api_url")
-      .eq("tenant_id", tenantId)
-      .limit(1)
-      .single();
+      .select("id, instance_id, token, api_url");
+
+    if (lead.instance_id) {
+      // Use the lead's specific instance
+      instanceQuery = instanceQuery.eq("id", lead.instance_id);
+    } else {
+      // Fallback: first instance for this tenant
+      instanceQuery = instanceQuery.eq("tenant_id", tenantId).limit(1);
+    }
+
+    const { data: instance, error: instanceError } = await instanceQuery.single();
 
     if (instanceError || !instance) {
       return jsonResponse({ error: "UAZAPI instance not configured" }, 400);
@@ -156,6 +163,9 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
+    // Resolve the DB UUID instance_id to save on the message
+    const messageInstanceId = lead.instance_id || instance?.id || null;
+
     // Save to uazapi_chat_messages
     const { data: savedMsg } = await supabase
       .from("uazapi_chat_messages")
@@ -170,6 +180,7 @@ serve(async (req) => {
         status: sendSuccess ? "sent" : "failed",
         provider_id: uazapiResponse?.messageid || uazapiResponse?.id || null,
         message_type: "text",
+        instance_id: messageInstanceId,
         metadata: {
           wasSentByApi: true,
           source: "chat_ao_vivo",

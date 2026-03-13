@@ -1005,37 +1005,38 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 space-y-3">
+        {/* Filters row */}
+        <LeadFilters
+          posts={posts}
+          filters={filters}
+          onFiltersChange={setFilters}
+          compact
+        />
+
+        {/* Action bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/40 bg-white/30 p-3 backdrop-blur-2xl shadow-[0_20px_60px_-45px_rgba(15,23,42,0.6)]">
-          <div className="flex-1 min-w-[280px]">
-            <LeadFilters 
-              posts={posts} 
-              filters={filters} 
-              onFiltersChange={setFilters}
-              compact
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Buscar em todas as colunas..."
+              value={globalSearchTerm}
+              onChange={(e) => setGlobalSearchTerm(e.target.value)}
+              className="pl-10 h-9 w-52 text-sm bg-white/90 border-gray-200 focus:border-blue-300 shadow-sm"
             />
+            {globalSearchTerm && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                {Object.values(groupedPosts).flat().filter(post =>
+                  post.nome.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
+                  post.telefone?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
+                  post.tratamento?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
+                  post.dentista?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
+                  post.status?.toLowerCase().includes(globalSearchTerm.toLowerCase())
+                ).length} resultados
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end text-right">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar em todas as colunas..."
-                value={globalSearchTerm}
-                onChange={(e) => setGlobalSearchTerm(e.target.value)}
-                className="pl-10 h-9 w-52 text-sm bg-white/90 border-gray-200 focus:border-blue-300 shadow-sm"
-              />
-              {globalSearchTerm && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                  {Object.values(groupedPosts).flat().filter(post =>
-                    post.nome.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-                    post.telefone?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-                    post.tratamento?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-                    post.dentista?.toLowerCase().includes(globalSearchTerm.toLowerCase()) ||
-                    post.status?.toLowerCase().includes(globalSearchTerm.toLowerCase())
-                  ).length} resultados
-                </div>
-              )}
-            </div>
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             <Button
               variant="default"
               size="sm"

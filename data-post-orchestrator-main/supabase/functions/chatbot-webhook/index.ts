@@ -464,13 +464,16 @@ function computeAvailableSlots(
   const buffer = scheduleConfig.slot_buffer_minutes || 0;
   const totalSlotMinutes = treatmentDurationMinutes + buffer;
 
-  const slots: AvailableSlot[] = [];
-  const usedDays = new Set<string>();
-
   const hasAllowedDates = scheduleConfig.allowed_dates && scheduleConfig.allowed_dates.length > 0;
   const allowDoubleBooking = scheduleConfig.allow_double_booking || false;
 
-  for (let d = 1; d <= scheduleConfig.lookahead_days && slots.length < maxSlots; d++) {
+  // Count how many distinct available days we have — if few days, show more slots per day
+  const totalAvailableDays = hasAllowedDates ? scheduleConfig.allowed_dates.length : scheduleConfig.lookahead_days;
+
+  // Phase 1: Collect ALL valid slots across all days
+  const allSlots: AvailableSlot[] = [];
+
+  for (let d = 1; d <= scheduleConfig.lookahead_days; d++) {
     const date = new Date(today);
     date.setDate(today.getDate() + d);
 
@@ -494,7 +497,7 @@ function computeAvailableSlots(
     // Get existing agendamentos for this date (data_marcada is a timestamp, extract date part)
     const dayAgendamentos = existingAgendamentos.filter(a => {
       if (!a.data_marcada) return false;
-      const agDate = a.data_marcada.substring(0, 10); // "2026-03-15T00:00:00+00:00" → "2026-03-15"
+      const agDate = a.data_marcada.substring(0, 10);
       return agDate === dateStr;
     });
 
@@ -521,25 +524,48 @@ function computeAvailableSlots(
           if (!ag.horario) return false;
           const [agH, agM] = ag.horario.split(":").map(Number);
           const agStart = agH * 60 + agM;
-          const agEnd = agStart + treatmentDurationMinutes; // use requested treatment duration
+          const agEnd = agStart + treatmentDurationMinutes;
           return slotStart < agEnd && agStart < slotEnd;
         });
         if (agendamentoConflict) continue;
       }
 
-      // Prefer variety: skip if we already have a slot on this day
-      if (usedDays.has(dateStr) && slots.length < maxSlots - 1) continue;
-
       const dayLabel = `${dayNames[dayOfWeek]} ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-      slots.push({ date: dateStr, dayLabel, start: slotStartStr, end: slotEndStr });
-      usedDays.add(dateStr);
-
-      if (slots.length >= maxSlots) break;
+      allSlots.push({ date: dateStr, dayLabel, start: slotStartStr, end: slotEndStr });
     }
   }
 
-  return slots;
+  // Phase 2: Select up to maxSlots with variety across days (but allow multiple per day)
+  if (allSlots.length <= maxSlots) return allSlots;
+
+  // Count unique days
+  const uniqueDays = new Set(allSlots.map(s => s.date));
+
+  // If only 1 or 2 days available, return all slots from those days (up to maxSlots)
+  if (uniqueDays.size <= 2) return allSlots.slice(0, maxSlots);
+
+  // Multiple days: pick 1 per day first for variety, then fill remaining
+  const selected: AvailableSlot[] = [];
+  const usedDays = new Set<string>();
+
+  // First pass: 1 slot per day
+  for (const slot of allSlots) {
+    if (usedDays.has(slot.date)) continue;
+    selected.push(slot);
+    usedDays.add(slot.date);
+    if (selected.length >= maxSlots) break;
+  }
+
+  // Second pass: fill remaining from unused slots
+  if (selected.length < maxSlots) {
+    for (const slot of allSlots) {
+      if (selected.includes(slot)) continue;
+      selected.push(slot);
+      if (selected.length >= maxSlots) break;
+    }
+  }
+
+  return selected;
 }
 
 function buildSystemPromptFixo(
@@ -613,7 +639,7 @@ ${tratamentosList}
 - Respostas curtas, estilo WhatsApp, como se fosse uma pessoa real conversando
 - Nunca revele que é IA, apresente-se como assistente da clínica
 - Não invente informações não fornecidas
-- Ao apresentar horários, seja natural. Exemplo: "Tenho disponível na segunda dia 17 às 10h, terça dia 18 às 14h ou quinta dia 20 às 9h. Qual fica melhor pra você?"
+- NÃO apresente horários na sua resposta — o sistema anexa automaticamente os horários disponíveis após sua mensagem. Apenas conduza a conversa naturalmente (ex: "Ótimo! Vou verificar os horários disponíveis pra você.").
 - Quando o paciente responder qual prefere (ex: "segunda", "10h", "o primeiro", "terça às 14h"), identifique qual slot corresponde e use book_slot
 
 ## Classificação de status (use EXATAMENTE estes valores):
@@ -1131,6 +1157,7 @@ serve(async (req) => {
     // 9. If status='agendou consulta' and patient wants to reschedule
     //    detect intent and update status to 'reagendando'
     // ------------------------------------------------------------------
+    let wantsReschedule = false;
     if (currentLeadStatus === "agendou consulta" && messageText) {
       const rescheduleKeywords = [
         "remarcar",
@@ -1148,7 +1175,7 @@ serve(async (req) => {
         "impossivel",
       ];
       const lowerMsg = messageText.toLowerCase();
-      const wantsReschedule = rescheduleKeywords.some((kw) => lowerMsg.includes(kw));
+      wantsReschedule = rescheduleKeywords.some((kw) => lowerMsg.includes(kw));
       if (wantsReschedule) {
         currentLeadStatus = "reagendando";
         await supabase
@@ -1156,6 +1183,37 @@ serve(async (req) => {
           .update({ status: "reagendando", updated_at: new Date().toISOString() })
           .eq("id", leadId);
         console.log(`[CHATBOT] Lead ${leadId} status updated to 'reagendando'`);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 9b. If patient has confirmed appointment and replies SIM → mark confirmed
+    // ------------------------------------------------------------------
+    if (currentLeadStatus === "agendou consulta" && messageText && !wantsReschedule) {
+      const confirmKeywords = ["sim", "confirmo", "confirmado", "estarei", "vou sim", "pode confirmar", "tá confirmado", "ta confirmado", "ok confirmado"];
+      const lowerMsg = messageText.toLowerCase().trim();
+      const isConfirming = confirmKeywords.some((kw) => lowerMsg.includes(kw)) || lowerMsg === "ok" || lowerMsg === "👍";
+      if (isConfirming) {
+        // Find the latest agendamento for this lead
+        const { data: agendamentoData } = await supabase
+          .from("agendamento")
+          .select("id")
+          .eq("telefone", phone)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (agendamentoData) {
+          await supabase
+            .from("agendamento")
+            .update({
+              paciente_confirmou: true,
+              paciente_confirmou_at: new Date().toISOString(),
+            })
+            .eq("id", agendamentoData.id);
+          console.log(`[CHATBOT] Patient confirmed appointment ${agendamentoData.id}`);
+        }
       }
     }
 
@@ -1294,12 +1352,24 @@ serve(async (req) => {
             scheduling_data: null,
           };
         } else {
-          // Build natural slot message (no numbered lists)
-          const slotDescriptions = slots.map(s => `${s.dayLabel} às ${s.start}`);
-          const naturalSlotText = slotDescriptions.length === 1
-            ? slotDescriptions[0]
-            : slotDescriptions.slice(0, -1).join(", ") + " ou " + slotDescriptions[slotDescriptions.length - 1];
-          finalReply = `${aiResponse.reply}\n\nTenho disponível ${naturalSlotText}. Qual fica melhor pra você?`;
+          // Group slots by day and build time-range descriptions
+          const dayRangeMap = new Map<string, { dayLabel: string; minStart: string; maxEnd: string }>();
+          for (const s of slots) {
+            const existing = dayRangeMap.get(s.date);
+            if (!existing) {
+              dayRangeMap.set(s.date, { dayLabel: s.dayLabel, minStart: s.start, maxEnd: s.end });
+            } else {
+              if (s.start < existing.minStart) existing.minStart = s.start;
+              if (s.end > existing.maxEnd) existing.maxEnd = s.end;
+            }
+          }
+          const dayRangeDescriptions = Array.from(dayRangeMap.values()).map(
+            d => `${d.dayLabel} de ${d.minStart} às ${d.maxEnd}`
+          );
+          const naturalSlotText = dayRangeDescriptions.length === 1
+            ? dayRangeDescriptions[0]
+            : dayRangeDescriptions.slice(0, -1).join(", ") + " ou " + dayRangeDescriptions[dayRangeDescriptions.length - 1];
+          finalReply = `${aiResponse.reply}\n\nTenho disponibilidade ${naturalSlotText}. Qual fica melhor pra você?`;
 
           convUpdateExtra = {
             scheduling_state: "awaiting_slot_choice",
@@ -1341,6 +1411,7 @@ serve(async (req) => {
             horario: chosenSlot.start,
             tratamento: schedulingData?.treatment_name || null,
             source: "bot_fixo",
+            instance_id: instanceDbId,
             confirmado: true,
             created_at: new Date().toISOString(),
           });

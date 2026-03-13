@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar as CalendarIcon, Clock, Phone, User, Target, MessageCircle, Clock4, AlertTriangle, CalendarCheck2, Repeat, Search, Plus, Bot, Wifi } from "lucide-react";
@@ -349,6 +350,8 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
   const [selectedLead, setSelectedLead] = useState<Post | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [globalSearchTerm, setGlobalSearchTerm] = useState("");
+  const [instanceFilter, setInstanceFilter] = useState("all");
+  const [botFilter, setBotFilter] = useState("all");
   
   // Add lead dialog state
   const [showAddLeadDialog, setShowAddLeadDialog] = useState(false);
@@ -549,21 +552,38 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
     [activeId, posts]
   );
 
+  // Extrair instâncias e bots únicos para os filtros
+  const uniqueInstances = useMemo(
+    () => Array.from(new Set(posts.map(p => p.instance_name).filter(Boolean))) as string[],
+    [posts]
+  );
+  const uniqueBots = useMemo(
+    () => Array.from(new Set(posts.map(p => p.bot_name).filter(Boolean))) as string[],
+    [posts]
+  );
+
   // Lógica de distribuição específica para kanban de ação
   const kanbanColumns = useMemo(() => {
     const agora = new Date();
     const quinzeMinAtras = new Date(agora.getTime() - 20 * 60 * 1000);
-    
+
     // Status de interação (leads que podem ir para "Não Respondeu" se sem resposta há 20min)
     const statusInteracao = ['respondeu', 'interagiu', 'engajou'];
-    
+
+    // Aplicar filtros de instância e bot antes de distribuir nas colunas
+    const filteredPosts = posts.filter(post => {
+      const matchesInstance = instanceFilter === "all" || post.instance_name === instanceFilter;
+      const matchesBot = botFilter === "all" || post.bot_name === botFilter;
+      return matchesInstance && matchesBot;
+    });
+
     // Inicializar colunas vazias
     const columns = acaoStatusConfig.map(config => ({
       ...config,
       posts: [] as Post[]
     }));
 
-    posts.forEach(post => {
+    filteredPosts.forEach(post => {
       const normalizedStatus = post.status.toLowerCase().trim();
       
       // 1. PRIMEIRO: verificar status explícitos (prioridade máxima)
@@ -601,7 +621,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
     });
 
     return columns;
-  }, [posts]);
+  }, [posts, instanceFilter, botFilter]);
 
   // Componente DroppableColumn
   const DroppableColumn = ({ column, children }: { 
@@ -754,6 +774,36 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
                   </div>
                 )}
               </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {uniqueInstances.length > 0 && (
+                <Select value={instanceFilter} onValueChange={setInstanceFilter}>
+                  <SelectTrigger className={`h-10 w-[160px] text-sm bg-white/90 border-gray-200 shadow-sm rounded-xl focus:border-blue-300 ${instanceFilter !== "all" ? "border-teal-400 ring-1 ring-teal-300" : ""}`}>
+                    <Wifi className="h-3.5 w-3.5 mr-1.5 text-teal-600 flex-shrink-0" />
+                    <SelectValue placeholder="Instância" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas instâncias</SelectItem>
+                    {uniqueInstances.map(instance => (
+                      <SelectItem key={instance} value={instance}>{instance}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {uniqueBots.length > 0 && (
+                <Select value={botFilter} onValueChange={setBotFilter}>
+                  <SelectTrigger className={`h-10 w-[150px] text-sm bg-white/90 border-gray-200 shadow-sm rounded-xl focus:border-blue-300 ${botFilter !== "all" ? "border-cyan-400 ring-1 ring-cyan-300" : ""}`}>
+                    <Bot className="h-3.5 w-3.5 mr-1.5 text-cyan-600 flex-shrink-0" />
+                    <SelectValue placeholder="Bot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os bots</SelectItem>
+                    {uniqueBots.map(bot => (
+                      <SelectItem key={bot} value={bot}>{bot}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap justify-end">
               <Button

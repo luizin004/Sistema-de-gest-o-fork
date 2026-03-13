@@ -58,7 +58,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/admin/chat-monitor": "Monitor de Conversas",
   "/chatbot-config": "Chatbot IA",
   "/minha-conta": "Minha Conta",
-  "/admin": "Administração",
+  "/admin": "Configurações",
 };
 
 const getPageLabel = (pathname: string) => {
