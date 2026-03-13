@@ -1417,7 +1417,18 @@ serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
-    // 12. Random delay 3-8 seconds (simulates typing)
+    // 12. If status is "atencao", do NOT reply — just pause silently
+    // ------------------------------------------------------------------
+    const normalizedFinalStatus = normalizeStatus(aiResponse.status || "respondeu");
+    if (normalizedFinalStatus === "atencao") {
+      console.log(`[CHATBOT] Status is "atencao" — pausing bot silently without responding.`);
+      aiResponse.should_pause = true;
+
+      // Skip sending reply, go straight to updating conversation and post
+    } else {
+
+    // ------------------------------------------------------------------
+    // 12b. Random delay 3-8 seconds (simulates typing)
     // ------------------------------------------------------------------
     const delayMs = Math.floor(Math.random() * 5_000) + 3_000;
     console.log(`[CHATBOT] Typing delay: ${delayMs}ms`);
@@ -1439,11 +1450,12 @@ serve(async (req) => {
     );
 
     console.log(`[CHATBOT] Message sent: ${sendResult.success}`);
+    } // end of non-atencao block
 
     // ------------------------------------------------------------------
     // 14. Update chatbot_conversations
     // ------------------------------------------------------------------
-    const newMessageCount = messageCount + 2; // inbound + outbound
+    const newMessageCount = messageCount + (normalizedFinalStatus === "atencao" ? 1 : 2); // inbound only if atencao, else inbound + outbound
     const now = new Date().toISOString();
 
     await supabase
