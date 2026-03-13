@@ -536,9 +536,9 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
             
           if (error) throw error;
 
-          // Auto-pause bot when scheduled externally
+          // Auto-pause bot when scheduled externally (filter by instance too)
           if (normalizedPhone) {
-            await supabase
+            let convQuery = supabase
               .from('chatbot_conversations')
               .update({
                 bot_active: false,
@@ -546,6 +546,10 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
                 current_funnel_status: 'agendado por fora'
               })
               .eq('phone_number', normalizedPhone);
+            if (post.instance_id) {
+              convQuery = convQuery.eq('instance_id', post.instance_id);
+            }
+            await convQuery;
           }
 
           toast.success("Lead atualizado como 'Agendado por Fora'!");
@@ -610,9 +614,9 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
 
               if (postError) throw postError;
 
-              // Auto-pause bot when appointment is scheduled via CRM
+              // Auto-pause bot when appointment is scheduled via CRM (filter by instance)
               if (normalizedPhone) {
-                await supabase
+                let convQuery2 = supabase
                   .from('chatbot_conversations')
                   .update({
                     bot_active: false,
@@ -620,6 +624,10 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
                     current_funnel_status: 'agendou consulta'
                   })
                   .eq('phone_number', normalizedPhone);
+                if (post.instance_id) {
+                  convQuery2 = convQuery2.eq('instance_id', post.instance_id);
+                }
+                await convQuery2;
               }
 
               toast.success("Status atualizado e datas sincronizadas com agendamento!");

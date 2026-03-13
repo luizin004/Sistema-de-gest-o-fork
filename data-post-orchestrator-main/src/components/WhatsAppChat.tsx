@@ -182,9 +182,11 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone, insta
           .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
           .order('created_at', { ascending: true });
 
-        // Filter by instance when available (direct column)
+        // Always filter by instance to isolate conversations
         if (instanceId) {
           query = (query as any).eq('instance_id', instanceId);
+        } else {
+          query = (query as any).is('instance_id', null);
         }
 
         const { data, error } = await query;
@@ -215,10 +217,12 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone, insta
         (payload) => {
           const newMsg = payload.new as Message;
           if (!phoneSet.has(newMsg.phone_number)) return;
-          // Instance filter for realtime
+          // Strict instance filter for realtime
+          const msgInstanceId = (newMsg as any).instance_id;
           if (instanceId) {
-            const msgInstanceId = (newMsg as any).instance_id;
-            if (msgInstanceId && msgInstanceId !== instanceId) return;
+            if (msgInstanceId !== instanceId) return;
+          } else {
+            if (msgInstanceId) return;
           }
           setMessages(prev => {
             // Skip if already exists
@@ -297,11 +301,14 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone, insta
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      const { data: leadData } = await supabase
+      let leadQuery = supabase
         .from('posts')
         .select('id')
-        .eq('telefone', contactPhone)
-        .maybeSingle();
+        .eq('telefone', contactPhone);
+      if (instanceId) {
+        leadQuery = leadQuery.eq('instance_id', instanceId);
+      }
+      const { data: leadData } = await leadQuery.maybeSingle();
 
       if (!leadData?.id) {
         setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
@@ -327,11 +334,14 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone, insta
     setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sending' } : m));
 
     try {
-      const { data: leadData } = await supabase
+      let leadQuery = supabase
         .from('posts')
         .select('id')
-        .eq('telefone', contactPhone)
-        .maybeSingle();
+        .eq('telefone', contactPhone);
+      if (instanceId) {
+        leadQuery = leadQuery.eq('instance_id', instanceId);
+      }
+      const { data: leadData } = await leadQuery.maybeSingle();
 
       if (!leadData?.id) {
         setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));

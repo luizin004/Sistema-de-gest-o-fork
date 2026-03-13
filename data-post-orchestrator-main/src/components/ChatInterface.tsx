@@ -268,9 +268,12 @@ const ChatColumn = ({
           .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
           .order('created_at', { ascending: true });
 
-        // Filter by instance when available (direct column filter)
+        // Always filter by instance to isolate conversations per instance
         if (chat.instanceId) {
           query = (query as any).eq('instance_id', chat.instanceId);
+        } else {
+          // Fallback: filter by lead_id to avoid cross-instance leakage
+          query = (query as any).is('instance_id', null);
         }
 
         const { data, error } = await query;
@@ -318,10 +321,12 @@ const ChatColumn = ({
         (payload) => {
           const newMsg = payload.new as Message;
           if (!phoneSet.has(newMsg.phone_number)) return;
-          // Instance filter for realtime: check instance_id column
+          // Strict instance filter for realtime: only show messages from this instance
+          const msgInstanceId = (newMsg as any).instance_id;
           if (chat.instanceId) {
-            const msgInstanceId = (newMsg as any).instance_id;
-            if (msgInstanceId && msgInstanceId !== chat.instanceId) return;
+            if (msgInstanceId !== chat.instanceId) return;
+          } else {
+            if (msgInstanceId) return; // If chat has no instance, only show messages without instance
           }
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;

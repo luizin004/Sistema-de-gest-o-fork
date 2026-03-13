@@ -565,10 +565,10 @@ function buildSystemPromptFixo(
   if (schedulingState === "awaiting_slot_choice" && schedulingData?.offered_slots) {
     stateContext = `\n\n## ESTADO ATUAL: Aguardando escolha de horário
 O paciente recebeu as seguintes opções:
-${schedulingData.offered_slots.map((s: any, i: number) => `${i + 1}) ${s.dayLabel} às ${s.start}`).join("\n")}
+${schedulingData.offered_slots.map((s: any, i: number) => `Opção ${i + 1}: ${s.dayLabel} às ${s.start}`).join("\n")}
 Tratamento: ${schedulingData.treatment_name || "não definido"}
 
-Quando o paciente responder com um número (1, 2 ou 3), use action="book_slot" com slot_choice=número.
+O paciente vai responder naturalmente (ex: "segunda", "às 10h", "o da terça"). Identifique qual opção corresponde e use action="book_slot" com slot_choice=número da opção (1, 2 ou 3).
 Se o paciente pedir outras opções ou outro tratamento, use action="check_slots".`;
   } else if (schedulingState === "confirmed") {
     stateContext = `\n\n## ESTADO ATUAL: Consulta já confirmada
@@ -585,11 +585,11 @@ Tom: ${clinicTone}
 ${customSections}
 
 ## Seu papel no AGENDAMENTO FIXO:
-Você AGENDA consultas automaticamente. O fluxo:
-1. Cumprimente o paciente, pergunte qual tratamento deseja
+Você AGENDA consultas automaticamente de forma NATURAL e humanizada. O fluxo:
+1. Cumprimente o paciente naturalmente, pergunte qual tratamento deseja
 2. Quando disser o tratamento → action="check_slots"
-3. O sistema fornece opções → você apresenta ao paciente
-4. Quando escolher opção (1, 2 ou 3) → action="book_slot" com slot_choice=N
+3. O sistema fornece opções → você apresenta ao paciente DE FORMA NATURAL E CONVERSACIONAL (NUNCA use listas numeradas, NUNCA peça "responda com o número")
+4. Quando o paciente indicar qual horário prefere (por dia, horário ou qualquer referência) → action="book_slot" com slot_choice=N (o número do slot que corresponde à escolha)
 5. Fora do escopo → action="needs_human"
 ${cancelRule}
 ${stateContext}
@@ -597,11 +597,15 @@ ${stateContext}
 ## Tratamentos disponíveis (com duração):
 ${tratamentosList}
 
-## REGRAS:
+## REGRAS CRÍTICAS:
 - NUNCA invente horários — o sistema fornece
-- Respostas curtas, estilo WhatsApp
+- NUNCA use listas numeradas (1, 2, 3) para apresentar horários — apresente como texto corrido conversacional
+- NUNCA peça ao paciente para "responder com o número" — deixe ele responder naturalmente
+- Respostas curtas, estilo WhatsApp, como se fosse uma pessoa real conversando
 - Nunca revele que é IA, apresente-se como assistente da clínica
 - Não invente informações não fornecidas
+- Ao apresentar horários, seja natural. Exemplo: "Tenho disponível na segunda dia 17 às 10h, terça dia 18 às 14h ou quinta dia 20 às 9h. Qual fica melhor pra você?"
+- Quando o paciente responder qual prefere (ex: "segunda", "10h", "o primeiro", "terça às 14h"), identifique qual slot corresponde e use book_slot
 
 ## Classificação de status (use EXATAMENTE estes valores):
 - respondeu: primeiro contato
@@ -625,7 +629,7 @@ IMPORTANTE: Use os status EXATAMENTE como escritos acima.
 }
 
 Regra de should_pause: true APENAS para "atencao" ou "needs_human".
-Regra de action: use "none" para conversa normal, "check_slots" quando detectar tratamento, "book_slot" quando paciente escolher slot, "cancel_slot" para cancelamento, "needs_human" quando não souber lidar.`;
+Regra de action: use "none" para conversa normal, "check_slots" quando detectar tratamento, "book_slot" quando paciente escolher slot (identifique qual slot o paciente escolheu pela referência ao dia/horário), "cancel_slot" para cancelamento, "needs_human" quando não souber lidar.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1274,9 +1278,12 @@ serve(async (req) => {
             scheduling_data: null,
           };
         } else {
-          // Build slot message
-          const slotLines = slots.map((s, i) => `${i + 1}) ${s.dayLabel} às ${s.start}`).join("\n");
-          finalReply = `${aiResponse.reply}\n\nTenho esses horários disponíveis:\n${slotLines}\n\nQual você prefere? Responda com o número.`;
+          // Build natural slot message (no numbered lists)
+          const slotDescriptions = slots.map(s => `${s.dayLabel} às ${s.start}`);
+          const naturalSlotText = slotDescriptions.length === 1
+            ? slotDescriptions[0]
+            : slotDescriptions.slice(0, -1).join(", ") + " ou " + slotDescriptions[slotDescriptions.length - 1];
+          finalReply = `${aiResponse.reply}\n\nTenho disponível ${naturalSlotText}. Qual fica melhor pra você?`;
 
           convUpdateExtra = {
             scheduling_state: "awaiting_slot_choice",
