@@ -1085,7 +1085,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
             className="kanban-scrollbar-top overflow-x-auto overflow-y-hidden flex-shrink-0"
             onScroll={handleTopScrollbarScroll}
           >
-            <div className="h-2" style={{ minWidth: '1500px' }} />
+            <div className="w-full h-2" />
           </div>
           
           {/* Conteúdo do Kanban com scroll vertical */}
@@ -1132,7 +1132,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
               }
             `}</style>
             
-            <div className="grid grid-cols-6 gap-3 p-4 pt-2 items-start" style={{ minWidth: '1500px' }}>
+            <div className="grid grid-cols-6 gap-2 p-4 pt-2 w-full items-start">
               {statusConfig.map(({ name: status, headerBgClass, counterClass, columnBgClass, description, icon }) => (
                 <KanbanColumn
                   key={status}
@@ -1156,23 +1156,18 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
         
         <DragOverlay dropAnimation={null}>
           {activePost ? (
-            <Card className="bg-card border-border shadow-xl w-[280px] rotate-2 gpu-accelerated">
-              <CardContent className="p-3">
-                <div className="flex items-start gap-2.5">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
+            <Card className="bg-card border-border shadow-xl w-[220px] rotate-2 gpu-accelerated">
+              <CardContent className="p-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-[11px]">
                     {getInitials(activePost.nome)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm truncate leading-tight">{activePost.nome}</h4>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                      <Phone className="h-3 w-3 flex-shrink-0" />
+                    <h4 className="font-medium text-[13px] leading-tight break-words line-clamp-2">{activePost.nome}</h4>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                      <Phone className="h-2.5 w-2.5 flex-shrink-0" />
                       <span className="truncate">{activePost.telefone || "Sem telefone"}</span>
                     </div>
-                    {activePost.tratamento && (
-                      <Badge variant="secondary" className="mt-1.5 text-[10px] h-5 font-normal">
-                        {activePost.tratamento}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1568,8 +1563,8 @@ const TimeCounter = ({ post }: { post: Post }) => {
   if (!timeElapsed) return null;
 
   return (
-    <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${timeColor}`}>
-      ⏱️ {timeElapsed}
+    <div className={`inline-flex items-center px-1.5 py-px rounded-full text-[9px] font-medium border ${timeColor}`}>
+      ⏱ {timeElapsed}
     </div>
   );
 };
@@ -1663,7 +1658,7 @@ const DraggableCard = memo(({
     <div className="relative">
       <div
         ref={setNodeRef}
-        className={`kanban-card bg-white shadow-sm cursor-pointer transition-all duration-300 min-h-[90px] lg:min-h-[100px] rounded-2xl ${isInterestedInSchedulingForBorder ? 'border-2 border-rose-300' : 'border border-gray-100'} ${isDragging ? 'opacity-40 scale-95' : 'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50'}`}
+        className={`kanban-card bg-white shadow-sm cursor-pointer transition-all duration-300 min-h-[70px] rounded-2xl ${isInterestedInSchedulingForBorder ? 'border-2 border-rose-300' : 'border border-gray-100'} ${isDragging ? 'opacity-40 scale-95' : 'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50'}`}
         {...attributes}
         {...listeners}
         onClick={(e) => {
@@ -1671,28 +1666,27 @@ const DraggableCard = memo(({
           if (!isDragging) onOpenProfile(post);
         }}
       >
-        <div className="p-3 h-full flex flex-col gap-2 relative">
+        <div className="p-2.5 h-full flex flex-col gap-1.5 relative">
 
-          {/* Linha 1: Avatar + Nome + Telefone */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-semibold text-sm shadow-sm">
+          {/* Linha 1: Avatar + Nome completo */}
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-semibold text-[11px] shadow-sm">
               {getInitials(post.nome)}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 min-w-0">
-                <h4 className="font-semibold text-sm text-gray-900 truncate leading-tight">{post.nome}</h4>
-                {post.bot_paused === true ? (
-                  <User className="h-3 w-3 flex-shrink-0 text-blue-500 opacity-80" title="Atendimento humano ativo" />
-                ) : (
-                  <Bot className="h-3 w-3 flex-shrink-0 text-emerald-500 opacity-80" title="Bot ativo" />
-                )}
-              </div>
-              <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
-                <Phone className="h-3 w-3 flex-shrink-0 opacity-60" />
-                <span className="truncate">{post.telefone || "Sem telefone"}</span>
-              </div>
+            <h4 className="font-semibold text-[13px] text-gray-900 leading-tight flex-1 min-w-0 break-words line-clamp-2">{post.nome}</h4>
+            {post.bot_paused === true ? (
+              <User className="h-3 w-3 flex-shrink-0 text-blue-500 opacity-70" title="Atendimento humano ativo" />
+            ) : (
+              <Bot className="h-3 w-3 flex-shrink-0 text-emerald-500 opacity-70" title="Bot ativo" />
+            )}
+          </div>
+
+          {/* Linha 2: Telefone + TimeCounter */}
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-1 text-[10px] text-gray-400 min-w-0">
+              <Phone className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
+              <span className="truncate">{post.telefone || "Sem telefone"}</span>
             </div>
-            {/* TimeCounter + Indicadores de status */}
             <div className="flex items-center gap-1 flex-shrink-0">
               <TimeCounter post={post} />
               {isInterestedInScheduling && (
@@ -1713,21 +1707,21 @@ const DraggableCard = memo(({
             </div>
           </div>
 
-          {/* Linha 2: Info contextual — tratamento, data/hora agendada */}
+          {/* Linha 3: Info contextual — tratamento, data/hora agendada */}
           {(post.tratamento || post.dentista || (isScheduled && currentDateTime) || (isInterestedInScheduling && (requestedDateDisplay || requestedTimeDisplay))) && (
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               {post.tratamento && (
-                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium border ${getTreatmentBadgeClass(post.tratamento)}`}>
+                <span className={`inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-medium border ${getTreatmentBadgeClass(post.tratamento)}`}>
                   {post.tratamento}
                 </span>
               )}
               {isScheduled && currentDateTime && (
                 <>
-                  <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CalendarCheck2 className="h-3 w-3 flex-shrink-0" />
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CalendarCheck2 className="h-2.5 w-2.5 flex-shrink-0" />
                     {format(currentDateTime, "dd/MM/yyyy", { locale: ptBR })}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500 text-white shadow-sm">
+                  <span className="inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-bold bg-emerald-500 text-white shadow-sm">
                     {format(currentDateTime, "HH:mm", { locale: ptBR })}
                   </span>
                 </>
@@ -1735,37 +1729,37 @@ const DraggableCard = memo(({
               {isInterestedInScheduling && !isScheduled && (requestedDateDisplay || requestedTimeDisplay) && (
                 <>
                   {requestedDateDisplay && (
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-rose-50 text-rose-600 border border-rose-200">
-                      <Clock className="h-3 w-3 flex-shrink-0" />
+                    <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full font-medium bg-rose-50 text-rose-600 border border-rose-200">
+                      <Clock className="h-2.5 w-2.5 flex-shrink-0" />
                       {requestedDateDisplay}
                     </span>
                   )}
                   {requestedTimeDisplay && (
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-rose-500 text-white shadow-sm">
+                    <span className="inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-bold bg-rose-500 text-white shadow-sm">
                       {requestedTimeDisplay}
                     </span>
                   )}
                 </>
               )}
               {post.dentista && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                <span className="inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-medium bg-slate-100 text-slate-600 border border-slate-200">
                   {post.dentista}
                 </span>
               )}
             </div>
           )}
 
-          {/* Linha 3: Badges de campanha e engajamento */}
+          {/* Linha 4: Badges de campanha e engajamento */}
           {(post.campanha_nome || (hasEngagementStatus && engagementStatusLabel)) && (
-            <div className="flex flex-wrap gap-1.5 pt-0.5 border-t border-gray-100">
+            <div className="flex flex-wrap gap-1 pt-0.5 border-t border-gray-100">
               {post.campanha_nome && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-purple-50 text-purple-600 border border-purple-100">
-                  <Target className="h-3 w-3" />
-                  {post.campanha_nome}
+                <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-px rounded-full font-medium bg-purple-50 text-purple-600 border border-purple-100 max-w-full">
+                  <Target className="h-2.5 w-2.5 flex-shrink-0" />
+                  <span className="truncate">{post.campanha_nome}</span>
                 </span>
               )}
               {hasEngagementStatus && engagementStatusLabel && (
-                <span className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-600 border border-blue-200">
+                <span className="inline-flex items-center text-[9px] px-1.5 py-px rounded-full font-medium bg-blue-50 text-blue-600 border border-blue-200">
                   {engagementStatusLabel}
                 </span>
               )}
