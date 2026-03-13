@@ -77,7 +77,7 @@ export const UsuarioInstanceManager: React.FC<UsuarioInstanceManagerProps> = ({
         await loadInstances();
         toast({
           title: 'Sucesso',
-          description: 'Instância configurada com sucesso'
+          description: 'Instância configurada e webhook ativado automaticamente!'
         });
       } else {
         toast({

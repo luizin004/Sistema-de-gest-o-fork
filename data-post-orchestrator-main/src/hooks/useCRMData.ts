@@ -613,7 +613,34 @@ export const useCRMData = () => {
       }
       
       const result = await response.json();
-      return result.instance;
+      const instance = result.instance;
+
+      // Configurar webhook automaticamente após configurar a instância
+      if (instance?.id) {
+        console.log('[UAZAPI-INSTANCE-CONFIG] Configurando webhook automaticamente...');
+        try {
+          const webhookHeaders = await getAuthHeaders();
+          if (targetTenantId) {
+            webhookHeaders['x-tenant-id'] = targetTenantId;
+          }
+          const webhookResponse = await fetch(getFunctionUrl('uazapi-set-webhook'), {
+            method: 'POST',
+            headers: webhookHeaders,
+            body: JSON.stringify({ instance_id: instance.id, tenant_id: targetTenantId })
+          });
+
+          if (webhookResponse.ok) {
+            console.log('[UAZAPI-INSTANCE-CONFIG] Webhook configurado automaticamente com sucesso!');
+          } else {
+            const webhookError = await webhookResponse.json();
+            console.warn('[UAZAPI-INSTANCE-CONFIG] Falha ao configurar webhook automaticamente:', webhookError);
+          }
+        } catch (webhookErr) {
+          console.warn('[UAZAPI-INSTANCE-CONFIG] Erro ao configurar webhook automaticamente:', webhookErr);
+        }
+      }
+
+      return instance;
     } catch (error) {
       console.error('Erro ao configurar instância UAZAPI:', error);
       return null;
@@ -695,6 +722,39 @@ export const useCRMData = () => {
     }
   }, [tenantId, getAuthHeaders]);
 
+  const setupInstanceWebhook = useCallback(async (instanceId: string, targetTenantId?: string): Promise<boolean> => {
+    const tenantToUse = targetTenantId || tenantId;
+    if (!tenantToUse) return false;
+
+    try {
+      const headers = await getAuthHeaders();
+      if (targetTenantId) {
+        headers['x-tenant-id'] = targetTenantId;
+      }
+
+      console.log(`[UAZAPI-WEBHOOK] Configurando webhook automaticamente para instância ${instanceId}`);
+
+      const response = await fetch(getFunctionUrl('uazapi-set-webhook'), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ instance_id: instanceId, tenant_id: targetTenantId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[UAZAPI-WEBHOOK] Erro ao configurar webhook:', error);
+        return false;
+      }
+
+      const result = await response.json();
+      console.log('[UAZAPI-WEBHOOK] Webhook configurado com sucesso:', result);
+      return true;
+    } catch (error) {
+      console.error('[UAZAPI-WEBHOOK] Erro ao configurar webhook:', error);
+      return false;
+    }
+  }, [tenantId, getAuthHeaders]);
+
   const removeInstance = useCallback(async (instanceId: string, targetTenantId?: string): Promise<boolean> => {
     const tenantToUse = targetTenantId || tenantId;
     if (!tenantToUse) return false;
@@ -751,6 +811,7 @@ export const useCRMData = () => {
     getInstances,
     refreshInstanceStatus,
     removeInstance,
+    setupInstanceWebhook,
     tenantId 
   };
 };

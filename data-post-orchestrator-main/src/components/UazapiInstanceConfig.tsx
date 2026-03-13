@@ -128,7 +128,7 @@ export const UazapiInstanceConfig: React.FC<UazapiInstanceConfigProps> = ({ onIn
       if (instance) {
         setToken('');
         await loadInstances();
-        setSuccess('Instância configurada com sucesso!');
+        setSuccess('Instância configurada e webhook ativado automaticamente!');
         onInstanceConfigured?.(instance);
       } else {
         setError('Falha ao configurar instância. Verifique o token.');
