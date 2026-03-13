@@ -432,7 +432,6 @@ interface BlockedPeriod {
 interface Agendamento {
   data_marcada: string;
   horario: string;
-  duracao_minutos?: number;
 }
 
 interface AvailableSlot {
@@ -483,11 +482,19 @@ function computeAvailableSlots(
     const scheduleDef = scheduleConfig.weekly_schedule.find(s => s.day === dayOfWeek);
     if (!scheduleDef) continue;
 
-    // Get blocked periods for this date
-    const dayBlocked = blockedPeriods.filter(bp => bp.blocked_date === dateStr);
+    // Get blocked periods for this date (handle both date and timestamp formats)
+    const dayBlocked = blockedPeriods.filter(bp => {
+      if (!bp.blocked_date) return false;
+      const bpDate = bp.blocked_date.substring(0, 10);
+      return bpDate === dateStr;
+    });
 
-    // Get existing agendamentos for this date
-    const dayAgendamentos = existingAgendamentos.filter(a => a.data_marcada === dateStr);
+    // Get existing agendamentos for this date (data_marcada is a timestamp, extract date part)
+    const dayAgendamentos = existingAgendamentos.filter(a => {
+      if (!a.data_marcada) return false;
+      const agDate = a.data_marcada.substring(0, 10); // "2026-03-15T00:00:00+00:00" → "2026-03-15"
+      return agDate === dateStr;
+    });
 
     // Generate candidate slots
     const [startH, startM] = scheduleDef.start.split(":").map(Number);
@@ -509,10 +516,10 @@ function computeAvailableSlots(
       // Check overlap with existing agendamentos (skip if double booking allowed)
       if (!allowDoubleBooking) {
         const agendamentoConflict = dayAgendamentos.some(ag => {
-          const agDur = ag.duracao_minutos || 60;
+          if (!ag.horario) return false;
           const [agH, agM] = ag.horario.split(":").map(Number);
           const agStart = agH * 60 + agM;
-          const agEnd = agStart + agDur;
+          const agEnd = agStart + treatmentDurationMinutes; // use requested treatment duration
           return slotStart < agEnd && agStart < slotEnd;
         });
         if (agendamentoConflict) continue;
@@ -1260,7 +1267,7 @@ serve(async (req) => {
             .eq("chatbot_config_id", chatbotConfigId),
           supabase
             .from("agendamento")
-            .select("data_marcada, horario, duracao_minutos")
+            .select("data_marcada, horario")
             .eq("tenant_id", tenantId),
         ]);
 
@@ -1326,9 +1333,12 @@ serve(async (req) => {
           });
 
           if (agError) {
-            // Likely race condition (slot taken) — retry with fresh slots
-            console.error("[CHATBOT] Failed to create agendamento (possible double-booking):", agError.message, agError.code);
-            finalReply = "Infelizmente esse horário acabou de ser preenchido. Vou verificar outras opções para você!";
+            // Insert failed — DO NOT move lead to "agendou consulta"
+            console.error("[CHATBOT] Failed to create agendamento:", agError.message, agError.code);
+            finalReply = "Tive um probleminha ao registrar seu agendamento. Vou verificar outras opções para você!";
+            // Reset status so lead is NOT moved to "agendou consulta"
+            aiResponse.status = "engajou";
+            aiResponse.should_pause = false;
             // Trigger a new check_slots on next message
             convUpdateExtra = {
               scheduling_state: "awaiting_treatment",
