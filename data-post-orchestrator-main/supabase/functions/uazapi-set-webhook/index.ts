@@ -80,7 +80,7 @@ serve(async (req) => {
 
     const uazapiToken = instance.token;
     const uazapiApiUrl = instance.api_url || "https://oralaligner.uazapi.com";
-    const webhookUrl = `${SUPABASE_URL}/functions/v1/chatbot-webhook`;
+    const webhookUrl = "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1/chatbot-webhook";
 
     console.log(`[uazapi-set-webhook] Setting webhook for instance ${instance.instance_id}`);
     console.log(`[uazapi-set-webhook] API URL: ${uazapiApiUrl}`);
