@@ -892,10 +892,14 @@ serve(async (req) => {
     const phoneVariants = getPhoneVariants(phone);
     console.log(`[CHATBOT] Phone variants:`, phoneVariants);
 
+    // Search for existing lead by phone + instance (leads are unique per phone per instance)
+    const instanceDbId: string = instance.id;
+
     const { data: existingLead } = await supabase
       .from("posts")
       .select("id, status, nome")
       .eq("tenant_id", tenantId)
+      .eq("instance_id", instanceDbId)
       .in("telefone", phoneVariants)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -907,9 +911,9 @@ serve(async (req) => {
     if (existingLead) {
       leadId = existingLead.id;
       currentLeadStatus = existingLead.status || "respondeu";
-      console.log(`[CHATBOT] Found lead: ${leadId} | status: ${currentLeadStatus}`);
+      console.log(`[CHATBOT] Found lead: ${leadId} | status: ${currentLeadStatus} | instance: ${instanceDbId}`);
     } else {
-      // Create new lead
+      // Create new lead linked to this specific instance
       const newLeadId = crypto.randomUUID();
       const { error: leadInsertError } = await supabase.from("posts").insert({
         id: newLeadId,
@@ -918,6 +922,7 @@ serve(async (req) => {
         nome: senderName || phone,
         status: "respondeu",
         instance_name: instanceName,
+        instance_id: instanceDbId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -929,7 +934,7 @@ serve(async (req) => {
 
       leadId = newLeadId;
       currentLeadStatus = "respondeu";
-      console.log(`[CHATBOT] Created new lead: ${leadId}`);
+      console.log(`[CHATBOT] Created new lead: ${leadId} | instance: ${instanceDbId}`);
     }
 
     // ------------------------------------------------------------------
@@ -1412,6 +1417,7 @@ serve(async (req) => {
       updated_at: now,
       bot_name: botName,
       instance_name: instanceName,
+      instance_id: instanceDbId,
     };
     if (newLeadStatus !== currentLeadStatus) {
       postUpdate.status = newLeadStatus;
