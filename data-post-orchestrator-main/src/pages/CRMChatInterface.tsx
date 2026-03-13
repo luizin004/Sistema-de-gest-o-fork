@@ -18,6 +18,7 @@ interface Lead {
   feedback: string | null;
   campanha_id?: number | null;
   campanha_nome?: string | null;
+  instance_id?: string | null;
 }
 
 const CRMChatInterface = () => {
@@ -29,7 +30,7 @@ const CRMChatInterface = () => {
       const tenantId = getTenantId();
       let query = (supabase as any)
         .from('posts')
-        .select('id, nome, telefone, status, data, horario, tratamento, dentista, created_at, ultima_mensagem_at, feedback, campanha_id, campanha_nome')
+        .select('id, nome, telefone, status, data, horario, tratamento, dentista, created_at, ultima_mensagem_at, feedback, campanha_id, campanha_nome, instance_id')
         .order('ultima_mensagem_at', { ascending: false, nullsFirst: false });
 
       if (tenantId) {

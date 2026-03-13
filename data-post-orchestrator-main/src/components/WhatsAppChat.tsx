@@ -27,6 +27,7 @@ interface WhatsAppChatProps {
   onClose: () => void;
   contactName: string;
   contactPhone: string | null;
+  instanceId?: string | null;
 }
 
 const SUPABASE_FUNCTIONS_URL = 'https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1';
@@ -76,10 +77,13 @@ const WaMediaContent = ({ message, onLoaded }: { message: Message; onLoaded: (id
   return null;
 };
 
-export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone }: WhatsAppChatProps) => {
+export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone, instanceId }: WhatsAppChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // uazapiInstanceStringId: the UAZAPI string instance_id resolved from uazapi_instances
+  // undefined = pending resolution, null = no filter (legacy), string = filter by this value
+  const [uazapiInstanceStringId, setUazapiInstanceStringId] = useState<string | null | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage } = useMessageSender({
@@ -166,20 +170,62 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone }: Wha
 
   const phoneVariants = getPhoneVariants(contactPhone);
 
+  // Resolve UAZAPI string instance_id from the DB uuid when instanceId prop is provided
+  useEffect(() => {
+    if (!instanceId) {
+      // No instance_id on lead — legacy behavior, show all messages
+      setUazapiInstanceStringId(null);
+      return;
+    }
+    let cancelled = false;
+    const resolve = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('uazapi_instances' as any)
+          .select('instance_id')
+          .eq('id', instanceId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !data) {
+          console.warn('[WhatsAppChat] Could not resolve UAZAPI instance string id:', error?.message);
+          setUazapiInstanceStringId(null);
+          return;
+        }
+        setUazapiInstanceStringId((data as any).instance_id as string);
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[WhatsAppChat] Error resolving UAZAPI instance string id:', err);
+          setUazapiInstanceStringId(null);
+        }
+      }
+    };
+    resolve();
+    return () => { cancelled = true; };
+  }, [instanceId]);
+
   // Fetch message history
   useEffect(() => {
+    // Wait until instance resolution is complete
+    if (uazapiInstanceStringId === undefined) return;
     if (!isOpen || phoneVariants.length === 0) return;
 
     const fetchMessages = async () => {
       setIsLoading(true);
       try {
         console.log("Fetching messages for phone variants:", phoneVariants);
-        
-        const { data, error } = await supabase
+
+        let query = supabase
           .from('uazapi_chat_messages' as any)
           .select('*')
           .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
           .order('created_at', { ascending: true });
+
+        // Filter by instance when available
+        if (uazapiInstanceStringId) {
+          query = (query as any).eq('metadata->>instance_id', uazapiInstanceStringId);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         console.log("Fetched messages:", data?.length);
@@ -192,10 +238,12 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone }: Wha
     };
 
     fetchMessages();
-  }, [isOpen, contactPhone]);
+  }, [isOpen, contactPhone, uazapiInstanceStringId]);
 
   // Subscribe to real-time updates
   useEffect(() => {
+    // Wait until instance resolution is complete
+    if (uazapiInstanceStringId === undefined) return;
     if (!isOpen || phoneVariants.length === 0) return;
 
     const phoneSet = new Set(phoneVariants);
@@ -206,25 +254,29 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone }: Wha
         { event: 'INSERT', schema: 'public', table: 'uazapi_chat_messages' },
         (payload) => {
           const newMsg = payload.new as Message;
-          if (phoneSet.has(newMsg.phone_number)) {
-            setMessages(prev => {
-              // Skip if already exists
-              if (prev.some(m => m.id === newMsg.id)) return prev;
-              // Replace optimistic message if this is the server confirmation
-              const optimisticIdx = prev.findIndex(m =>
-                (m.metadata as any)?._optimistic &&
-                m.content === newMsg.content &&
-                m.direction === 'outbound' &&
-                (m.status === 'sending' || m.status === 'sent')
-              );
-              if (optimisticIdx >= 0) {
-                const updated = [...prev];
-                updated[optimisticIdx] = newMsg;
-                return updated;
-              }
-              return [...prev, newMsg];
-            });
+          if (!phoneSet.has(newMsg.phone_number)) return;
+          // Instance filter for realtime
+          if (uazapiInstanceStringId) {
+            const msgInstanceId = newMsg.metadata?.instance_id;
+            if (msgInstanceId && msgInstanceId !== uazapiInstanceStringId) return;
           }
+          setMessages(prev => {
+            // Skip if already exists
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            // Replace optimistic message if this is the server confirmation
+            const optimisticIdx = prev.findIndex(m =>
+              (m.metadata as any)?._optimistic &&
+              m.content === newMsg.content &&
+              m.direction === 'outbound' &&
+              (m.status === 'sending' || m.status === 'sent')
+            );
+            if (optimisticIdx >= 0) {
+              const updated = [...prev];
+              updated[optimisticIdx] = newMsg;
+              return updated;
+            }
+            return [...prev, newMsg];
+          });
         }
       )
       .on(
@@ -242,7 +294,7 @@ export const WhatsAppChat = ({ isOpen, onClose, contactName, contactPhone }: Wha
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, contactPhone]);
+  }, [isOpen, contactPhone, uazapiInstanceStringId]);
 
   // Auto-scroll to bottom
   useEffect(() => {

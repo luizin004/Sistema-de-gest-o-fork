@@ -20,4 +20,5 @@ export interface Post {
   bot_pause_reason?: string | null; // Motivo da pausa do bot
   bot_name?: string | null; // Nome do bot que está atendendo
   instance_name?: string | null; // Nome da instância UAZAPI conectada
+  instance_id?: string | null; // DB uuid of the uazapi_instances row
 }

@@ -1174,9 +1174,10 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
 
           {/* Right side - Chat */}
           <div className="w-[340px] border-l border-border flex flex-col bg-muted/30">
-            <EmbeddedWhatsAppChat 
+            <EmbeddedWhatsAppChat
               contactName={formData.nome || "Contato"}
               contactPhone={formData.telefone || null}
+              instanceId={lead?.instance_id || null}
             />
           </div>
         </div>

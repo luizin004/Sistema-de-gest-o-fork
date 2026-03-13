@@ -44,6 +44,7 @@ interface Lead {
   feedback: string | null;
   campanha_id?: number | null;
   campanha_nome?: string | null;
+  instance_id?: string | null;
 }
 
 interface Chat {
@@ -57,6 +58,7 @@ interface Chat {
   unreadCount: number;
   isInAttendance: boolean;
   messages: Message[];
+  instanceId?: string | null;
 }
 
 interface ChatInterfaceProps {
@@ -224,19 +226,21 @@ const getPhoneVariants = (phone: string | null): string[] => {
 };
 
 // Componente de coluna de chat
-const ChatColumn = ({ 
-  chat, 
-  onClose, 
+const ChatColumn = ({
+  chat,
+  onClose,
   onSendMessage
-}: { 
-  chat: Chat; 
-  onClose: () => void; 
+}: {
+  chat: Chat;
+  onClose: () => void;
   onSendMessage: (message: string) => void;
 }) => {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // uazapiInstanceStringId: the UAZAPI string instance_id resolved from uazapi_instances
+  const [uazapiInstanceStringId, setUazapiInstanceStringId] = useState<string | null | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const retryCountRef = useRef(0);
 
@@ -245,8 +249,43 @@ const ChatColumn = ({
   // Chave estável para usar como dependência de useEffect
   const phoneKey = useMemo(() => phoneVariants.sort().join(','), [phoneVariants]);
 
-  // Fetch message history - usa chat.id + phoneKey para garantir re-fetch ao reabrir
+  // Resolve the UAZAPI string instance_id from the lead's instance_id (DB uuid)
   useEffect(() => {
+    if (!chat.instanceId) {
+      // No instance_id on lead — legacy behavior, show all messages
+      setUazapiInstanceStringId(null);
+      return;
+    }
+    let cancelled = false;
+    const resolve = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('uazapi_instances' as any)
+          .select('instance_id')
+          .eq('id', chat.instanceId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (error || !data) {
+          console.warn('[ChatColumn] Could not resolve UAZAPI instance string id:', error?.message);
+          setUazapiInstanceStringId(null);
+          return;
+        }
+        setUazapiInstanceStringId((data as any).instance_id as string);
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[ChatColumn] Error resolving UAZAPI instance string id:', err);
+          setUazapiInstanceStringId(null);
+        }
+      }
+    };
+    resolve();
+    return () => { cancelled = true; };
+  }, [chat.instanceId]);
+
+  // Fetch message history - usa chat.id + phoneKey para garantir re-fetch ao reabrir
+  // Wait until uazapiInstanceStringId is resolved (undefined = pending)
+  useEffect(() => {
+    if (uazapiInstanceStringId === undefined) return;
     if (phoneVariants.length === 0) {
       setIsLoading(false);
       return;
@@ -260,11 +299,18 @@ const ChatColumn = ({
 
     const fetchMessages = async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('uazapi_chat_messages' as any)
           .select('id, phone_number, direction, content, media_url, media_type, status, provider_id, message_type, metadata, created_at, updated_at')
           .or(phoneVariants.map(p => `phone_number.eq.${p}`).join(','))
           .order('created_at', { ascending: true });
+
+        // Filter by instance when available (metadata->>instance_id matches UAZAPI string id)
+        if (uazapiInstanceStringId) {
+          query = (query as any).eq('metadata->>instance_id', uazapiInstanceStringId);
+        }
+
+        const { data, error } = await query;
 
         if (cancelled) return;
         if (error) throw error;
@@ -288,10 +334,11 @@ const ChatColumn = ({
 
     fetchMessages();
     return () => { cancelled = true; };
-  }, [phoneKey, chat.id]);
+  }, [phoneKey, chat.id, uazapiInstanceStringId]);
 
   // Subscribe to real-time updates - canal único por chat
   useEffect(() => {
+    if (uazapiInstanceStringId === undefined) return;
     if (phoneVariants.length === 0) return;
 
     const phoneSet = new Set(phoneVariants);
@@ -308,12 +355,16 @@ const ChatColumn = ({
         },
         (payload) => {
           const newMsg = payload.new as Message;
-          if (phoneSet.has(newMsg.phone_number)) {
-            setMessages(prev => {
-              if (prev.some(m => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
+          if (!phoneSet.has(newMsg.phone_number)) return;
+          // Instance filter for realtime: if we have a filter, check metadata
+          if (uazapiInstanceStringId) {
+            const msgInstanceId = newMsg.metadata?.instance_id;
+            if (msgInstanceId && msgInstanceId !== uazapiInstanceStringId) return;
           }
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
         }
       )
       .on(
@@ -331,7 +382,7 @@ const ChatColumn = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [phoneKey, chat.id]);
+  }, [phoneKey, chat.id, uazapiInstanceStringId]);
 
   // Auto-scroll para última mensagem
   useEffect(() => {
@@ -572,7 +623,8 @@ export const ChatInterface = ({ leads }: ChatInterfaceProps) => {
       lastMessageTime: new Date(),
       unreadCount: 0,
       isInAttendance: true,
-      messages: [] // Mensagens serão carregadas do banco
+      messages: [], // Mensagens serão carregadas do banco
+      instanceId: lead.instance_id || null,
     };
 
     setOpenChats(prev => [...prev, newChat]);

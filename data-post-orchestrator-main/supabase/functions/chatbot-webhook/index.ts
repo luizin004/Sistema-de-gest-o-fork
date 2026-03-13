@@ -1060,7 +1060,7 @@ serve(async (req) => {
     if (!openaiApiKey) {
       console.error(`[CHATBOT] No OpenAI API key configured for bot ${chatbotConfigId}`);
       const noKeyReply = "Olá! Estamos configurando nosso atendimento. Em breve retornaremos!";
-      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase);
+      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, noKeyReply, tenantId, supabase, undefined, instanceId);
       return jsonResponse({ ok: true, error: "no_openai_api_key" });
     }
 
@@ -1084,7 +1084,7 @@ serve(async (req) => {
         const longAudioReply =
           "Olá! Recebi seu áudio, mas ele está um pouquinho longo. Poderia resumir em texto? Fico feliz em ajudar! 😊";
 
-        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, longAudioReply, tenantId, supabase);
+        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, longAudioReply, tenantId, supabase, undefined, instanceId);
 
         return jsonResponse({ ok: true, action: "audio_too_long" });
       }
@@ -1095,7 +1095,7 @@ serve(async (req) => {
         console.warn("[CHATBOT] Transcription failed, sending fallback reply.");
         const transcribeFallback =
           "Não consegui ouvir seu áudio. Poderia enviar sua mensagem em texto? 😊";
-        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, transcribeFallback, tenantId, supabase);
+        await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, transcribeFallback, tenantId, supabase, undefined, instanceId);
         return jsonResponse({ ok: true, action: "transcription_failed" });
       }
 
@@ -1212,7 +1212,7 @@ serve(async (req) => {
       console.error("[CHATBOT] OpenAI returned null response, sending fallback.");
       const fallbackReply =
         "Olá! No momento estou com dificuldades técnicas. Nossa equipe entrará em contato em breve!";
-      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, fallbackReply, tenantId, supabase);
+      await sendWhatsApp(uazapiSendUrl, uazapiToken, phone, fallbackReply, tenantId, supabase, undefined, instanceId);
       return jsonResponse({ ok: true, action: "ai_fallback" });
     }
 
@@ -1381,7 +1381,8 @@ serve(async (req) => {
       finalReply,
       tenantId,
       supabase,
-      leadId
+      leadId,
+      instanceId
     );
 
     console.log(`[CHATBOT] Message sent: ${sendResult.success}`);
@@ -1484,7 +1485,8 @@ async function sendWhatsApp(
   text: string,
   tenantId: string,
   supabase: ReturnType<typeof createClient>,
-  leadId?: string
+  leadId?: string,
+  instanceId?: string
 ): Promise<{ success: boolean; messageId: string | null }> {
   let success = false;
   let messageId: string | null = null;
@@ -1540,6 +1542,7 @@ async function sendWhatsApp(
     metadata: {
       wasSentByBot: true,
       source: "chatbot_webhook",
+      instance_id: instanceId || null,
       uazapi_response: uazapiResponse,
       error: success ? undefined : sendError,
     },
