@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Send, MessageSquare, Download, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Send, MessageSquare, Download, Loader2, AlertCircle, RotateCcw, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,13 +81,21 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone }: EmbeddedWhat
   const [isSendingLocal, setIsSendingLocal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { sendMessage, isSending } = useMessageSender({
+  const { sendMessage } = useMessageSender({
     onMessageSent: (msg) => {
-      toast.success("Mensagem enviada!");
+      setMessages(prev => prev.map(m =>
+        (m.metadata as any)?._tempId === (msg as any).id
+          ? { ...m, status: 'sent', id: msg.id }
+          : m
+      ));
       setIsSendingLocal(false);
     },
     onMessageError: (msgId, err) => {
-      toast.error("Erro ao enviar mensagem");
+      setMessages(prev => prev.map(m =>
+        (m.metadata as any)?._tempId === msgId
+          ? { ...m, status: 'error' }
+          : m
+      ));
       console.error("Send error", err);
       setIsSendingLocal(false);
     }
@@ -199,6 +207,18 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone }: EmbeddedWhat
           if (phoneSet.has(newMsg.phone_number)) {
             setMessages(prev => {
               if (prev.some(m => m.id === newMsg.id)) return prev;
+              // Replace optimistic message if server confirms
+              const optimisticIdx = prev.findIndex(m =>
+                (m.metadata as any)?._optimistic &&
+                m.content === newMsg.content &&
+                m.direction === 'outbound' &&
+                (m.status === 'sending' || m.status === 'sent')
+              );
+              if (optimisticIdx >= 0) {
+                const updated = [...prev];
+                updated[optimisticIdx] = newMsg;
+                return updated;
+              }
               return [...prev, newMsg];
             });
           }
@@ -227,13 +247,32 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone }: EmbeddedWhat
     }
   }, [messages]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() || !contactPhone) return;
     const messageText = newMessage.trim();
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setNewMessage("");
+
+    // Optimistic: show message immediately
+    const optimisticMsg: Message = {
+      id: tempId,
+      lead_id: null,
+      phone_number: contactPhone,
+      direction: 'outbound',
+      content: messageText,
+      media_url: null,
+      media_type: null,
+      status: 'sending',
+      provider_id: null,
+      message_type: 'text',
+      metadata: { _tempId: tempId, _optimistic: true },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
     setIsSendingLocal(true);
+
     try {
-      // Find lead by phone to get leadId for uazapi-chat
       const { data: leadData } = await supabase
         .from('posts')
         .select('id')
@@ -241,18 +280,51 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone }: EmbeddedWhat
         .maybeSingle();
 
       if (!leadData?.id) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
         toast.error("Lead não encontrado para este telefone");
-        setNewMessage(messageText);
+        setIsSendingLocal(false);
         return;
       }
 
-      await sendMessage(leadData.id, messageText);
+      const result = await sendMessage(leadData.id, messageText);
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, status: result.status === 'error' ? 'error' : 'sent', id: result.providerId || result.id || tempId }
+          : m
+      ));
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Erro ao enviar mensagem");
-      setNewMessage(messageText);
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
     }
-  };
+    setIsSendingLocal(false);
+  }, [newMessage, contactPhone, sendMessage]);
+
+  const handleRetry = useCallback(async (msg: Message) => {
+    const tempId = msg.id;
+    setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sending' } : m));
+
+    try {
+      const { data: leadData } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('telefone', contactPhone)
+        .maybeSingle();
+
+      if (!leadData?.id) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
+        return;
+      }
+
+      const result = await sendMessage(leadData.id, msg.content || '');
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, status: result.status === 'error' ? 'error' : 'sent', id: result.providerId || result.id || tempId }
+          : m
+      ));
+    } catch {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m));
+    }
+  }, [contactPhone, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -356,11 +428,27 @@ export const EmbeddedWhatsAppChat = ({ contactName, contactPhone }: EmbeddedWhat
                           <EmbMediaContent message={msg} onLoaded={(id, url) => setMessages(prev => prev.map(m => m.id === id ? { ...m, media_url: url } : m))} />
                         )}
                         {msg.content && <p className="break-words whitespace-pre-wrap">{msg.content}</p>}
-                        <p className={`text-[9px] mt-0.5 text-right ${
+                        <div className={`flex items-center justify-end gap-1 mt-0.5 ${
                           msg.direction === 'outbound' ? 'text-gray-500' : 'text-gray-400'
                         }`}>
-                          {formatTime(msg.created_at)}
-                        </p>
+                          <span className="text-[9px]">{formatTime(msg.created_at)}</span>
+                          {msg.direction === 'outbound' && (
+                            msg.status === 'sending'
+                              ? <Loader2 className="h-2.5 w-2.5 animate-spin text-gray-400" />
+                              : msg.status === 'error'
+                              ? <AlertCircle className="h-2.5 w-2.5 text-red-500" />
+                              : <CheckCheck className="h-2.5 w-2.5 text-[#53bdeb]" />
+                          )}
+                        </div>
+                        {msg.status === 'error' && msg.direction === 'outbound' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRetry(msg); }}
+                            className="flex items-center gap-1 mt-0.5 text-[9px] text-red-500 hover:text-red-700 font-medium"
+                          >
+                            <RotateCcw className="h-2 w-2" />
+                            Falha. Toque para reenviar
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
