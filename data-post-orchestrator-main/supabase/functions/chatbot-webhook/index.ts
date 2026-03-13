@@ -1365,8 +1365,15 @@ serve(async (req) => {
             finalReply = `Pronto! Sua consulta de ${schedulingData?.treatment_name || "tratamento"} está confirmada para ${chosenSlot.dayLabel} às ${chosenSlot.start}. Aguardamos você! 😊`;
             aiResponse.status = "agendou consulta";
             // In agendamento_fixo mode, do NOT pause the bot — it keeps attending
-            // Only pause in flexible mode (when status = "interessado em agendar consulta")
             aiResponse.should_pause = false;
+
+            // Update posts with agendamento data
+            await supabase.from("posts").update({
+              agendamento_id: agendamentoId,
+              data_marcada: dataMarcadaWithTz,
+              horario: chosenSlot.start,
+              tratamento: schedulingData?.treatment_name || null,
+            }).eq("id", leadId);
 
             convUpdateExtra = {
               scheduling_state: "confirmed",
@@ -1388,8 +1395,13 @@ serve(async (req) => {
           const bookedId = schedulingData?.booked_agendamento_id;
           if (bookedId) {
             await supabase.from("agendamento").delete().eq("id", bookedId);
+            // Clear agendamento fields from post
+            await supabase.from("posts").update({
+              agendamento_id: null,
+              data_marcada: null,
+            }).eq("id", leadId);
             finalReply = "Sua consulta foi cancelada. Gostaria de agendar um novo horário? Se sim, me diga qual tratamento deseja.";
-            aiResponse.status = "reagendando";
+            aiResponse.status = "engajou";
             convUpdateExtra = {
               scheduling_state: null,
               scheduling_data: null,
