@@ -849,6 +849,7 @@ serve(async (req) => {
     }
 
     const { tenant_id: tenantId, token: uazapiToken, api_url: uazapiApiUrl } = instance;
+    const instanceDbId: string = instance.id;
     const instanceName: string = instance.name || instanceId;
     const chatbotConfigId: string | null = instance.chatbot_config_id || null;
     const uazapiSendUrl = `${uazapiApiUrl || "https://oralaligner.uazapi.com"}/send/text`;
@@ -894,8 +895,6 @@ serve(async (req) => {
     console.log(`[CHATBOT] Phone variants:`, phoneVariants);
 
     // Search for existing lead by phone + instance (leads are unique per phone per instance)
-    const instanceDbId: string = instance.id;
-
     const { data: existingLead } = await supabase
       .from("posts")
       .select("id, status, nome")
