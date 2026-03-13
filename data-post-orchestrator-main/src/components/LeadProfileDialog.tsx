@@ -385,7 +385,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
             bot_active: !pause,
             pause_reason: newPauseReason,
           })
-          .eq("phone", lead.telefone)
+          .eq("phone_number", lead.telefone)
           .eq("tenant_id", tenantId);
 
         if (convError) {

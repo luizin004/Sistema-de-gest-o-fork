@@ -545,7 +545,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
                 pause_reason: 'agendado por fora',
                 current_funnel_status: 'agendado por fora'
               })
-              .eq('phone', normalizedPhone);
+              .eq('phone_number', normalizedPhone);
           }
 
           toast.success("Lead atualizado como 'Agendado por Fora'!");
@@ -619,7 +619,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
                     pause_reason: 'agendou consulta',
                     current_funnel_status: 'agendou consulta'
                   })
-                  .eq('phone', normalizedPhone);
+                  .eq('phone_number', normalizedPhone);
               }
 
               toast.success("Status atualizado e datas sincronizadas com agendamento!");

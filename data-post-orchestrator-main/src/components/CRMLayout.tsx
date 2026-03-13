@@ -130,14 +130,14 @@ export const CRMLayout = () => {
   const handleRealtimeConversation = useCallback((payload: any) => {
     if (!tenantId) return;
     const record = payload.new as any;
-    if (!record?.phone) return;
+    if (!record?.phone_number) return;
 
     // Find matching post(s) by phone and update bot_paused/bot_pause_reason
     applyRealtimeUpdate((current) =>
       current.map((post) => {
         if (!post.telefone) return post;
         const postPhone = (post.telefone || "").replace(/\D/g, "");
-        const convPhone = (record.phone || "").replace(/\D/g, "");
+        const convPhone = (record.phone_number || "").replace(/\D/g, "");
         // Match last 8+ digits to handle format differences
         const matchLen = Math.min(postPhone.length, convPhone.length, 8);
         if (matchLen < 8) return post;
