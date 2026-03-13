@@ -63,7 +63,7 @@ const baseOperationsItems: NavItem[] = [
 
 const isActivePath = (pathname: string, href: string) => {
   if (href === "/home") return pathname === "/home";
-  if (href.startsWith("/crm")) return pathname.startsWith(href);
+  if (href.startsWith("/crm")) return pathname === href || pathname.startsWith(href + "/");
   return pathname === href;
 };
 
