@@ -1085,7 +1085,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
             className="kanban-scrollbar-top overflow-x-auto overflow-y-hidden flex-shrink-0"
             onScroll={handleTopScrollbarScroll}
           >
-            <div className="w-full h-2" />
+            <div className="h-2" style={{ minWidth: '1500px' }} />
           </div>
           
           {/* Conteúdo do Kanban com scroll vertical */}
@@ -1132,7 +1132,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
               }
             `}</style>
             
-            <div className="grid grid-cols-6 gap-2 p-4 pt-2 w-full items-start">
+            <div className="grid grid-cols-6 gap-3 p-4 pt-2 items-start" style={{ minWidth: '1500px' }}>
               {statusConfig.map(({ name: status, headerBgClass, counterClass, columnBgClass, description, icon }) => (
                 <KanbanColumn
                   key={status}
