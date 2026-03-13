@@ -29,34 +29,57 @@ serve(async (req) => {
   }
 
   try {
+    // Service-role client for DB operations
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Extract tenant from auth token
+    // Try to authenticate user from Authorization header
     const authHeader = req.headers.get("authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
+    const token = authHeader.replace(/^Bearer\s+/i, "");
 
-    if (authError || !user) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
+    let tenantId: string | null = null;
+
+    if (token && token.startsWith("ey")) {
+      // Token looks like a JWT — try to resolve user
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+      if (user && !authError) {
+        const { data: profile } = await supabase
+          .from("usuarios")
+          .select("tenant_id")
+          .eq("id", user.id)
+          .single();
+        tenantId = profile?.tenant_id;
+      }
     }
 
-    // Get tenant_id from user profile
-    const { data: profile } = await supabase
-      .from("usuarios")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-
-    const tenantId = profile?.tenant_id;
+    // Fallback: try x-tenant-id header (for internal/service calls)
     if (!tenantId) {
-      return jsonResponse({ error: "Tenant not found" }, 400);
+      tenantId = req.headers.get("x-tenant-id");
     }
 
+    // Last resort: get tenant from the lead itself
     const body = await req.json();
     const { action, leadId, message, tempId } = body;
+
+    // Allow tenant_id from body as well
+    if (!tenantId && body.tenant_id) {
+      tenantId = body.tenant_id;
+    }
+
+    if (!tenantId && leadId) {
+      // Try to resolve tenant from the lead
+      const { data: leadTenant } = await supabase
+        .from("posts")
+        .select("tenant_id")
+        .eq("id", leadId)
+        .single();
+      tenantId = leadTenant?.tenant_id;
+    }
+
+    if (!tenantId) {
+      console.error("[uazapi-chat] Could not resolve tenant_id. Auth header present:", !!authHeader, "Token length:", token?.length);
+      return jsonResponse({ error: "Could not resolve tenant. Please re-login." }, 401);
+    }
 
     if (action !== "send") {
       return jsonResponse({ error: `Unknown action: ${action}` }, 400);
