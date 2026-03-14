@@ -782,7 +782,7 @@ export const LeadProfileDialog = ({ lead, isOpen, onClose, onUpdate }: LeadProfi
   return (
     <>
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[900px] p-0 overflow-hidden max-h-[90vh]">
+      <DialogContent className="sm:max-w-[900px] p-0 overflow-hidden max-h-[90vh] [&>button:last-child]:hidden">
         <div className="flex h-[600px]">
           {/* Left side - Profile */}
           <div className="flex-1 flex flex-col overflow-hidden">

@@ -6,13 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  User, Smartphone, Plus, RefreshCw, Trash2, Wifi, WifiOff,
-  QrCode, Loader2, Copy, Check, Save, ArrowLeft,
+  User, Smartphone, RefreshCw, Wifi, WifiOff,
+  QrCode, Loader2, Copy, Check, Save, ArrowLeft, Power,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-const FUNCTIONS_URL = "https://itescalcmmhhlzsmgdfv.supabase.co/functions/v1";
 
 interface InstanceRow {
   id: string;
@@ -41,40 +39,33 @@ export default function Configuracoes() {
   // Instances
   const [instances, setInstances] = useState<InstanceRow[]>([]);
   const [loadingInstances, setLoadingInstances] = useState(false);
-  const [newToken, setNewToken] = useState("");
-  const [addingInstance, setAddingInstance] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [connectMode, setConnectMode] = useState<"qr" | "code">("qr");
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [connectPhone, setConnectPhone] = useState("");
+  const [showCodeInput, setShowCodeInput] = useState<string | null>(null);
   const [connectResult, setConnectResult] = useState<{
     type: "qr" | "code";
     value: string;
     instanceId: string;
   } | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Load user data
+  // Load user data from localStorage
   useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/login", { replace: true }); return; }
+    const stored = localStorage.getItem("usuario");
+    if (!stored) { navigate("/login", { replace: true }); return; }
 
-      const { data: profile } = await (supabase as any)
-        .from("usuarios")
-        .select("id, nome, email, tenant_id")
-        .eq("id", user.id)
-        .single();
+    let parsed: any;
+    try { parsed = JSON.parse(stored); } catch { navigate("/login", { replace: true }); return; }
+    if (!parsed?.id) { navigate("/login", { replace: true }); return; }
 
-      if (profile) {
-        setUserId(profile.id);
-        setTenantId(profile.tenant_id);
-        setUserName(profile.nome || "");
-        setOriginalName(profile.nome || "");
-        setUserEmail(profile.email || user.email || "");
-      }
-    };
-    load();
+    setUserId(parsed.id);
+    setTenantId(parsed.tenant_id);
+    setUserName(parsed.nome || "");
+    setOriginalName(parsed.nome || "");
+    setUserEmail(parsed.email || "");
   }, [navigate]);
 
   // Save username
@@ -88,7 +79,6 @@ export default function Configuracoes() {
         .eq("id", userId);
       if (error) throw error;
 
-      // Update localStorage too
       try {
         const stored = JSON.parse(localStorage.getItem("usuario") || "{}");
         stored.nome = userName.trim();
@@ -105,7 +95,7 @@ export default function Configuracoes() {
     }
   };
 
-  // Fetch instances
+  // Fetch instances for this tenant
   const fetchInstances = useCallback(async () => {
     if (!tenantId) return;
     setLoadingInstances(true);
@@ -122,84 +112,62 @@ export default function Configuracoes() {
     if (tenantId) fetchInstances();
   }, [tenantId, fetchInstances]);
 
-  // Add instance by token
-  const handleAddInstance = async () => {
-    if (!newToken.trim()) return;
-    setAddingInstance(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error("Sessão expirada"); setAddingInstance(false); return; }
-
-      const res = await fetch(`${FUNCTIONS_URL}/uazapi-instance-config/configure`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ token: newToken.trim() }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(err.error || "Erro ao configurar instância");
-        setAddingInstance(false);
-        return;
-      }
-
-      const result = await res.json();
-      if (result.instance?.id) {
-        // Auto-configure webhook
-        await fetch(`${FUNCTIONS_URL}/uazapi-set-webhook`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ instance_id: result.instance.id }),
-        });
-        toast.success("Instância cadastrada e webhook ativado!");
-        setNewToken("");
-        await fetchInstances();
-      }
-    } catch {
-      toast.error("Erro ao configurar instância");
-    } finally {
-      setAddingInstance(false);
-    }
-  };
-
-  // Connect instance via UAZAPI /instance/connect
-  const handleConnect = async (instance: InstanceRow) => {
+  // Connect instance via UAZAPI POST /instance/connect
+  const handleConnect = async (instance: InstanceRow, mode: "qr" | "code") => {
     setConnectingId(instance.id);
+    setConnectMode(mode);
     setConnectResult(null);
     try {
       const apiUrl = instance.api_url || "https://oralaligner.uazapi.com";
       const body: any = {};
-      if (connectPhone.trim()) {
+      if (mode === "code" && connectPhone.trim()) {
         body.phone = connectPhone.trim().replace(/\D/g, "");
       }
 
       const res = await fetch(`${apiUrl}/instance/connect`, {
         method: "POST",
-        headers: { token: instance.token, "Content-Type": "application/json" },
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "token": instance.token,
+        },
         body: JSON.stringify(body),
       });
 
       const data = await res.json();
+      console.log("[Configuracoes] /instance/connect response:", JSON.stringify(data, null, 2));
       if (!res.ok) {
         toast.error(data.error || data.message || "Erro ao conectar");
         setConnectingId(null);
         return;
       }
 
-      if (data.qrcode || data.qr) {
-        setConnectResult({ type: "qr", value: data.qrcode || data.qr, instanceId: instance.id });
+      // If already connected, just update status and notify
+      if (data.connected || data.loggedIn || data.status === "connected") {
+        await (supabase as any)
+          .from("uazapi_instances")
+          .update({ connected: true, status: "connected", last_status_check: new Date().toISOString() })
+          .eq("id", instance.id);
+        await fetchInstances();
+        toast.success("Instancia ja esta conectada!");
+        setShowCodeInput(null);
+        return;
+      }
+
+      // QR and pairing code come inside data.instance
+      const inst = data.instance || {};
+      const qrValue = inst.qrcode;
+      const codeValue = inst.paircode;
+
+      if (qrValue) {
+        setConnectResult({ type: "qr", value: qrValue, instanceId: instance.id });
         toast.success("QR Code gerado! Escaneie no WhatsApp.");
-      } else if (data.code || data.pairingCode) {
-        setConnectResult({ type: "code", value: data.code || data.pairingCode, instanceId: instance.id });
-        toast.success("Código de pareamento gerado!");
+      } else if (codeValue) {
+        setConnectResult({ type: "code", value: codeValue, instanceId: instance.id });
+        toast.success("Codigo de pareamento gerado!");
       } else {
-        toast.info("Conexão iniciada. Verifique o status.");
+        console.warn("[Configuracoes] Resposta completa:", JSON.stringify(data, null, 2));
+        toast.info("Conexao iniciada. Verifique o status em alguns segundos.");
       }
     } catch {
       toast.error("Erro de rede ao conectar");
@@ -208,7 +176,47 @@ export default function Configuracoes() {
     }
   };
 
-  // Refresh instance status
+  // Disconnect instance via UAZAPI POST /instance/disconnect
+  const handleDisconnect = async (instance: InstanceRow) => {
+    if (!confirm(`Desconectar "${instance.name || instance.profile_name || instance.instance_id}"? Sera necessario reconectar via QR Code.`)) return;
+    setDisconnectingId(instance.id);
+    try {
+      const apiUrl = instance.api_url || "https://oralaligner.uazapi.com";
+
+      const res = await fetch(`${apiUrl}/instance/disconnect`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "token": instance.token,
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || data.message || "Erro ao desconectar");
+        return;
+      }
+
+      // Update status in Supabase
+      await (supabase as any)
+        .from("uazapi_instances")
+        .update({
+          connected: false,
+          status: "disconnected",
+          last_status_check: new Date().toISOString(),
+        })
+        .eq("id", instance.id);
+
+      await fetchInstances();
+      toast.success("Instancia desconectada com sucesso");
+    } catch {
+      toast.error("Erro de rede ao desconectar");
+    } finally {
+      setDisconnectingId(null);
+    }
+  };
+
+  // Refresh instance status via UAZAPI GET /instance/status
   const handleRefresh = async (instance: InstanceRow) => {
     setRefreshingId(instance.id);
     try {
@@ -239,21 +247,6 @@ export default function Configuracoes() {
     }
   };
 
-  // Remove instance
-  const handleRemove = async (instance: InstanceRow) => {
-    if (!confirm(`Remover "${instance.name || instance.instance_id}"?`)) return;
-    setRemovingId(instance.id);
-    try {
-      await (supabase as any).from("uazapi_instances").delete().eq("id", instance.id);
-      toast.success("Instância removida");
-      await fetchInstances();
-    } catch {
-      toast.error("Erro ao remover");
-    } finally {
-      setRemovingId(null);
-    }
-  };
-
   const copyCode = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -268,8 +261,8 @@ export default function Configuracoes() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">Configurações</h1>
-            <p className="text-sm text-slate-500">Gerencie seu perfil e instâncias WhatsApp</p>
+            <h1 className="text-2xl font-semibold text-slate-900">Configuracoes</h1>
+            <p className="text-sm text-slate-500">Gerencie seu perfil e instancias WhatsApp</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Voltar
@@ -285,7 +278,7 @@ export default function Configuracoes() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-slate-700">Nome de usuário</label>
+              <label className="text-sm font-medium text-slate-700">Nome de usuario</label>
               <div className="flex gap-2 mt-1">
                 <Input
                   value={userName}
@@ -314,34 +307,7 @@ export default function Configuracoes() {
           </CardContent>
         </Card>
 
-        {/* Add Instance */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Plus className="w-4 h-4" /> Cadastrar Instância WhatsApp
-            </CardTitle>
-            <CardDescription>
-              Cole o token da UAZAPI para cadastrar uma nova instância
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Input
-                value={newToken}
-                onChange={(e) => setNewToken(e.target.value)}
-                placeholder="Token UAZAPI..."
-                disabled={addingInstance}
-                className="flex-1"
-              />
-              <Button onClick={handleAddInstance} disabled={addingInstance || !newToken.trim()}>
-                {addingInstance ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-                Cadastrar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Connect Result */}
+        {/* Connect Result (QR Code or Pairing Code) */}
         {connectResult && (
           <Card className="border-green-200 bg-green-50">
             <CardHeader>
@@ -398,12 +364,15 @@ export default function Configuracoes() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Smartphone className="w-4 h-4" />
-                Instancias ({instances.length})
+                Instancias WhatsApp ({instances.length})
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={fetchInstances} disabled={loadingInstances}>
                 <RefreshCw className={`w-4 h-4 ${loadingInstances ? "animate-spin" : ""}`} />
               </Button>
             </div>
+            <CardDescription>
+              Instancias disponibilizadas pelo administrador. Conecte ou desconecte conforme necessario.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingInstances && instances.length === 0 ? (
@@ -414,14 +383,14 @@ export default function Configuracoes() {
             ) : instances.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Smartphone className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                <p>Nenhuma instancia cadastrada</p>
-                <p className="text-xs mt-1">Cadastre acima usando o token UAZAPI.</p>
+                <p>Nenhuma instancia disponivel</p>
+                <p className="text-xs mt-1">Solicite ao administrador para vincular uma instancia a sua conta.</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {instances.map((inst) => (
                   <div key={inst.id} className="border rounded-lg p-4 bg-white space-y-3">
-                    {/* Top row */}
+                    {/* Instance info */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -429,49 +398,93 @@ export default function Configuracoes() {
                             {inst.name || inst.profile_name || inst.instance_id}
                           </span>
                           <Badge
-                            variant={inst.connected ? "default" : "destructive"}
-                            className={`text-xs shrink-0 ${inst.connected ? "bg-green-100 text-green-800 border-green-200" : ""}`}
+                            variant="outline"
+                            className={`text-xs shrink-0 cursor-default ${inst.connected ? "bg-green-100 text-green-800 border-green-300" : "bg-red-50 text-red-700 border-red-200"}`}
                           >
                             {inst.connected ? <><Wifi className="w-3 h-3 mr-1" />Conectado</> : <><WifiOff className="w-3 h-3 mr-1" />Desconectado</>}
                           </Badge>
                         </div>
                         <div className="text-xs text-slate-500 mt-1 space-y-0.5">
                           {inst.owner_phone && <p>Tel: {inst.owner_phone}</p>}
-                          <p>ID: {inst.instance_id}</p>
+                          {inst.last_status_check && (
+                            <p>Ultima verificacao: {new Date(inst.last_status_check).toLocaleString("pt-BR")}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
                         <Button size="sm" variant="outline" onClick={() => handleRefresh(inst)} disabled={refreshingId === inst.id} title="Atualizar status">
                           <RefreshCw className={`w-3 h-3 ${refreshingId === inst.id ? "animate-spin" : ""}`} />
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => handleRemove(inst)} disabled={removingId === inst.id} title="Remover">
-                          {removingId === inst.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                        </Button>
                       </div>
                     </div>
 
-                    {/* Connect row for disconnected */}
-                    {!inst.connected && (
-                      <div className="flex gap-2 pt-1 border-t border-slate-100">
-                        <Input
-                          value={connectingId === inst.id ? connectPhone : ""}
-                          onChange={(e) => setConnectPhone(e.target.value)}
-                          placeholder="5511999... (opcional, gera codigo)"
-                          className="flex-1 h-8 text-xs"
-                          disabled={connectingId !== null && connectingId !== inst.id}
-                        />
+                    {/* Connected: show disconnect button */}
+                    {inst.connected && (
+                      <div className="pt-2 border-t border-slate-100">
                         <Button
                           size="sm"
-                          onClick={() => handleConnect(inst)}
-                          disabled={connectingId !== null}
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          variant="outline"
+                          className="text-red-600 hover:bg-red-50 border-red-200"
+                          onClick={() => handleDisconnect(inst)}
+                          disabled={disconnectingId === inst.id}
                         >
-                          {connectingId === inst.id ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
+                          {disconnectingId === inst.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin mr-1" />
                           ) : (
-                            <><QrCode className="w-3 h-3 mr-1" /> Conectar</>
+                            <Power className="w-3 h-3 mr-1" />
                           )}
+                          Desconectar
                         </Button>
+                      </div>
+                    )}
+
+                    {/* Disconnected: show connect options */}
+                    {!inst.connected && (
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleConnect(inst, "qr")}
+                            disabled={connectingId !== null}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {connectingId === inst.id && connectMode === "qr" ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <><QrCode className="w-3 h-3 mr-1" /> Gerar QR Code</>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowCodeInput(showCodeInput === inst.id ? null : inst.id)}
+                            disabled={connectingId !== null}
+                          >
+                            <Smartphone className="w-3 h-3 mr-1" /> Codigo de pareamento
+                          </Button>
+                        </div>
+                        {showCodeInput === inst.id && (
+                          <div className="flex gap-2">
+                            <Input
+                              value={connectPhone}
+                              onChange={(e) => setConnectPhone(e.target.value)}
+                              placeholder="5511999999999"
+                              className="flex-1 h-8 text-xs"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleConnect(inst, "code")}
+                              disabled={connectingId !== null || !connectPhone.trim()}
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              {connectingId === inst.id && connectMode === "code" ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <>Gerar codigo</>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

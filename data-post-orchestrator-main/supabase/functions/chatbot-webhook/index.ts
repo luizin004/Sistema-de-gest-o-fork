@@ -535,34 +535,26 @@ function computeAvailableSlots(
     }
   }
 
-  // Phase 2: Select up to maxSlots with variety across days (but allow multiple per day)
+  // Phase 2: Select slots with variety across days
+  // Since display groups by day (showing time ranges like "08:00 às 18:00"),
+  // we need ALL slots per day to compute correct ranges, but limit to maxSlots DAYS.
   if (allSlots.length <= maxSlots) return allSlots;
 
-  // Count unique days
-  const uniqueDays = new Set(allSlots.map(s => s.date));
-
-  // If only 1 or 2 days available, return all slots from those days (up to maxSlots)
-  if (uniqueDays.size <= 2) return allSlots.slice(0, maxSlots);
-
-  // Multiple days: pick 1 per day first for variety, then fill remaining
-  const selected: AvailableSlot[] = [];
-  const usedDays = new Set<string>();
-
-  // First pass: 1 slot per day
+  // Group all slots by date
+  const slotsByDate = new Map<string, AvailableSlot[]>();
   for (const slot of allSlots) {
-    if (usedDays.has(slot.date)) continue;
-    selected.push(slot);
-    usedDays.add(slot.date);
-    if (selected.length >= maxSlots) break;
+    const existing = slotsByDate.get(slot.date) || [];
+    existing.push(slot);
+    slotsByDate.set(slot.date, existing);
   }
 
-  // Second pass: fill remaining from unused slots
-  if (selected.length < maxSlots) {
-    for (const slot of allSlots) {
-      if (selected.includes(slot)) continue;
-      selected.push(slot);
-      if (selected.length >= maxSlots) break;
-    }
+  // Pick up to maxSlots unique days, return ALL slots from those days
+  const selected: AvailableSlot[] = [];
+  let daysSelected = 0;
+  for (const [, daySlots] of slotsByDate) {
+    if (daysSelected >= maxSlots) break;
+    selected.push(...daySlots);
+    daysSelected++;
   }
 
   return selected;
