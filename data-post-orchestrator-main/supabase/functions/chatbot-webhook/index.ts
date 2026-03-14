@@ -365,45 +365,50 @@ function buildSystemPrompt(
 
   return `Você é a assistente virtual da clínica ${clinicName}.
 Tom: ${clinicTone}
+${customSections}
 
-## Regras do fluxo de atendimento (NÃO ALTERAR):
-1. NUNCA sugira horários - pergunte ao paciente quais horários ele tem disponíveis
-2. Pergunte qual tratamento deseja (lista abaixo)
-3. Quando o paciente informar horários + tratamento → informe que a equipe confirmará em breve
-4. Se não souber responder ou a pergunta estiver fora do escopo → classifique como "atencao"
-5. Não invente informações não fornecidas
-6. Respostas curtas, estilo WhatsApp (máximo 3 linhas por mensagem)
-7. Use linguagem natural, sem formalidades excessivas
-8. Nunca revele que é uma IA, apresente-se como assistente da clínica${
+## Tratamentos/serviços disponíveis:
+${tratamentosList}
+
+## Fluxo de atendimento:
+1. Cumprimente naturalmente e pergunte como pode ajudar
+2. Identifique qual tratamento/serviço o paciente deseja
+3. Se o paciente não sabe o que quer, apresente as opções de tratamento disponíveis acima de forma natural
+4. Quando souber o tratamento, pergunte quais horários/dias ele tem disponíveis
+5. Quando tiver tratamento + disponibilidade do paciente → informe que a equipe confirmará em breve e use status "interessado em agendar consulta"
+6. Se "qualquer horário", "qualquer dia" ou similar, aceite como disponibilidade válida
+
+## Regras:
+- NUNCA sugira horários específicos — pergunte ao paciente
+- Respostas curtas, estilo WhatsApp (2-3 linhas máximo)
+- Linguagem natural e humanizada, como se fosse uma pessoa real
+- Nunca revele que é IA
+- Se a pergunta for sobre preços, convênios ou assuntos que você não tem informação → classifique como "atencao"
+- Não invente informações${
     currentStatus === "agendou consulta"
-      ? "\n9. O paciente JÁ TEM uma consulta agendada. Se ele quiser remarcar, classifique como 'reagendando' e informe que a equipe entrará em contato."
+      ? "\n- O paciente JÁ TEM consulta agendada. Se quiser remarcar → status 'reagendando'"
       : ""
   }
 
-## Tratamentos disponíveis:
-${tratamentosList}${customSections}
+## Status (use EXATAMENTE estes valores):
+- respondeu: primeiro contato
+- interagiu: conversa ativa (2+ mensagens)
+- engajou: demonstrou interesse em tratamento específico
+- interessado em agendar consulta: tem tratamento + disponibilidade → DEVE pausar
+- atencao: pergunta fora do escopo (preço, convênio, etc.) → DEVE pausar
+- reagendando: quer remarcar consulta existente
+- impecilho: paciente relatou obstáculo
 
-## Classificação de status (retorne EXATAMENTE um destes valores no JSON):
-- respondeu: primeiro contato do paciente
-- interagiu: conversando ativamente (3+ mensagens trocadas)
-- engajou: interesse real demonstrado em tratamento específico
-- interessado em agendar consulta: paciente informou horários disponíveis E tratamento desejado → DEVE pausar bot
-- atencao: não consegue lidar com a pergunta ou situação especial → DEVE pausar bot
-- reagendando: paciente com consulta agendada quer remarcar
-- impecilho: paciente relatou problema ou obstáculo para comparecer
-
-IMPORTANTE: Use os status EXATAMENTE como escritos acima. Não use variantes como "interagindo", "interessado_agendar", etc.
-
-## FORMATO OBRIGATÓRIO DE RESPOSTA (JSON puro, sem markdown):
+## RESPONDA SEMPRE em JSON puro (sem markdown, sem \`\`\`):
 {
-  "reply": "texto da resposta para o paciente",
-  "status": "um dos status acima (exatamente como escrito)",
-  "detected_treatment": "nome do tratamento mencionado ou null",
-  "detected_times": "horários informados pelo paciente ou null",
-  "should_pause": true ou false
+  "reply": "sua resposta ao paciente",
+  "status": "um dos status acima",
+  "detected_treatment": "tratamento mencionado ou null",
+  "detected_times": "horários/dias informados ou null",
+  "should_pause": false
 }
 
-Regra de should_pause: defina como true APENAS para status "interessado em agendar consulta" ou "atencao".`;
+should_pause = true APENAS para "interessado em agendar consulta" ou "atencao".`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1295,7 +1300,7 @@ serve(async (req) => {
     // 11b. Handle agendamento_fixo actions BEFORE sending reply
     // ------------------------------------------------------------------
     let finalReply = aiResponse.reply;
-    let convUpdateExtra: Record<string, unknown> = {};
+    let convUpdateExtra: Record<string, unknown> | null = null;
 
     if (isFixoMode && aiResponse.action && aiResponse.action !== "none") {
       const { data: schedConfigData } = await supabase
@@ -1313,25 +1318,24 @@ serve(async (req) => {
         allow_double_booking: schedConfigData?.allow_double_booking ?? false,
       };
 
+      // Pre-load blocked periods and existing agendamentos (used by check_slots and book_slot)
+      const [blockedResult, agendamentosResult] = await Promise.all([
+        supabase
+          .from("chatbot_blocked_periods")
+          .select("blocked_date, start_time, end_time")
+          .eq("chatbot_config_id", chatbotConfigId),
+        supabase
+          .from("agendamento")
+          .select("id, data_marcada, horario")
+          .eq("tenant_id", tenantId),
+      ]);
+      const blockedPeriods: BlockedPeriod[] = blockedResult.data || [];
+      const existingAgendamentos: Agendamento[] = agendamentosResult.data || [];
+
       if (aiResponse.action === "check_slots") {
         // Find the treatment and its duration
         const matchedTreatment = findBestTreatmentMatch(tratamentos, aiResponse.detected_treatment || "");
         const duration = matchedTreatment?.duracao_minutos || 60;
-
-        // Load blocked periods and existing agendamentos
-        const [blockedResult, agendamentosResult] = await Promise.all([
-          supabase
-            .from("chatbot_blocked_periods")
-            .select("blocked_date, start_time, end_time")
-            .eq("chatbot_config_id", chatbotConfigId),
-          supabase
-            .from("agendamento")
-            .select("data_marcada, horario")
-            .eq("tenant_id", tenantId),
-        ]);
-
-        const blockedPeriods: BlockedPeriod[] = blockedResult.data || [];
-        const existingAgendamentos: Agendamento[] = agendamentosResult.data || [];
 
         const slots = computeAvailableSlots(schedConfig, blockedPeriods, existingAgendamentos, duration, 3);
 
@@ -1376,22 +1380,85 @@ serve(async (req) => {
       } else if (aiResponse.action === "book_slot") {
         const choiceIdx = (aiResponse.slot_choice || 1) - 1;
         const offeredSlots = schedulingData?.offered_slots || [];
-        const chosenSlot = offeredSlots[choiceIdx];
 
-        if (!chosenSlot) {
-          finalReply = "Desculpe, não consegui identificar qual opção você escolheu. Poderia repetir o número?";
+        // Validate slot_choice is within bounds
+        if (choiceIdx < 0 || choiceIdx >= offeredSlots.length) {
+          console.warn(`[CHATBOT] slot_choice=${aiResponse.slot_choice} out of bounds (offered=${offeredSlots.length})`);
+          finalReply = "Desculpe, não consegui identificar qual horário você escolheu. Poderia repetir?";
+          // Keep state so patient can retry
+          convUpdateExtra = {
+            scheduling_state: "awaiting_slot_choice",
+            scheduling_data: schedulingData,
+          };
         } else {
+          const chosenSlot = offeredSlots[choiceIdx];
+
+          // Re-validate slot availability before booking
+          const duration = schedulingData?.duracao_minutos || 60;
+          const { data: currentAgendamentos } = await supabase
+            .from("agendamento")
+            .select("id, data_marcada, horario")
+            .eq("tenant_id", tenantId)
+            .gte("data_marcada", `${chosenSlot.date}T00:00:00`)
+            .lte("data_marcada", `${chosenSlot.date}T23:59:59`);
+
+          const allowDouble = schedConfig?.allow_double_booking || false;
+          if (!allowDouble && currentAgendamentos && currentAgendamentos.length > 0) {
+            const hasConflict = currentAgendamentos.some((ag: any) => {
+              if (!ag.horario) return false;
+              const [agH, agM] = ag.horario.split(":").map(Number);
+              const agStart = agH * 60 + agM;
+              const agEnd = agStart + duration;
+              const [slotH, slotM] = chosenSlot.start.split(":").map(Number);
+              const slotStart = slotH * 60 + slotM;
+              const slotEnd = slotStart + duration;
+              return slotStart < agEnd && agStart < slotEnd;
+            });
+
+            if (hasConflict) {
+              console.log(`[CHATBOT] Slot ${chosenSlot.start} on ${chosenSlot.date} is no longer available`);
+              // Re-compute available slots and offer again
+              const reSlots = computeAvailableSlots(schedConfig, blockedPeriods, currentAgendamentos || [], duration, 3);
+              if (reSlots.length > 0) {
+                const dayRangeMap = new Map<string, { dayLabel: string; minStart: string; maxEnd: string }>();
+                for (const s of reSlots) {
+                  const existing = dayRangeMap.get(s.date);
+                  if (!existing) {
+                    dayRangeMap.set(s.date, { dayLabel: s.dayLabel, minStart: s.start, maxEnd: s.end });
+                  } else {
+                    if (s.start < existing.minStart) existing.minStart = s.start;
+                    if (s.end > existing.maxEnd) existing.maxEnd = s.end;
+                  }
+                }
+                const dayDescs = Array.from(dayRangeMap.values()).map(d => `${d.dayLabel} de ${d.minStart} às ${d.maxEnd}`);
+                const slotText = dayDescs.length === 1 ? dayDescs[0] : dayDescs.slice(0, -1).join(", ") + " ou " + dayDescs[dayDescs.length - 1];
+                finalReply = `Desculpe, o horário das ${chosenSlot.start} acabou de ser preenchido. Ainda tenho disponibilidade ${slotText}. Qual fica melhor pra você?`;
+                convUpdateExtra = {
+                  scheduling_state: "awaiting_slot_choice",
+                  scheduling_data: {
+                    ...schedulingData,
+                    offered_slots: reSlots,
+                  },
+                };
+              } else {
+                finalReply = "Desculpe, esse horário acabou de ser preenchido e não temos mais horários disponíveis no momento. Nossa equipe entrará em contato para encontrar o melhor horário para você!";
+                aiResponse.should_pause = true;
+                aiResponse.status = "atencao";
+                convUpdateExtra = { scheduling_state: null, scheduling_data: null };
+              }
+              aiResponse.status = aiResponse.status || "engajou";
+            }
+          }
+
+          if (!convUpdateExtra) {
           // Create agendamento record
           const agendamentoId = crypto.randomUUID();
-          // Fetch lead name and phone for agendamento record
           let leadNome = senderName || phone;
           if (leadId) {
             const { data: leadData } = await supabase.from("posts").select("nome, telefone").eq("id", leadId).maybeSingle();
             if (leadData?.nome) leadNome = leadData.nome;
           }
 
-          // Store data_marcada with correct São Paulo timezone to avoid UTC shift
-          // chosenSlot.date = "2026-04-10", chosenSlot.start = "08:00"
           const dataMarcadaWithTz = `${chosenSlot.date}T${chosenSlot.start}:00-03:00`;
 
           const { error: agError } = await supabase.from("agendamento").insert({
@@ -1409,20 +1476,14 @@ serve(async (req) => {
           });
 
           if (agError) {
-            // Insert failed — DO NOT move lead to "agendou consulta"
             console.error("[CHATBOT] Failed to create agendamento:", agError.message, agError.code);
-            finalReply = "Tive um probleminha ao registrar seu agendamento. Vou verificar outras opções para você!";
-            // Reset status so lead is NOT moved to "agendou consulta"
+            finalReply = "Tive um probleminha ao registrar seu agendamento. Poderia escolher outro horário?";
             aiResponse.status = "engajou";
             aiResponse.should_pause = false;
-            // Trigger a new check_slots on next message
+            // Keep awaiting_slot_choice so patient can retry without restarting
             convUpdateExtra = {
-              scheduling_state: "awaiting_treatment",
-              scheduling_data: {
-                treatment_id: schedulingData?.treatment_id,
-                treatment_name: schedulingData?.treatment_name,
-                duracao_minutos: schedulingData?.duracao_minutos,
-              },
+              scheduling_state: "awaiting_slot_choice",
+              scheduling_data: schedulingData,
             };
           } else {
             finalReply = `Pronto! Sua consulta de ${schedulingData?.treatment_name || "tratamento"} está confirmada para ${chosenSlot.dayLabel} às ${chosenSlot.start}. Aguardamos você! 😊`;
@@ -1447,6 +1508,7 @@ serve(async (req) => {
               },
             };
           }
+          } // end if (!convUpdateExtra) — booking path
         }
       } else if (aiResponse.action === "cancel_slot") {
         if (!schedConfig.allow_bot_cancel) {
@@ -1462,6 +1524,8 @@ serve(async (req) => {
             await supabase.from("posts").update({
               agendamento_id: null,
               data_marcada: null,
+              horario: null,
+              tratamento: null,
             }).eq("id", leadId);
             finalReply = "Sua consulta foi cancelada. Gostaria de agendar um novo horário? Se sim, me diga qual tratamento deseja.";
             aiResponse.status = "engajou";
@@ -1533,7 +1597,7 @@ serve(async (req) => {
         detected_treatment: aiResponse.detected_treatment,
         detected_available_times: aiResponse.detected_times,
         updated_at: now,
-        ...convUpdateExtra,
+        ...(convUpdateExtra || {}),
       })
       .eq("id", convId);
 

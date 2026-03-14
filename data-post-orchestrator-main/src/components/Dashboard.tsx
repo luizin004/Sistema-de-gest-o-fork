@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, Clock, TrendingUp, Target, Award, TrendingDown, Send, MessageCircle, Zap, Flame, CalendarCheck, CheckCircle2, ChevronDown } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Users, Calendar, Clock, TrendingUp, Target, Award, TrendingDown, Send, MessageCircle, Zap, Flame, CalendarCheck, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Post {
@@ -44,100 +43,47 @@ function getStatusLevel(status: string): number {
 }
 
 export const Dashboard = ({ posts, lastDisparosTotal = 0, funnelPeriod = 'all', onFunnelPeriodChange }: DashboardProps) => {
-  // Métricas gerais
   const totalLeads = posts.length;
-  
-  // Leads por status
+
   const statusCount = posts.reduce((acc, post) => {
     const normalizedStatus = post.status.toLowerCase();
     acc[normalizedStatus] = (acc[normalizedStatus] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Leads com agendamento
   const leadsComData = posts.filter(p => p.data).length;
-  
-  // Leads criados hoje
+
   const today = new Date().toDateString();
-  const leadsHoje = posts.filter(p => 
+  const leadsHoje = posts.filter(p =>
     new Date(p.created_at).toDateString() === today
   ).length;
 
-  // Leads com tratamento
   const leadsComTratamento = posts.filter(p => p.tratamento).length;
 
-  // Status mais frequente
   const statusMaisFrequente = Object.entries(statusCount).sort((a, b) => b[1] - a[1])[0];
 
-  // Taxa de conversão (leads que agendaram)
-  const leadsAgendados = posts.filter(p => 
+  const leadsAgendados = posts.filter(p =>
     p.status.toLowerCase().includes("agendou")
   ).length;
   const taxaConversao = totalLeads > 0 ? (leadsAgendados / totalLeads) * 100 : 0;
 
-  // Leads que compareceram
-  const leadsCompareceram = posts.filter(p => 
+  const leadsCompareceram = posts.filter(p =>
     p.status.toLowerCase().includes("compareceu")
   ).length;
 
-  // Funnel Metrics — cumulativo: conta leads que JÁ PASSARAM por cada etapa
-  // Um lead em "compareceu" (nível 6) conta para respondeu (2), interagiu (3), engajou (4), agendou (5) e compareceu (6)
   const funnelRespondeu = posts.filter(p => getStatusLevel(p.status) >= 2).length;
   const funnelInteragiu = posts.filter(p => getStatusLevel(p.status) >= 3).length;
   const funnelEngajou = posts.filter(p => getStatusLevel(p.status) >= 4).length;
   const funnelAgendou = posts.filter(p => getStatusLevel(p.status) >= 5).length;
   const funnelCompareceu = posts.filter(p => getStatusLevel(p.status) >= 6).length;
 
-  // Cálculo da maior queda no funil
   const funnelSteps = [
-    { 
-      label: 'Disparos',
-      sublabel: 'campanha',
-      value: lastDisparosTotal,
-      widthPct: 100,
-      colors: { from: '#dc2626', to: '#ef4444', shadow: 'rgba(220,38,38,0.35)' },
-      Icon: Send,
-    },
-    { 
-      label: 'Respondeu',
-      sublabel: 'primeiro contato',
-      value: funnelRespondeu,
-      widthPct: 84,
-      colors: { from: '#ea580c', to: '#f97316', shadow: 'rgba(234,88,12,0.30)' },
-      Icon: MessageCircle,
-    },
-    { 
-      label: 'Interagiu',
-      sublabel: 'continuou conversa',
-      value: funnelInteragiu,
-      widthPct: 68,
-      colors: { from: '#d97706', to: '#f59e0b', shadow: 'rgba(217,119,6,0.30)' },
-      Icon: Zap,
-    },
-    { 
-      label: 'Engajou',
-      sublabel: 'demonstrou interesse',
-      value: funnelEngajou,
-      widthPct: 52,
-      colors: { from: '#65a30d', to: '#84cc16', shadow: 'rgba(101,163,13,0.30)' },
-      Icon: Flame,
-    },
-    { 
-      label: 'Agendou',
-      sublabel: 'marcou consulta',
-      value: funnelAgendou,
-      widthPct: 36,
-      colors: { from: '#16a34a', to: '#22c55e', shadow: 'rgba(22,163,74,0.30)' },
-      Icon: CalendarCheck,
-    },
-    { 
-      label: 'Compareceu',
-      sublabel: 'presença confirmada',
-      value: funnelCompareceu,
-      widthPct: 20,
-      colors: { from: '#0d9488', to: '#14b8a6', shadow: 'rgba(13,148,136,0.30)' },
-      Icon: CheckCircle2,
-    },
+    { label: 'Disparos', sublabel: 'campanha', value: lastDisparosTotal, widthPct: 100, color: 'bg-gray-400', Icon: Send },
+    { label: 'Respondeu', sublabel: 'primeiro contato', value: funnelRespondeu, widthPct: 84, color: 'bg-stone-500', Icon: MessageCircle },
+    { label: 'Interagiu', sublabel: 'continuou conversa', value: funnelInteragiu, widthPct: 68, color: 'bg-teal-600/80', Icon: Zap },
+    { label: 'Engajou', sublabel: 'demonstrou interesse', value: funnelEngajou, widthPct: 52, color: 'bg-teal-600', Icon: Flame },
+    { label: 'Agendou', sublabel: 'marcou consulta', value: funnelAgendou, widthPct: 36, color: 'bg-emerald-600', Icon: CalendarCheck },
+    { label: 'Compareceu', sublabel: 'presenca confirmada', value: funnelCompareceu, widthPct: 20, color: 'bg-emerald-500', Icon: CheckCircle2 },
   ];
 
   let maxDrop = Number.NEGATIVE_INFINITY;
@@ -150,12 +96,11 @@ export const Dashboard = ({ posts, lastDisparosTotal = 0, funnelPeriod = 'all', 
   for (let i = 0; i < funnelSteps.length - 1; i++) {
     const current = funnelSteps[i];
     const next = funnelSteps[i+1];
-    
+
     if (current.value > 0) {
-        // Se o próximo passo for maior que o atual (o que não deveria acontecer num funil perfeito, mas pode nos dados reais), consideramos queda 0
         const dropAmount = Math.max(0, current.value - next.value);
         const dropPercent = (dropAmount / current.value) * 100;
-        
+
         if (dropPercent > maxDrop) {
             maxDrop = dropPercent;
             maxDropLabel = `${current.label} → ${next.label}`;
@@ -171,251 +116,206 @@ export const Dashboard = ({ posts, lastDisparosTotal = 0, funnelPeriod = 'all', 
     }
   }
 
-  if (maxDrop === Number.NEGATIVE_INFINITY) {
-    maxDrop = 0;
-  }
+  if (maxDrop === Number.NEGATIVE_INFINITY) maxDrop = 0;
+  if (maxRetention === Number.NEGATIVE_INFINITY) maxRetention = 0;
 
-  if (maxRetention === Number.NEGATIVE_INFINITY) {
-    maxRetention = 0;
-  }
+  // Status distribution sorted by count
+  const sortedStatuses = Object.entries(statusCount).sort((a, b) => b[1] - a[1]);
+  const maxCount = sortedStatuses.length > 0 ? sortedStatuses[0][1] : 1;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Cards principais */}
+    <div className="space-y-6">
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Leads
-            </CardTitle>
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Users className="h-5 w-5 text-primary" />
+        <Card className="border border-slate-200/60 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total de Leads</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{totalLeads}</p>
+                <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-semibold">
+                    +{leadsHoje}
+                  </span>
+                  novos hoje
+                </p>
+              </div>
+              <div className="p-2.5 bg-slate-100 rounded-xl">
+                <Users className="h-5 w-5 text-slate-600" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">{totalLeads}</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <span className="inline-flex items-center justify-center w-5 h-5 bg-success/10 text-success rounded-full text-[10px] font-semibold">
-                +{leadsHoje}
-              </span>
-              novos hoje
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-info">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Com Agendamento
-            </CardTitle>
-            <div className="p-2 bg-info/10 rounded-lg">
-              <Calendar className="h-5 w-5 text-info" />
+        <Card className="border border-slate-200/60 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Com Agendamento</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{leadsComData}</p>
+                <p className="text-xs text-slate-500 mt-1.5">
+                  {totalLeads > 0 ? Math.round((leadsComData / totalLeads) * 100) : 0}% do total
+                </p>
+              </div>
+              <div className="p-2.5 bg-blue-50 rounded-xl">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">{leadsComData}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {totalLeads > 0 ? Math.round((leadsComData / totalLeads) * 100) : 0}% do total
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-warning">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Taxa de Conversão
-            </CardTitle>
-            <div className="p-2 bg-warning/10 rounded-lg">
-              <Target className="h-5 w-5 text-warning" />
+        <Card className="border border-slate-200/60 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Taxa de Conversao</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">
+                  {taxaConversao.toFixed(1)}%
+                </p>
+                <p className="text-xs text-slate-500 mt-1.5">
+                  {leadsAgendados} agendamentos
+                </p>
+              </div>
+              <div className="p-2.5 bg-amber-50 rounded-xl">
+                <Target className="h-5 w-5 text-amber-600" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
-              {taxaConversao.toFixed(1)}%
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {leadsAgendados} agendamentos
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-success">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Compareceram
-            </CardTitle>
-            <div className="p-2 bg-success/10 rounded-lg">
-              <Award className="h-5 w-5 text-success" />
+        <Card className="border border-slate-200/60 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Compareceram</p>
+                <p className="text-3xl font-bold text-slate-900 mt-1">{leadsCompareceram}</p>
+                <p className="text-xs text-slate-500 mt-1.5">
+                  {leadsAgendados > 0 ? Math.round((leadsCompareceram / leadsAgendados) * 100) : 0}% dos agendados
+                </p>
+              </div>
+              <div className="p-2.5 bg-emerald-50 rounded-xl">
+                <Award className="h-5 w-5 text-emerald-600" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">{leadsCompareceram}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {leadsAgendados > 0 ? Math.round((leadsCompareceram / leadsAgendados) * 100) : 0}% dos agendados
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Distribuição por Status */}
-      <Card className="shadow-md">
-        <CardHeader className="border-b">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <CardTitle>Distribuição por Status</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {Object.entries(statusCount).map(([status, count]) => {
-              const percentage = totalLeads > 0 ? (count / totalLeads) * 100 : 0;
-              
-              return (
-                <div key={status} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium capitalize">{status}</span>
-                    <span className="text-muted-foreground">
-                      {count} leads ({percentage.toFixed(1)}%)
-                    </span>
+      {/* Status Distribution + Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Status Distribution */}
+        <Card className="border border-slate-200/60 shadow-sm lg:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-slate-500" />
+              <CardTitle className="text-sm font-semibold text-slate-800">Distribuicao por Status</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2.5">
+              {sortedStatuses.map(([status, count]) => {
+                const percentage = totalLeads > 0 ? (count / totalLeads) * 100 : 0;
+                const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+                return (
+                  <div key={status} className="group flex items-center gap-3">
+                    <span className="text-xs font-medium text-slate-600 capitalize w-[140px] truncate" title={status}>{status}</span>
+                    <div className="flex-1 h-7 bg-slate-50 rounded-lg overflow-hidden relative">
+                      <div
+                        className="h-full bg-slate-200 rounded-lg transition-all duration-500 group-hover:bg-slate-300"
+                        style={{ width: `${barWidth}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-2.5">
+                        <span className="text-[10px] font-semibold text-slate-600">
+                          {count} ({percentage.toFixed(0)}%)
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <Progress 
-                    value={percentage} 
-                    className="h-2"
-                  />
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Insights Column */}
+        <div className="space-y-4">
+          <Card className="border border-slate-200/60 shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Status Predominante</p>
+              <p className="text-lg font-bold text-slate-900 capitalize mt-1">
+                {statusMaisFrequente ? statusMaisFrequente[0] : '-'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {statusMaisFrequente ? `${statusMaisFrequente[1]} leads` : 'Sem dados'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-200/60 shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Com Tratamento</p>
+              <p className="text-lg font-bold text-slate-900 mt-1">{leadsComTratamento}</p>
+              <p className="text-xs text-slate-500">
+                {totalLeads > 0 ? Math.round((leadsComTratamento / totalLeads) * 100) : 0}% do total
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-200/60 shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Maior Queda</p>
+                  <p className="text-lg font-bold text-red-600 mt-1">-{maxDrop.toFixed(1)}%</p>
+                  <p className="text-xs text-slate-500">{maxDropLabel || 'Sem dados'}</p>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                <TrendingDown className="h-4 w-4 text-red-400 mt-1" />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Resumo adicional */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="shadow-md">
-          <CardHeader className="border-b">
-            <CardTitle className="text-base">Status Predominante</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold capitalize">
-                  {statusMaisFrequente ? statusMaisFrequente[0] : '-'}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {statusMaisFrequente ? `${statusMaisFrequente[1]} leads neste status` : 'Sem dados'}
-                </p>
-              </div>
-              <div className="p-3 bg-primary/10 rounded-full">
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader className="border-b">
-            <CardTitle className="text-base">Com Tratamento Definido</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold">{leadsComTratamento}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {totalLeads > 0 ? Math.round((leadsComTratamento / totalLeads) * 100) : 0}% do total de leads
-                </p>
-              </div>
-              <div className="p-3 bg-accent/10 rounded-full">
-                <Clock className="h-6 w-6 text-accent" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md border-l-4 border-l-destructive/50">
-          <CardHeader className="border-b">
-            <CardTitle className="text-base">Maior Queda</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  {maxDropLabel || 'Sem dados suficientes'}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-destructive">
-                    -{maxDrop.toFixed(1)}%
-                  </p>
+          <Card className="border border-slate-200/60 shadow-sm">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Maior Retencao</p>
+                  <p className="text-lg font-bold text-emerald-600 mt-1">{maxRetention.toFixed(1)}%</p>
+                  <p className="text-xs text-slate-500">{maxRetentionLabel || 'Sem dados'}</p>
                 </div>
-                {maxDropValue > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Perda de {maxDropValue} leads nesta etapa
-                  </p>
-                )}
+                <TrendingUp className="h-4 w-4 text-emerald-400 mt-1" />
               </div>
-              <div className="p-3 bg-destructive/10 rounded-full">
-                <TrendingDown className="h-6 w-6 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md border-l-4 border-l-success/60">
-          <CardHeader className="border-b">
-            <CardTitle className="text-base">Maior Retenção</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">
-                  {maxRetentionLabel || 'Sem dados suficientes'}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-success">
-                    {maxRetention.toFixed(1)}%
-                  </p>
-                </div>
-                {maxRetentionValue > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Retidos {maxRetentionValue} leads nessa etapa
-                  </p>
-                )}
-              </div>
-              <div className="p-3 bg-success/10 rounded-full">
-                <TrendingUp className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Funil de Marketing */}
-      <Card className="shadow-md overflow-hidden">
-        <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      {/* Funnel */}
+      <Card className="border border-slate-200/60 shadow-sm">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-primary/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-primary" />
-              </div>
+              <TrendingUp className="h-4 w-4 text-slate-500" />
               <div>
-                <CardTitle className="text-base">Funil de Marketing</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Jornada do lead até a consulta</p>
+                <CardTitle className="text-sm font-semibold text-slate-800">Funil de Marketing</CardTitle>
+                <p className="text-[11px] text-slate-400 mt-0.5">Jornada do lead ate a consulta</p>
               </div>
             </div>
             <Select value={funnelPeriod} onValueChange={onFunnelPeriodChange}>
-              <SelectTrigger className="w-[160px] h-8 text-xs">
-                <SelectValue placeholder="Período" />
+              <SelectTrigger className="w-[140px] h-8 text-xs border-slate-200">
+                <SelectValue placeholder="Periodo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="15">Últimos 15 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="90">Últimos 90 dias</SelectItem>
-                <SelectItem value="all">Todo período</SelectItem>
+                <SelectItem value="7">Ultimos 7 dias</SelectItem>
+                <SelectItem value="15">Ultimos 15 dias</SelectItem>
+                <SelectItem value="30">Ultimos 30 dias</SelectItem>
+                <SelectItem value="90">Ultimos 90 dias</SelectItem>
+                <SelectItem value="all">Todo periodo</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="pt-6 pb-8 px-8">
+        <CardContent className="pt-2 pb-6 px-6">
           <div className="flex flex-col items-center w-full gap-0">
             {funnelSteps.map((step, index) => {
               const prevStep = index > 0 ? funnelSteps[index - 1] : null;
@@ -428,70 +328,65 @@ export const Dashboard = ({ posts, lastDisparosTotal = 0, funnelPeriod = 'all', 
 
               return (
                 <div key={index} className="w-full flex flex-col items-center">
-                  {/* Badge de conversão */}
+                  {/* Conversion badge between steps */}
                   {index > 0 && convRate !== null && (
-                    <div className="flex items-center gap-1.5 my-2">
-                      <div className="h-4 w-px bg-border" />
-                      <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                    <div className="flex items-center gap-2 my-1.5">
+                      <div className="h-3 w-px bg-slate-200" />
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
                         convRate >= 60
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : convRate >= 30
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-red-50 text-red-700 border border-red-200'
                       }`}>
                         ↓ {convRate}%
                       </span>
-                      <div className="h-4 w-px bg-border" />
+                      <div className="h-3 w-px bg-slate-200" />
                     </div>
                   )}
 
-                  {/* Barra */}
+                  {/* Bar */}
                   <div
-                    className="relative group overflow-hidden rounded-xl transition-all duration-200 hover:scale-[1.01] hover:shadow-xl"
+                    className={`${step.color} relative group rounded-lg transition-all duration-200 hover:shadow-md`}
                     style={{
                       width: `${step.widthPct}%`,
-                      minWidth: 200,
+                      minWidth: 220,
                       maxWidth: '100%',
-                      background: `linear-gradient(90deg, ${step.colors.from}, ${step.colors.to})`,
-                      boxShadow: `0 4px 16px ${step.colors.shadow}`,
                     }}
                   >
-                    <div className="flex items-center justify-between px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-white/20 rounded-lg shrink-0">
-                          <Icon className="w-4 h-4 text-white" />
-                        </div>
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Icon className="w-4 h-4 text-white/80 shrink-0" />
                         <div>
-                          <p className="text-white font-bold text-sm leading-tight">{step.label}</p>
-                          <p className="text-white/65 text-[10px] leading-tight">{step.sublabel}</p>
+                          <p className="text-white font-semibold text-[13px] leading-tight">{step.label}</p>
+                          <p className="text-white/50 text-[10px] leading-tight">{step.sublabel}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-white/60 text-xs font-medium">{ofTotal}% do total</span>
-                        <span className="text-white font-extrabold text-2xl tabular-nums">
+                        <span className="text-white/50 text-[10px] font-medium">{ofTotal}%</span>
+                        <span className="text-white font-bold text-xl tabular-nums">
                           {step.value.toLocaleString('pt-BR')}
                         </span>
                       </div>
                     </div>
-                    {/* Shimmer no hover */}
-                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/8 transition-colors duration-200 rounded-xl" />
+                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/[0.06] transition-colors duration-200 rounded-lg" />
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Rodapé com taxa geral */}
+          {/* Overall conversion footer */}
           {funnelSteps[0].value > 0 && funnelCompareceu > 0 && (
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="text-xs font-semibold text-emerald-700">
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <div className="h-px flex-1 bg-slate-100" />
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-md">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span className="text-[10px] font-semibold text-emerald-700">
                   Taxa geral: {((funnelCompareceu / funnelSteps[0].value) * 100).toFixed(1)}% chegaram ao fim
                 </span>
               </div>
-              <div className="h-px flex-1 bg-border" />
+              <div className="h-px flex-1 bg-slate-100" />
             </div>
           )}
         </CardContent>

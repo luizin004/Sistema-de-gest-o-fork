@@ -46,51 +46,51 @@ interface KanbanBoardProps {
 
 // Status config - memoized outside component
 const statusConfig = [
-  { 
-    name: "Em Negociação", 
-    headerBgClass: "bg-emerald-600",
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-emerald-50/70",
+  {
+    name: "Em Negociação",
+    headerBgClass: "bg-slate-700",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-slate-50/50",
     description: "Leads engajados e negociando",
     icon: MessageCircle
   },
-  { 
-    name: "Em Cadência", 
-    headerBgClass: "bg-orange-500",
-    counterClass: "bg-white/25 text-white",
-    columnBgClass: "bg-amber-50/70",
+  {
+    name: "Em Cadência",
+    headerBgClass: "bg-amber-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-amber-50/30",
     description: "Em processo de cadência",
     icon: Clock4
   },
-  { 
-    name: "Interessados em agendar", 
-    headerBgClass: "bg-rose-500",
-    counterClass: "bg-white/25 text-white",
-    columnBgClass: "bg-rose-50/70",
+  {
+    name: "Interessados em agendar",
+    headerBgClass: "bg-violet-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-violet-50/30",
     description: "Leads prontos para agendar",
     icon: CalendarCheck2
   },
-  { 
-    name: "Agendados", 
-    headerBgClass: "bg-sky-600",
-    counterClass: "bg-white/25 text-white",
-    columnBgClass: "bg-blue-50/70",
+  {
+    name: "Agendados",
+    headerBgClass: "bg-emerald-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-emerald-50/30",
     description: "Consultas agendadas",
     icon: Smile
   },
   {
     name: "Em Atenção",
-    headerBgClass: "bg-yellow-600",
-    counterClass: "bg-white/25 text-white",
-    columnBgClass: "bg-yellow-50/70",
+    headerBgClass: "bg-orange-500",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-orange-50/30",
     description: "Leads que precisam de atenção humana",
     icon: AlertTriangle
   },
   {
     name: "Problemas/Perdidos",
     headerBgClass: "bg-red-600",
-    counterClass: "bg-white/25 text-white",
-    columnBgClass: "bg-red-50/70",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-red-50/30",
     description: "Leads com problemas ou perdidos",
     icon: AlertTriangle
   }
@@ -490,7 +490,29 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
         .eq('id', postId);
       
       if (error) throw error;
-      
+
+      // Reativar ou pausar bot conforme a coluna de destino
+      const reactivateStatuses = ["Em Negociação", "Em Cadência"];
+      const pauseStatuses = ["Em Atenção", "Problemas/Perdidos"];
+      if (reactivateStatuses.includes(newStatus)) {
+        // Reativa bot + atualiza post
+        await supabase.from('posts').update({ bot_paused: false, bot_pause_reason: null } as any).eq('id', postId);
+        if (post?.instance_id) {
+          await (supabase as any)
+            .from('chatbot_conversations')
+            .update({ bot_active: true, pause_reason: null })
+            .eq('post_id', postId);
+        }
+      } else if (pauseStatuses.includes(newStatus)) {
+        await supabase.from('posts').update({ bot_paused: true, bot_pause_reason: resolvedStatus } as any).eq('id', postId);
+        if (post?.instance_id) {
+          await (supabase as any)
+            .from('chatbot_conversations')
+            .update({ bot_active: false, pause_reason: resolvedStatus })
+            .eq('post_id', postId);
+        }
+      }
+
       // Sincroniza com tabela agendamento quando muda para status de presença ou confirmado
       if (newStatus === "Compareceu" || newStatus === "Não compareceu" || newStatus === "Confirmado") {
         if (normalizedPhone) {
@@ -1041,7 +1063,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
               variant="default"
               size="sm"
               onClick={() => setShowAddLeadDialog(true)}
-              className="gap-2 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              className="gap-2 h-10 rounded-xl bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Inserir Lead
@@ -1073,7 +1095,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex flex-col rounded-[28px] border border-white/35 bg-white/20 backdrop-blur-[22px] shadow-[0_40px_120px_-70px_rgba(5,15,36,0.85)] h-[calc(100vh-310px)]">
+        <div className="flex flex-col rounded-xl border border-slate-200/60 bg-white/60 backdrop-blur-sm shadow-sm h-[calc(100vh-310px)]">
           {/* Scrollbar horizontal no topo */}
           <div 
             ref={containerRef}
@@ -1127,7 +1149,7 @@ export const KanbanBoard = ({ posts, onRefresh }: KanbanBoardProps) => {
               }
             `}</style>
             
-            <div className="grid grid-cols-6 gap-2 p-4 pt-2 w-full items-start">
+            <div className="grid grid-cols-6 gap-3 p-4 pt-2 w-full items-start">
               {statusConfig.map(({ name: status, headerBgClass, counterClass, columnBgClass, description, icon }) => (
                 <KanbanColumn
                   key={status}
@@ -1434,33 +1456,28 @@ const KanbanColumn = memo(({
 
   return (
     <div className="min-w-0 kanban-column flex flex-col">
-      <div className={`${headerBgClass} text-white px-4 py-2.5 rounded-t-2xl flex items-center justify-between gap-2 shadow-sm`}>
+      <div className={`${headerBgClass} text-white px-3 py-2 rounded-t-xl flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {Icon && (
-            <div className="bg-white/15 rounded-full p-1.5 flex items-center justify-center">
-              <Icon className="h-4 w-4" />
-            </div>
+            <Icon className="h-4 w-4 opacity-80" />
           )}
           <div className="flex flex-col min-w-0 flex-1">
-            <h3 className="font-semibold text-[13px] leading-tight truncate" title={status}>{status}</h3>
-            {description && (
-              <p className="text-[10px] text-white/80 truncate" title={description}>{description}</p>
-            )}
+            <h3 className="font-semibold text-xs leading-tight truncate" title={status}>{status}</h3>
           </div>
         </div>
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${counterClass} flex-shrink-0 min-w-[32px] text-center`}>
+        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${counterClass} flex-shrink-0 min-w-[32px] text-center`}>
           {filteredPosts.length}{globalSearchTerm && `/${posts.length}`}
         </span>
       </div>
       
-      <div ref={setNodeRef} className={`kanban-column-scroll space-y-2.5 p-2.5 rounded-b-2xl border border-t-0 border-slate-200 ${columnBgClass} backdrop-blur-[2px] overflow-y-auto overflow-x-hidden scroll-smooth min-h-[120px] max-h-[calc(100vh-390px)]`}>
+      <div ref={setNodeRef} className={`kanban-column-scroll space-y-2.5 p-2.5 rounded-b-xl border border-t-0 border-slate-200/60 ${columnBgClass} overflow-y-auto overflow-x-hidden scroll-smooth min-h-[120px] max-h-[calc(100vh-390px)]`}>
         {posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <User className="h-8 w-8 mb-2 opacity-20" />
+          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+            <User className="h-7 w-7 mb-2 opacity-15" />
             <p className="text-xs">Nenhum lead</p>
           </div>
         ) : filteredPosts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Search className="h-8 w-8 mb-2 opacity-20" />
             <p className="text-xs">Nenhum resultado para "{globalSearchTerm}"</p>
             <button 
@@ -1653,7 +1670,7 @@ const DraggableCard = memo(({
     <div className="relative">
       <div
         ref={setNodeRef}
-        className={`kanban-card bg-white shadow-sm cursor-pointer transition-all duration-300 min-h-[70px] rounded-2xl ${isInterestedInSchedulingForBorder ? 'border-2 border-rose-300' : 'border border-gray-100'} ${isDragging ? 'opacity-40 scale-95' : 'hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-100/50'}`}
+        className={`kanban-card bg-white shadow-sm cursor-pointer transition-all duration-300 min-h-[70px] rounded-xl ${isInterestedInSchedulingForBorder ? 'border-l-[3px] border-l-violet-400 border border-slate-200/80' : 'border border-slate-200/80'} ${isDragging ? 'opacity-40 scale-95' : 'hover:shadow-md hover:border-slate-300/80'}`}
         {...attributes}
         {...listeners}
         onClick={(e) => {
@@ -1665,7 +1682,7 @@ const DraggableCard = memo(({
 
           {/* Linha 1: Avatar + Nome completo */}
           <div className="flex items-center gap-2">
-            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-semibold text-[11px] shadow-sm">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-[11px] shadow-sm">
               {getInitials(post.nome)}
             </div>
             <h4 className="font-semibold text-[13px] text-gray-900 leading-tight flex-1 min-w-0 break-words line-clamp-2">{post.nome}</h4>

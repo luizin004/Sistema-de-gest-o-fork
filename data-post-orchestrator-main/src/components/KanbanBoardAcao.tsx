@@ -43,39 +43,39 @@ interface KanbanBoardAcaoProps {
 
 // Status config do kanban de ação com cores solicitadas
 const acaoStatusConfig = [
-  { 
-    name: "Interagindo", 
-    headerBgClass: "bg-emerald-600", 
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-green-50/70",
+  {
+    name: "Interagindo",
+    headerBgClass: "bg-slate-700",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-slate-50/50",
     icon: MessageCircle
   },
-  { 
-    name: "Não Respondeu", 
-    headerBgClass: "bg-orange-500", 
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-amber-50/70",
+  {
+    name: "Não Respondeu",
+    headerBgClass: "bg-amber-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-amber-50/30",
     icon: Clock4
   },
-  { 
-    name: "Em Atenção", 
-    headerBgClass: "bg-rose-600", 
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-rose-50/70",
+  {
+    name: "Em Atenção",
+    headerBgClass: "bg-orange-500",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-orange-50/30",
     icon: AlertTriangle
   },
-  { 
-    name: "Interessados em Agendar", 
-    headerBgClass: "bg-sky-600", 
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-blue-50/70",
+  {
+    name: "Interessados em Agendar",
+    headerBgClass: "bg-violet-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-violet-50/30",
     icon: CalendarCheck2
   },
-  { 
-    name: "Em Cadência", 
-    headerBgClass: "bg-purple-600", 
-    counterClass: "bg-white/20 text-white",
-    columnBgClass: "bg-purple-50/70",
+  {
+    name: "Em Cadência",
+    headerBgClass: "bg-red-600",
+    counterClass: "bg-white/15 text-white",
+    columnBgClass: "bg-red-50/30",
     icon: Repeat
   }
 ];
@@ -246,7 +246,7 @@ const DraggableCard = ({ post, onClick }: { post: Post; onClick: () => void }) =
     <div
       ref={setNodeRef}
       style={style}
-      className={`kanban-card bg-white border border-white/70 shadow-[0_4px_12px_rgba(15,23,42,0.08)] cursor-pointer transition-all duration-200 min-h-[90px] lg:min-h-[100px] rounded-2xl ${isDraggableDragging ? 'opacity-40' : 'hover:-translate-y-[3px] hover:shadow-[0_14px_35px_rgba(15,23,42,0.18)]'}`}
+      className={`kanban-card bg-white border border-slate-200/80 shadow-[0_4px_12px_rgba(15,23,42,0.08)] cursor-pointer transition-all duration-200 min-h-[90px] lg:min-h-[100px] rounded-xl ${isDraggableDragging ? 'opacity-40' : 'hover:shadow-md hover:border-slate-300/80'}`}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -258,7 +258,7 @@ const DraggableCard = ({ post, onClick }: { post: Post; onClick: () => void }) =
 
           {/* Linha 1: Avatar + Nome + Telefone + bolinhas de status */}
           <div className="flex items-center gap-2.5">
-            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-semibold text-sm shadow-sm">
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-sm shadow-sm">
               {getInitials(post.nome)}
             </div>
             <div className="flex-1 min-w-0">
@@ -533,8 +533,25 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
 
       if (error) throw error;
 
+      // Reativar ou pausar bot conforme a coluna de destino
+      const reactivateColumns = ["Interagindo", "Em Cadência"];
+      const pauseColumns = ["Em Atenção"];
+      if (reactivateColumns.includes(columnName)) {
+        await supabase.from('posts').update({ bot_paused: false, bot_pause_reason: null } as any).eq('id', postId);
+        await (supabase as any)
+          .from('chatbot_conversations')
+          .update({ bot_active: true, pause_reason: null })
+          .eq('post_id', postId);
+      } else if (pauseColumns.includes(columnName) || columnName === "Interessados em Agendar") {
+        await supabase.from('posts').update({ bot_paused: true, bot_pause_reason: newStatus } as any).eq('id', postId);
+        await (supabase as any)
+          .from('chatbot_conversations')
+          .update({ bot_active: false, pause_reason: newStatus })
+          .eq('post_id', postId);
+      }
+
       toast.success(`Status atualizado para "${newStatus}"!`);
-      
+
       // Forçar refresh imediatamente
       if (onRefresh) {
         onRefresh();
@@ -638,29 +655,27 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
     return (
       <div key={column.name} className="space-y-3">
         {/* Column Header - novo estilo CRM */}
-        <div className={`${column.headerBgClass} text-white px-4 py-2.5 rounded-t-2xl flex items-center justify-between gap-2 shadow-sm`}>
+        <div className={`${column.headerBgClass} text-white px-3 py-2 rounded-t-xl flex items-center justify-between gap-2`}>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {column.icon && (
-              <div className="bg-white/15 rounded-full p-1.5 flex items-center justify-center">
-                <column.icon className="h-4 w-4" />
-              </div>
+              <column.icon className="h-4 w-4 opacity-80" />
             )}
             <div className="flex flex-col min-w-0 flex-1">
-              <h3 className="font-semibold text-[13px] leading-tight truncate" title={column.name}>
+              <h3 className="font-semibold text-xs leading-tight truncate" title={column.name}>
                 {column.name}
                 {!isDroppable && <span className="text-xs opacity-75 ml-1">(bloqueado para receber)</span>}
               </h3>
             </div>
           </div>
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${column.counterClass} flex-shrink-0 min-w-[32px] text-center`}>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${column.counterClass} flex-shrink-0 min-w-[32px] text-center`}>
             {column.posts.length}
           </span>
         </div>
 
         {/* Column Content - mesmo estilo com scroll */}
-        <div 
+        <div
           ref={isDroppable ? setNodeRef : undefined}
-          className={`h-full max-h-[calc(100vh-420px)] ${column.columnBgClass} rounded-b-lg p-3 space-y-3 overflow-y-auto overflow-x-hidden scroll-smooth transition-colors ${isOver && isDroppable ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}
+          className={`h-full max-h-[calc(100vh-420px)] ${column.columnBgClass} rounded-b-xl p-3 space-y-3 overflow-y-auto overflow-x-hidden scroll-smooth transition-colors ${isOver && isDroppable ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}
         >
           {children}
         </div>
@@ -693,28 +708,26 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
 
     return (
       <div className="min-w-0 kanban-column flex flex-col">
-        <div className={`${column.headerBgClass} text-white px-4 py-2.5 rounded-t-2xl flex items-center justify-between gap-2 shadow-sm`}>
+        <div className={`${column.headerBgClass} text-white px-3 py-2 rounded-t-xl flex items-center justify-between gap-2`}>
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {column.icon && (
-              <div className="bg-white/15 rounded-full p-1.5 flex items-center justify-center">
-                <column.icon className="h-4 w-4" />
-              </div>
+              <column.icon className="h-4 w-4 opacity-80" />
             )}
             <div className="flex flex-col min-w-0 flex-1">
-              <h3 className="font-semibold text-[13px] leading-tight truncate" title={column.name}>
+              <h3 className="font-semibold text-xs leading-tight truncate" title={column.name}>
                 {column.name}
                 {!isDroppable && <span className="text-xs opacity-75 ml-1">(bloqueado para receber)</span>}
               </h3>
             </div>
           </div>
-          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${column.counterClass} flex-shrink-0 min-w-[32px] text-center`}>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${column.counterClass} flex-shrink-0 min-w-[32px] text-center`}>
             {filteredPosts.length}{globalSearchTerm && `/${column.posts.length}`}
           </span>
         </div>
-        
-        <div 
+
+        <div
           ref={isDroppable ? setNodeRef : undefined}
-          className={`kanban-column-scroll space-y-2.5 p-2.5 rounded-b-2xl border border-t-0 border-slate-200 ${column.columnBgClass} backdrop-blur-[2px] overflow-y-auto overflow-x-hidden scroll-smooth transition-colors min-h-[120px] max-h-[calc(100vh-420px)] ${isOver && isDroppable ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}
+          className={`kanban-column-scroll space-y-2.5 p-2.5 rounded-b-xl border border-t-0 border-slate-200/60 ${column.columnBgClass} overflow-y-auto overflow-x-hidden scroll-smooth transition-colors min-h-[120px] max-h-[calc(100vh-420px)] ${isOver && isDroppable ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}`}
         >
           {column.posts.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
@@ -752,7 +765,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
       <div className="space-y-6">
         {/* Barra de busca e ações */}
         <div className="px-4 pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/40 bg-white/30 p-3 backdrop-blur-2xl shadow-[0_20px_60px_-45px_rgba(15,23,42,0.6)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white/60 backdrop-blur-sm shadow-sm p-3">
             <div className="flex-1 min-w-[280px]">
               <div className="relative max-w-md mx-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -810,7 +823,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
                 variant="default"
                 size="sm"
                 onClick={() => setShowAddLeadDialog(true)}
-                className="gap-2 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                className="gap-2 h-10 rounded-xl bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
               >
                 <Plus className="h-4 w-4" />
                 Inserir Lead
@@ -820,7 +833,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
         </div>
         
         {/* Kanban Columns - mesma estrutura do KanbanBoard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 w-full items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 w-full items-start">
           {kanbanColumns.map((column) => (
             <SearchableColumn key={column.name} column={column} />
           ))}
@@ -830,7 +843,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
           {activePost ? (
             <div className="bg-white border-2 border-blue-400 rounded-xl shadow-2xl p-3 opacity-90">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-semibold text-xs">
+                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs">
                   {getInitials(activePost.nome)}
                 </div>
                 <div>
@@ -976,7 +989,7 @@ export const KanbanBoardAcao = ({ posts, onRefresh }: { posts: Post[]; onRefresh
               <Button
                 onClick={handleAddLead}
                 disabled={isAddingLead || !newLead.nome.trim() || !newLead.telefone.trim() || !newLead.status.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-slate-800 hover:bg-slate-900 text-white"
               >
                 {isAddingLead ? "Inserindo..." : "Inserir Lead"}
               </Button>
