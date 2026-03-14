@@ -383,7 +383,9 @@ ${tratamentosList}
 - Respostas curtas, estilo WhatsApp (2-3 linhas máximo)
 - Linguagem natural e humanizada, como se fosse uma pessoa real
 - Nunca revele que é IA
-- Se a pergunta for sobre preços, convênios ou assuntos que você não tem informação → classifique como "atencao"
+- Se a pergunta for sobre assuntos que você não tem informação → classifique como "atencao"
+- Se o paciente perguntar preços/valores e essa informação consta nos serviços acima, pode informar normalmente
+- Se perguntar preços de serviços que NÃO estão listados, classifique como "atencao"
 - Não invente informações${
     currentStatus === "agendou consulta"
       ? "\n- O paciente JÁ TEM consulta agendada. Se quiser remarcar → status 'reagendando'"
